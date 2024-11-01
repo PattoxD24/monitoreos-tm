@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+"use client";
+import { useEffect, useRef, useState } from "react";
 import html2canvas from "html2canvas";
 
 export default function StudentModal({
@@ -10,8 +11,13 @@ export default function StudentModal({
   reorderColumns,
   getFilledAColumns
 }) {
+  const [isTableVisible, setIsTableVisible] = useState(true);
   const modalRef = useRef(null);
   const hiddenTableRef = useRef(null);
+
+  const toggleTableVisibility = () => {
+    setIsTableVisible((prev) => !prev);
+  }
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -66,7 +72,14 @@ export default function StudentModal({
           >
             Descargar Tabla como Imagen
           </button>
+          <button
+            onClick={toggleTableVisibility}
+            className="mb-4 px-4 py-2 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 transition"
+          >
+            {isTableVisible ? "Ocultar Tabla" : "Mostrar Tabla"}
+          </button>
 
+          {isTableVisible && (
           <div className="overflow-auto">
             <table className="table-fixed border-collapse border border-gray-300">
               <thead>
@@ -96,7 +109,8 @@ export default function StudentModal({
                 ))}
               </tbody>
             </table>
-          </div>
+            </div>
+          )}
         </div>
       </div>
 
