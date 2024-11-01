@@ -7,6 +7,7 @@ import FileUploader from "../components/FileUploader";
 import StudentCard from "../components/StudentCard";
 import StudentModal from "../components/StudentModal";
 import ColumnSelector from "../components/ColumnSelector";
+import SearchBar from "../components/SearchBar";
 
 export default function Home() {
   const [file1, setFile1] = useState(null);
@@ -17,6 +18,7 @@ export default function Home() {
   const [visibleColumns, setVisibleColumns] = useState({});
   const [showColumnSelector, setShowColumnSelector] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const defaultVisibleColumns = {
     Matrícula: true,
@@ -131,6 +133,15 @@ export default function Home() {
     setSelectedStudent(null);
   };
 
+  const filteredStudents = studentData.filter((student) => {
+    const search = searchTerm.toLowerCase();
+    return (
+      student.matricula.toLowerCase().includes(search) ||
+      student.preferredName.toLowerCase().includes(search) ||
+      student.fullName.toLowerCase().includes(search)
+    );
+  });
+
   return (
     <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
       <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start w-full">
@@ -140,6 +151,7 @@ export default function Home() {
 
         {/* Cargar Archivos */}
         <FileUploader onFile1Change={handleFile1Change} onFile2Change={handleFile2Change} onProcessFiles={handleProcessFiles} />
+
 
         {Object.keys(filteredData).length > 0 && (
           <div>
@@ -154,13 +166,17 @@ export default function Home() {
             {showColumnSelector && (
               <ColumnSelector columns={columns} visibleColumns={visibleColumns} toggleColumnVisibility={toggleColumnVisibility} />
             )}
+            <div className="mt-4">
+              {/* Barra de búsqueda */}
+              <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
+            </div>
           </div>
         )}
             
 
         {/* Tarjetas de Estudiantes */}
         <div className="grid grid-cols-[repeat(auto-fill,_minmax(150px,_1fr))] gap-4 mt-8 w-full">
-          {studentData.map((student) => (
+          {filteredStudents.map((student) => (
             <StudentCard key={student.matricula} student={student} onClick={openModal} />
           ))}
         </div>
