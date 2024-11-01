@@ -137,43 +137,47 @@ export default function Home() {
   const calculateSortingCriteria = (student) => {
     const studentMatricula = student.matricula;
     const studentSubjects = filteredData[studentMatricula] || [];
-
+  
     let neCount = 0;
     let minPonderado = Infinity;
-
+  
     studentSubjects.forEach((subject) => {
-      // Encontrar la última columna "A" con un valor
       const lastAColumn = Object.keys(subject)
         .filter((col) => /^A\d+$/.test(col) && subject[col])
         .sort((a, b) => parseInt(a.slice(1)) - parseInt(b.slice(1)))
         .pop();
-
-      // Contar "NE" en la última columna con valor
+  
       if (lastAColumn && subject[lastAColumn] === "NE") {
         neCount += 1;
       }
-
-      // Actualizar el valor mínimo de "Ponderado" en todas las materias
+  
       if (subject.Ponderado && !isNaN(subject.Ponderado)) {
         minPonderado = Math.min(minPonderado, parseInt(subject.Ponderado));
       }
     });
-
-    return { neCount, minPonderado };
-  };
-
-  // Ordenar los estudiantes
-  const sortedStudents = [...studentData].sort((a, b) => {
-    const { neCount: neCountA, minPonderado: minPonderadoA } = calculateSortingCriteria(a);
-    const { neCount: neCountB, minPonderado: minPonderadoB } = calculateSortingCriteria(b);
-
-    // Ordenar por número de "NE" (descendente)
-    if (neCountA !== neCountB) {
-      return neCountB - neCountA;
+  
+    // Determinar el color de fondo según el valor de `minPonderado`
+    let backgroundColor = "";
+    if (minPonderado < 70) {
+      backgroundColor = "#FFCCCC"; // Rojo suave
+    } else if (minPonderado >= 70 && minPonderado <= 75) {
+      backgroundColor = "#FFD9B3"; // Naranja suave
+    } else if (minPonderado >= 76 && minPonderado <= 84) {
+      backgroundColor = "#FFFFCC"; // Amarillo suave
+    } else {
+      backgroundColor = "#CCFFCC"; // Verde suave
     }
-
-    // Ordenar por valor mínimo de "Ponderado" (ascendente)
-    return minPonderadoA - minPonderadoB;
+  
+    return { neCount, minPonderado, backgroundColor };
+  };
+  
+  // Ordenar los estudiantes
+  const sortedStudents = [...studentData].map((student) => {
+    const criteria = calculateSortingCriteria(student);
+    return { ...student, ...criteria };
+  }).sort((a, b) => {
+    if (a.neCount !== b.neCount) return b.neCount - a.neCount;
+    return a.minPonderado - b.minPonderado;
   });
 
   // Filtrar los estudiantes según el término de búsqueda
