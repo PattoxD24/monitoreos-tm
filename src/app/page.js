@@ -190,6 +190,10 @@ export default function Home() {
     );
   });
 
+  const handleDeleteStudent = (matricula) => {
+    setStudentData((prevData) => prevData.filter((student) => student.matricula !== matricula));
+  };
+
   return (
     <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
       <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start w-full">
@@ -225,7 +229,7 @@ export default function Home() {
         {/* Tarjetas de Estudiantes */}
         <div className="grid grid-cols-[repeat(auto-fill,_minmax(150px,_1fr))] gap-4 mt-8 w-full">
           {filteredStudents.map((student) => (
-            <StudentCard key={student.matricula} student={student} onClick={openModal} />
+            <StudentCard key={student.matricula} student={student} onClick={openModal} onDelete={handleDeleteStudent}/>
           ))}
         </div>
 
