@@ -3,6 +3,8 @@
 import Image from "next/image";
 import { useState } from "react";
 import * as XLSX from "xlsx";
+import JSZip from "jszip";
+import html2canvas from "html2canvas";
 import FileUploader from "../components/FileUploader";
 import StudentCard from "../components/StudentCard";
 import StudentModal from "../components/StudentModal";
@@ -19,6 +21,9 @@ export default function Home() {
   const [showColumnSelector, setShowColumnSelector] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [sortOrder, setSortOrder] = useState("original");
+  const [isAscending, setIsAscending] = useState(true);
 
   const defaultVisibleColumns = {
     Matrícula: true,
@@ -170,15 +175,26 @@ export default function Home() {
   
     return { neCount, minPonderado, backgroundColor };
   };
+
+  const sortStudents = (students) => {
+    return [...students].sort((a, b) => {
+      let comparison = 0;
+      if (sortOrder === "matricula") {
+        comparison = a.matricula.localeCompare(b.matricula);
+      } else if (sortOrder === "nombre") {
+        comparison = a.preferredName.localeCompare(b.preferredName);
+      } else if (sortOrder === "original") {
+        comparison = (a.neCount !== b.neCount ) ? b.neCount - a.neCount : a.minPonderado - b.minPonderado;
+      }
+      return isAscending ? comparison : -comparison;
+    });
+  };
   
   // Ordenar los estudiantes
-  const sortedStudents = [...studentData].map((student) => {
+  const sortedStudents = sortStudents([...studentData].map((student) => {
     const criteria = calculateSortingCriteria(student);
     return { ...student, ...criteria };
-  }).sort((a, b) => {
-    if (a.neCount !== b.neCount) return b.neCount - a.neCount;
-    return a.minPonderado - b.minPonderado;
-  });
+  }));
 
   // Filtrar los estudiantes según el término de búsqueda
   const filteredStudents = sortedStudents.filter((student) => {
@@ -190,8 +206,84 @@ export default function Home() {
     );
   });
 
+  const handleSortChange = (e) => setSortOrder(e.target.value);
+  const toggleSortDirection = () => setIsAscending(!isAscending);
+
   const handleDeleteStudent = (matricula) => {
     setStudentData((prevData) => prevData.filter((student) => student.matricula !== matricula));
+  };
+
+  const downloadZipWithImages = async () => {
+    setIsLoading(true);
+    const zip = new JSZip();
+
+    for (const student of studentData) {
+      const tableData = filteredData[student.matricula];
+      if (tableData) {
+        const filledAColumns = getFilledAColumns(tableData);
+        // Crear una tabla oculta para capturar la imagen
+        const tableDiv = document.createElement("div");
+        tableDiv.style.position = "absolute";
+        tableDiv.style.top = "-9999px";
+        document.body.appendChild(tableDiv);
+
+        const table = document.createElement("table");
+        table.className = "table-fixed border-collapse border border-gray-300";
+        const thead = document.createElement("thead");
+        const tbody = document.createElement("tbody");
+
+        // Generar el encabezado de la tabla
+        const headerRow = document.createElement("tr");
+        reorderColumns(Object.keys(visibleColumns).filter((col) => visibleColumns[col]),filledAColumns).forEach((col) => {
+          const th = document.createElement("th");
+          th.style.border = "1px solid #ccc";
+          th.style.padding = "8px";
+          th.style.fontSize = "12px";
+          th.style.color = "#333";
+          th.innerText = col;
+          headerRow.appendChild(th);
+        });
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
+
+        // Generar las filas de datos
+        tableData.forEach((row) => {
+          const dataRow = document.createElement("tr");
+          reorderColumns(Object.keys(visibleColumns).filter((col)=>visibleColumns[col]),filledAColumns).forEach((col) => {
+            const td = document.createElement("td");
+            td.style.border = "1px solid #ccc";
+            td.style.padding = "8px";
+            td.style.fontSize = "12px";
+            td.style.color = "#333";
+            td.innerText = row[col] || "";
+            dataRow.appendChild(td);
+          });
+          tbody.appendChild(dataRow);
+        });
+        table.appendChild(tbody);
+        tableDiv.appendChild(table);
+
+        // Capturar la tabla como imagen
+        const canvas = await html2canvas(tableDiv);
+        const imgData = canvas.toDataURL("image/png");
+
+        // Añadir la imagen al archivo zip
+        const imgName = `${student.matricula}.png`;
+        zip.file(imgName, imgData.split(",")[1], { base64: true });
+
+        // Eliminar la tabla oculta del DOM
+        document.body.removeChild(tableDiv);
+      }
+    }
+
+    // Generar y descargar el archivo zip
+    zip.generateAsync({ type: "blob" }).then((content) => {
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(content);
+      link.download = "tablas_estudiantes.zip";
+      link.click();
+      setIsLoading(false);
+    });
   };
 
   return (
@@ -213,6 +305,12 @@ export default function Home() {
             >
               Columnas
             </button>
+            <button
+            onClick={downloadZipWithImages}
+            className="rounded-full bg-green-500 text-white px-4 py-2 mt-4"
+          >
+            Descargar Imágenes como ZIP
+          </button>
 
             {/* Selector de Columnas */}
             {showColumnSelector && (
@@ -221,10 +319,37 @@ export default function Home() {
             <div className="mt-4">
               {/* Barra de búsqueda */}
               <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
+
+              {/* Selector de orden */}
+              <select
+                value={sortOrder}
+                onChange={handleSortChange}
+                className="border rounded-lg p-2 text-gray-700"
+              >
+                <option value="original">Orden original (NE/Ponderación)</option>
+                <option value="matricula">Matrícula</option>
+                <option value="nombre">Nombre</option>
+              </select>
+
+              {/* Botón para alternar entre ascendente y descendente */}
+              <button
+                onClick={toggleSortDirection}
+                className="p-2 border rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-700"
+              >
+                {isAscending ? "Ascendente" : "Descendente"}
+              </button>
             </div>
           </div>
         )}
-            
+
+        {isLoading && (
+          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+            <div className="flex flex-col items-center">
+              <div className="loader border-t-4 border-blue-500 rounded-full w-12 h-12 animate-spin mb-4"></div>
+              <p className="text-white text-lg">Generando archivo ZIP...</p>
+            </div>
+          </div>
+        )} 
 
         {/* Tarjetas de Estudiantes */}
         <div className="grid grid-cols-[repeat(auto-fill,_minmax(150px,_1fr))] gap-4 mt-8 w-full">
