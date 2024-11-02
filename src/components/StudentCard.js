@@ -12,7 +12,7 @@ export default function StudentCard({ student, onClick, onDelete }) {
       <p className="text-sm text-gray-700">{student.fullName}</p>
       
       {/* Botón de eliminar */}
-      {onDelete !== "none" && (
+      {onDelete !== null && (
       <button
         onClick={(e) => {
           e.stopPropagation(); // Evita que el clic en el botón abra el modal
