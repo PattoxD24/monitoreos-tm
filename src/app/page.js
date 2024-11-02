@@ -6,12 +6,12 @@ import * as XLSX from "xlsx";
 import FileUploader from "../components/FileUploader";
 import StudentModal from "../components/StudentModal";
 import ColumnSelector from "../components/ColumnSelector";
-import downloadZipWithImages from "./Utils/downloadZipWithImages";
+import downloadZipWithImages from "../Utils/downloadZipWithImages";
 import ArchivedStudents from "@/components/ArchivedStudents";
 import StudentList from "@/components/StudentList";
 import SortAndFilterControls from "@/components/SortAndFilterControls";
-import useStudentData from "./hooks/useStudentData";
-import Loading from "./Utils/loading";
+import useStudentData from "../hooks/useStudentData";
+import Loading from "../Utils/loading";
 
 export default function Home() {
   const [showColumnSelector, setShowColumnSelector] = useState(false);
