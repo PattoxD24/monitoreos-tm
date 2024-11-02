@@ -15,6 +15,7 @@ export default function Home() {
   const [file1, setFile1] = useState(null);
   const [file2, setFile2] = useState(null);
   const [studentData, setStudentData] = useState([]);
+  const [archivedStudents, setArchivedStudents] = useState([]);
   const [filteredData, setFilteredData] = useState({});
   const [columns, setColumns] = useState([]);
   const [visibleColumns, setVisibleColumns] = useState({});
@@ -210,7 +211,31 @@ export default function Home() {
   const toggleSortDirection = () => setIsAscending(!isAscending);
 
   const handleDeleteStudent = (matricula) => {
-    setStudentData((prevData) => prevData.filter((student) => student.matricula !== matricula));
+    setStudentData((prevData) => {
+      const updatedData = prevData.filter((student) => student.matricula !== matricula);
+      const archivedStudent = prevData.find((student) => student.matricula === matricula);
+      setArchivedStudents((prevArchived) => {
+        if (!prevArchived.some((student) => student.matricula === matricula)) {
+          return [...prevArchived, archivedStudent]; 
+        }
+        return prevArchived;
+      });
+      return updatedData;
+    });
+  };
+
+  const restoreStudent = (matricula) => {
+    setArchivedStudents((prevArchived) => {
+      const updatedArchived = prevArchived.filter((student) => student.matricula !== matricula);
+      const restoredStudent = prevArchived.find((student) => student.matricula === matricula);
+      setStudentData((prevData) => {
+        if (!prevData.some((student) => student.matricula === matricula)) {
+          return [...prevData, restoredStudent];
+        }
+        return prevData;
+      })
+      return updatedArchived;
+    });
   };
 
   const downloadZipWithImages = async () => {
@@ -357,6 +382,23 @@ export default function Home() {
             <StudentCard key={student.matricula} student={student} onClick={openModal} onDelete={handleDeleteStudent}/>
           ))}
         </div>
+
+        {/* Sección de Archivados */}
+        {archivedStudents.length > 0 && (
+          <div className="mt-10 w-full">
+            <h2 className="text-xl font-bold mb-4">Archivados</h2>
+            <div className="grid grid-cols-[repeat(auto-fill,_minmax(150px,_1fr))] gap-4">
+              {archivedStudents.map((student) => (
+                <StudentCard
+                  key={student.matricula}
+                  student={student}
+                  onClick={() => restoreStudent(student.matricula)} 
+                  onDelete={"none"} 
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Modal de Detalles */}
         {selectedStudent && (
