@@ -2,19 +2,21 @@
 
 import Image from "next/image";
 import { useState } from "react";
-import * as XLSX from "xlsx";
-import FileUploader from "../components/FileUploader";
-import StudentModal from "../components/StudentModal";
-import ColumnSelector from "../components/ColumnSelector";
-import downloadZipWithImages from "../Utils/downloadZipWithImages";
+import FileUploader from "@/components/FileUploader";
+import StudentModal from "@/components/StudentModal";
+import downloadZipWithImages from "@/Utils/downloadZipWithImages";
 import ArchivedStudents from "@/components/ArchivedStudents";
+import ArchivedModal from "@/components/ArchivedModal";
 import StudentList from "@/components/StudentList";
-import SortAndFilterControls from "@/components/SortAndFilterControls";
-import useStudentData from "../hooks/useStudentData";
-import Loading from "../Utils/loading";
+import useStudentData from "@/hooks/useStudentData";
+import Loading from "@/Utils/loading";
+import Sidebar from "@/components/Sidebar";
+import ColumnModal from "@/components/ColumnModal";
 
 export default function Home() {
   const [showColumnSelector, setShowColumnSelector] = useState(false);
+  const [showColumnModal, setShowColumnModal] = useState(false);
+  const [showArchivedModal, setShowArchivedModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortOrder, setSortOrder] = useState("original");
   const [isAscending, setIsAscending] = useState(true);
@@ -157,8 +159,6 @@ export default function Home() {
     );
   });
 
-  const toggleSortDirection = () => setIsAscending(!isAscending);
-
   const handleDeleteStudent = (matricula) => {
     setStudentData((prevData) => {
       const updatedData = prevData.filter((student) => student.matricula !== matricula);
@@ -190,61 +190,76 @@ export default function Home() {
   const downloadZip = () => { downloadZipWithImages(studentData, filteredData, getFilledAColumns, reorderColumns, visibleColumns, setIsLoading)};
 
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start w-full">
-        <Image className="dark:invert" src="/next.svg" alt="Next.js logo" width={180} height={38} priority />
+    <div className="flex">
+      {Object.keys(filteredData).length > 0 && (
+    <Sidebar
+        showColumnSelector={showColumnSelector}
+        setShowColumnSelector={setShowColumnSelector}
+        setShowColumnModal={setShowColumnModal}  
+        downloadZip={downloadZip}
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        sortOrder={sortOrder}
+        setSortOrder={setSortOrder}
+        toggleSortDirection={() => setIsAscending(!isAscending)}
+        isAscending={isAscending}
+        columns={columns}
+        visibleColumns={visibleColumns}
+        toggleColumnVisibility={toggleColumnVisibility}
+        onShowArchivedModal={() => setShowArchivedModal(true)}
+      />
+      )}
+      <main className={`flex-1 p-8 pb-20 min-h-screen sm:p-20 transition-all duration-300 ${showColumnSelector ? 'ml-64' : 'ml-16'}`}>
+        <div className="flex flex-col gap-8 items-center sm:items-start w-full">
+          <Image className="dark:invert" src="/next.svg" alt="Next.js logo" width={180} height={38} priority />
 
-        <h1 className="text-2xl font-bold">Cargar Archivos de Matrícula</h1>
+          <h1 className="text-2xl font-bold">Cargar Archivos de Matrícula</h1>
 
-        {/* Cargar Archivos */}
-        {showUploader && (
-          <FileUploader onFile1Change={handleFile1Change} onFile2Change={handleFile2Change} onProcessFiles={handleProcessFilesWithHide} />
-        )}
+          {/* Cargar Archivos */}
+          {showUploader && (
+            <FileUploader
+              onFile1Change={handleFile1Change}
+              onFile2Change={handleFile2Change}
+              onProcessFiles={handleProcessFilesWithHide}
+            />
+          )}
 
-        {Object.keys(filteredData).length > 0 && (
-          <div>
-            <button
-              onClick={() => setShowColumnSelector(!showColumnSelector)}
-              className="rounded-full bg-blue-500 text-white px-4 py-2 mt-4"
-            >
-              Columnas
-            </button>
-            <button
-            onClick={downloadZip}
-            className="rounded-full bg-green-500 text-white px-4 py-2 mt-4"
-          >
-            Descargar Imágenes como ZIP
-          </button>
+          <Loading isLoading={isLoading} />
 
-            {/* Selector de Columnas */}
-            {showColumnSelector && (
-              <ColumnSelector columns={columns} visibleColumns={visibleColumns} toggleColumnVisibility={toggleColumnVisibility} />
-            )}
-            <SortAndFilterControls searchTerm={searchTerm} setSearchTerm={setSearchTerm} sortOrder={sortOrder} setSortOrder={setSortOrder} toggleSortDirection={toggleSortDirection} isAscending={isAscending} />
-          </div>
-        )}
-
-        <Loading isLoading={isLoading} />
-
-        {/* Tarjetas de Estudiantes */}
-        <StudentList students={filteredStudents} openModal={openModal} handleDeleteStudent={handleDeleteStudent} />
-
-        {/* Sección de Archivados */}
-        <ArchivedStudents archivedStudents={archivedStudents} restoreStudent={restoreStudent} />
-
-        {/* Modal de Detalles */}
-        {selectedStudent && (
-          <StudentModal
-            student={selectedStudent}
-            filteredData={filteredData}
+          {/* Modal de selección de columnas */}
+          <ColumnModal
+            visible={showColumnModal}
+            onClose={() => setShowColumnModal(false)}
             columns={columns}
             visibleColumns={visibleColumns}
-            closeModal={closeModal}
-            reorderColumns={reorderColumns}
-            getFilledAColumns={getFilledAColumns}
+            toggleColumnVisibility={toggleColumnVisibility}
           />
-        )}
+
+          {/* Tarjetas de Estudiantes */}
+          <StudentList students={filteredStudents} openModal={openModal} handleDeleteStudent={handleDeleteStudent} />
+
+          {/* Sección de Archivados */}
+          <ArchivedModal
+            visible={showArchivedModal}
+            onClose={() => setShowArchivedModal(false)}
+            archivedStudents={archivedStudents}
+            restoreStudent={restoreStudent}
+          />
+
+          {/* Modal de Detalles */}
+          {selectedStudent && (
+            <StudentModal
+              student={selectedStudent}
+              filteredData={filteredData}
+              columns={columns}
+              visibleColumns={visibleColumns}
+              closeModal={closeModal}
+              reorderColumns={reorderColumns}
+              getFilledAColumns={getFilledAColumns}
+            />
+          )}
+        </div>
       </main>
-    </div>
+      </div>
   );
 }

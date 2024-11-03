@@ -62,7 +62,7 @@ export default function StudentModal({
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-auto">
         <div ref={modalRef} className="bg-white p-6 rounded-lg shadow-lg w-full max-h-[90vh] overflow-y-auto">
           <button onClick={closeModal} className="absolute top-4 right-4 text-gray-500">X</button>
-          <h2 className="text-xl font-bold mb-4">
+          <h2 className="text-xl text-gray-800 font-bold mb-4">
             Detalles de {student.preferredName} ({student.matricula})
           </h2>
 
