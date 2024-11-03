@@ -19,6 +19,7 @@ export default function Home() {
   const [sortOrder, setSortOrder] = useState("original");
   const [isAscending, setIsAscending] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [showUploader, setShowUploader] = useState(true);
 
   const defaultVisibleColumns = {
     Matrícula: true,
@@ -47,6 +48,11 @@ export default function Home() {
     filteredData,
     setVisibleColumns,
   } = useStudentData(defaultVisibleColumns);
+
+  const handleProcessFilesWithHide = async () => {
+    await handleProcessFiles();
+    setShowUploader(false);
+  }
 
   const toggleColumnVisibility = (column) => {
     setVisibleColumns((prev) => ({
@@ -191,8 +197,9 @@ export default function Home() {
         <h1 className="text-2xl font-bold">Cargar Archivos de Matrícula</h1>
 
         {/* Cargar Archivos */}
-        <FileUploader onFile1Change={handleFile1Change} onFile2Change={handleFile2Change} onProcessFiles={handleProcessFiles} />
-
+        {showUploader && (
+          <FileUploader onFile1Change={handleFile1Change} onFile2Change={handleFile2Change} onProcessFiles={handleProcessFilesWithHide} />
+        )}
 
         {Object.keys(filteredData).length > 0 && (
           <div>
