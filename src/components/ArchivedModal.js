@@ -1,5 +1,4 @@
 // components/ArchivedModal.js
-"use client";
 import { useEffect } from "react";
 import StudentCard from "./StudentCard";
 
