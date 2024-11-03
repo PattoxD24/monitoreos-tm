@@ -3,6 +3,8 @@ import html2canvas from "html2canvas";
 
 export default async function downloadZipWithImages(studentData, filteredData, getFilledAColumns, reorderColumns, visibleColumns, setIsLoading) {
 
+  if(typeof document === "undefined") return;
+
   setIsLoading(true);
 
   const zip = new JSZip();
