@@ -9,6 +9,10 @@ export default function Sidebar({
   showColumnSelector,
   setShowColumnSelector,
   setShowColumnModal,
+  showWhatsappInput,
+  setShowWhatsappInput,
+  whatsapp,
+  setWhatsapp,
   downloadZip,
   searchTerm,
   setSearchTerm,
@@ -19,11 +23,14 @@ export default function Sidebar({
   columns,
   visibleColumns,
   toggleColumnVisibility,
-  onShowArchivedModal
+  onShowArchivedModal,
+  onShowScriptsModal
 }) {
   const [isCollapsed, setIsCollapsed] = useState(true);
 
   const handleToggle = () => setIsCollapsed(!isCollapsed);
+
+  const toggleShowWhatsappInput = (val) => setShowWhatsappInput(!showWhatsappInput);
 
   return (
     <div
@@ -58,6 +65,30 @@ export default function Sidebar({
           >
             Descargar ZIP
           </button>
+
+          <button 
+            onClick={onShowScriptsModal}
+            className="w-full rounded bg-yellow-500 px-4 py-2 hover:bg-yellow-600 mb-2"
+          >
+            Scripts
+          </button>
+
+          <button
+            onClick={toggleShowWhatsappInput}
+            className="w-full rounded bg-pink-500 px-4 py-2 hover:bg-pink-600 mb-2"
+          >
+            Whatsapp
+          </button>
+
+          {showWhatsappInput && (
+            <input
+              type="phone"
+              placeholder="Número de Whatsapp"
+              className="w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:border-blue-500 text-gray-700"
+              value={whatsapp}
+              onChange={(e) => setWhatsapp(e.target.value)}
+            />
+          )}
 
           <button
             onClick={onShowArchivedModal}

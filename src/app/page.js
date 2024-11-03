@@ -10,6 +10,7 @@ import useStudentData from "@/hooks/useStudentData";
 import Loading from "@/Utils/loading";
 import Sidebar from "@/components/Sidebar";
 import ColumnModal from "@/components/ColumnModal";
+import ScriptsModal from "@/components/ScriptsModal";
 import dynamic from "next/dynamic";
 
 const FileUploader = dynamic(() => import("@/components/FileUploader"),{ ssr: false });
@@ -18,11 +19,15 @@ export default function Home() {
   const [showColumnSelector, setShowColumnSelector] = useState(false);
   const [showColumnModal, setShowColumnModal] = useState(false);
   const [showArchivedModal, setShowArchivedModal] = useState(false);
+  const [showScriptsModal, setShowScriptsModal] = useState(false);
+  const [showWhatsappInput, setShowWhatsappInput] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortOrder, setSortOrder] = useState("original");
   const [isAscending, setIsAscending] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [showUploader, setShowUploader] = useState(true);
+  const [scripts, setScripts] = useState([]);
+  const [whatsapp, setWhatsapp] = useState("");
 
   const defaultVisibleColumns = {
     Matrícula: true,
@@ -63,6 +68,8 @@ export default function Home() {
       [column]: !prev[column],
     }));
   };
+
+  const toggleShowScriptsModal = () => setShowScriptsModal(!showScriptsModal);
 
   const getFilledAColumns = (rows) => {
     const maxColumns = 50;
@@ -208,8 +215,19 @@ export default function Home() {
         visibleColumns={visibleColumns}
         toggleColumnVisibility={toggleColumnVisibility}
         onShowArchivedModal={() => setShowArchivedModal(true)}
+        onShowScriptsModal={toggleShowScriptsModal}  
+        setShowWhatsappInput={setShowWhatsappInput}
+        showWhatsappInput={showWhatsappInput}
+        whatsapp={whatsapp}
+        setWhatsapp={setWhatsapp}
       />
       )}
+      <ScriptsModal
+        visible={showScriptsModal}
+        onClose={toggleShowScriptsModal}
+        scripts={scripts}
+        setScripts={setScripts}
+      />
       <main className={`flex-1 p-8 pb-20 min-h-screen sm:p-20 transition-all duration-300 ${showColumnSelector ? 'ml-64' : 'ml-16'}`}>
         <div className="flex flex-col gap-8 items-center sm:items-start w-full">
           <Image className="dark:invert" src="/next.svg" alt="Next.js logo" width={180} height={38} priority />
@@ -257,6 +275,8 @@ export default function Home() {
               closeModal={closeModal}
               reorderColumns={reorderColumns}
               getFilledAColumns={getFilledAColumns}
+              scripts={scripts}
+              whatsapp={whatsapp}
             />
           )}
         </div>
