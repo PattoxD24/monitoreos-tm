@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import { useState } from "react";
-import FileUploader from "@/components/FileUploader";
 import StudentModal from "@/components/StudentModal";
 import downloadZipWithImages from "@/Utils/downloadZipWithImages";
 import ArchivedModal from "@/components/ArchivedModal";
@@ -11,6 +10,9 @@ import useStudentData from "@/hooks/useStudentData";
 import Loading from "@/Utils/loading";
 import Sidebar from "@/components/Sidebar";
 import ColumnModal from "@/components/ColumnModal";
+import dynamic from "next/dynamic";
+
+const FileUploader = dynamic(() => import("@/components/FileUploader"),{ ssr: false });
 
 export default function Home() {
   const [showColumnSelector, setShowColumnSelector] = useState(false);

@@ -1,13 +1,7 @@
 // components/FileUploader.js
-"use client";
-import dynamic from "next/dynamic";
-
-const FileUploaders = dynamic(() => import("@/components/FileUploader"), { ssr: false });
-
 export default function FileUploader({ onFile1Change, onFile2Change, onProcessFiles }) {
   return (
     <div className="flex flex-col gap-4">
-      <FileUploaders />
       <input
         type="file"
         accept=".xlsx, .xls"
