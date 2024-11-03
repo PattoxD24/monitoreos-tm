@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import html2canvas from "html2canvas";
+import ScriptsModal from "./ScriptsModal";
 
 export default function StudentModal({
   student,
@@ -19,6 +20,7 @@ export default function StudentModal({
   const modalRef = useRef(null);
   const hiddenTableRef = useRef(null);
   const [showScriptContent, setShowScriptContent] = useState(false);
+  const [copiedScript, setCopiedScript] = useState(null);
 
   const toggleTableVisibility = () => {
     setIsTableVisible((prev) => !prev);
@@ -54,22 +56,43 @@ export default function StudentModal({
     const matricula = student.matricula;
   
     const neMaterias = findMateriasWithLastColumnNE(filteredData[student.matricula]);
+    const scMaterias = findMateriasWithLastColumnSC(filteredData[student.matricula]);
     const lowPonderacionMaterias = findMateriasWithLowPonderacion(filteredData[student.matricula]);
+    const highPonderacionMaterias = findMateriasWithHighPonderacion(filteredData[student.matricula]);
+
+    const faltasMaterias = findMateriasWithFaltas(filteredData[student.matricula]);
   
     const neMessage = neMaterias.length > 0 
-      ? `Tienes un NE en ${neMaterias.length>1 ? "las materias":"la materia"}: ${neMaterias.join(", ")}.` 
+      ? `Me aparece que traes NE en ${neMaterias.length>1 ? "las materias":"la materia"}: ${neMaterias.join(", ")}, es muy importante que te acerques con los maestros para verificar si aun puedes entregarlo y ellos pueden evaluarte esta actividad no entregada. Te recuerdo es muy importante no exceder el numero de No Entregables, para evitar reprobar la materia de forma automática por esta situación.` 
       : "";
+
+    const scMessage = scMaterias.length > 0 ? `Me aparece que traes SC en ${scMaterias.length > 1 ? "las materias":"la materia"}: ${scMaterias.join(", ")}, por favor acércate con el maestro para verificar la situación y saber cuándo actualizará la calificación y podemos tener el promedio real de la materia.` : "";
   
     const ponderacionMessage = lowPonderacionMaterias.length > 0 
-      ? `Tienes una ponderación baja de menos de 80 en ${lowPonderacionMaterias.length > 1 ?"las materias":"la materia"}: ${lowPonderacionMaterias.join(", ")}.` 
+      ? `Me aparece que ${lowPonderacionMaterias.length > 1 ?"las materias":"la materia"} de: ${lowPonderacionMaterias.join(", ")} se encuentran por debajo del promedio mínimo de 70, recuerda que es muy importante aumentar la calificación en las próximas entregas para que el promedio sea aprobatorio.` 
       : "";
+    
+    const faltasMessage = faltasMaterias.length > 0 ? `Me aparece que tienes faltas en las materias de: ${faltasMaterias.join(", ")}.
+Recuerda que es muy importante cuidar el número de faltas asignadas a cada materia, ya que las faltas no se justifican y si se excede el número de faltas asignado la materia se reprueba de forma automática.
+    `: "";
+
+    const primerParcial = lowPonderacionMaterias.length > 0 ? `Recuerda realizar las próximas entregas de evidencias, tareas y actividades con calificación superior a 70, para que el promedio aumente y la materia se mantenga como aprobatoria. ` : "";
+
+    const segundoParcial = lowPonderacionMaterias.length > 0 ? `Acércate conmigo para que podamos verificar las ponderaciones tentativas para que la materia se mantenga como aprobatoria. ` : "";
+
+    const muyBien = highPonderacionMaterias.length < 1 ? `¡Felicidades! Estás haciendo muy buen trabajo, continúa así en tus próximas entregas. 
+` : "";
   
-    // Reemplazar variables en el contenido
     return content
-      .replace("{{nombre}}", nombre)
-      .replace("{{matricula}}", matricula)
-      .replace("{{ultima_columna_NE}}", neMessage)
-      .replace("{{ultima_columna_ponderacion}}", ponderacionMessage);
+      .replaceAll("{{alumno}}", nombre)
+      .replaceAll("{{matricula}}", matricula)
+      .replaceAll("{{ne}}", neMessage)
+      .replaceAll("{{ponderacion}}", ponderacionMessage)
+      .replaceAll("{{sc}}", scMessage)
+      .replaceAll("{{faltas}}", faltasMessage)
+      .replaceAll("{{primerParcial}}", primerParcial)
+      .replaceAll("{{segundoParcial}}", segundoParcial)
+      .replaceAll("{{muyBien}}", muyBien);
   };
   
   // Función para encontrar materias con "NE" en la última columna A con valor
@@ -91,11 +114,39 @@ export default function StudentModal({
   
     return Array.from(materias); // Convertir Set a Array para manipulación y unión
   };
+
+  const findMateriasWithLastColumnSC = (rows) => {
+    const materias = new Set();
+
+    rows.forEach(row => {
+      const lastAColumn = Object.keys(row)
+        .filter(column => /^A\d+$/.test(column) && row[column])
+        .sort((a, b) => parseInt(a.slice(1)) - parseInt(b.slice(1)))
+        .pop();
+      
+      if (lastAColumn && row[lastAColumn] === "SC") {
+        materias.add(row["Nombre de la materia"] || "Materia desconocida");
+      }
+    });
+
+    return Array.from(materias);
+  };
   
-  // Función para encontrar materias con ponderación menor a 80 en la columna "Ponderado"
   const findMateriasWithLowPonderacion = (rows) => {
     return rows
-      .filter(row => row.Ponderado && parseInt(row.Ponderado) < 80)
+      .filter(row => row.Ponderado && parseInt(row.Ponderado) < 70)
+      .map(row => row["Nombre de la materia"] || "Materia desconocida");
+  };
+
+  const findMateriasWithHighPonderacion = (rows) => {
+    return rows
+      .filter(row => row.Ponderado && parseInt(row.Ponderado) < 85)
+      .map(row => row["Nombre de la materia"] || "Materia desconocida");
+  };
+
+  const findMateriasWithFaltas = (rows) => {
+    return rows
+      .filter(row => row["Faltas del alumno"] && parseInt(row["Faltas del alumno"]) > 0)
       .map(row => row["Nombre de la materia"] || "Materia desconocida");
   };
 
@@ -117,7 +168,8 @@ export default function StudentModal({
       formattedMessage += `&image=${imageURL} `;
     }
 
-    const whatsappURL = `https://wa.me/${phoneNumber}?text=${formattedMessage}`;
+    const whatsappURL = `whatsapp://send?text=${formattedMessage}&phone=${phoneNumber}`;
+    // const whatsappURL = `https://wa.me/${phoneNumber}?text=${formattedMessage}`;
     window.open(whatsappURL, "_blank");
   }
 
@@ -135,6 +187,12 @@ export default function StudentModal({
     link.href = image;
     link.download = `${student.matricula}.png`;
     link.click();
+  };
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(replaceVariables(text));
+    setCopiedScript(text);
+    setTimeout(() => setCopiedScript(null), 2000);
   };
 
   return (
@@ -215,11 +273,22 @@ export default function StudentModal({
                 />
                 <label className="text-sm text-gray-700 mr-4">Incluir Imagen</label> */}
                 <button
-                  onClick={() => handleSendWhatsApp(script.content)}
-                  className="bg-green-500 text-white px-4 py-1 rounded text-sm"
-                >
-                  Enviar por WhatsApp
+                    onClick={() => copyToClipboard(script.content)}
+                    className="bg-blue-500 text-white px-2 py-1 rounded text-sm"
+                  >
+                    Copiar
                 </button>
+                {whatsapp && (
+                  <button
+                    onClick={() => handleSendWhatsApp(script.content)}
+                    className="bg-green-500 text-white px-4 py-1 rounded text-sm"
+                  >
+                    Enviar por WhatsApp
+                  </button>
+                )}
+                {copiedScript === script.content && (
+                  <span className="text-green-500 text-sm ml-2">Copiado!</span>
+                )}
               </div>
             </li>
           ))}
