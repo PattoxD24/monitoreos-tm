@@ -1,4 +1,5 @@
 // components/FileUploader.js
+"use client";
 
 export default function FileUploader({ onFile1Change, onFile2Change, onProcessFiles }) {
   return (

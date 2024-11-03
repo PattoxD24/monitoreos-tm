@@ -1,4 +1,6 @@
 // components/ColumnModal.js
+"use client";
+
 import { useEffect } from "react";
 
 export default function ColumnModal({ visible, onClose, columns, visibleColumns, toggleColumnVisibility }) {

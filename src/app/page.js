@@ -5,7 +5,6 @@ import { useState } from "react";
 import FileUploader from "@/components/FileUploader";
 import StudentModal from "@/components/StudentModal";
 import downloadZipWithImages from "@/Utils/downloadZipWithImages";
-import ArchivedStudents from "@/components/ArchivedStudents";
 import ArchivedModal from "@/components/ArchivedModal";
 import StudentList from "@/components/StudentList";
 import useStudentData from "@/hooks/useStudentData";
