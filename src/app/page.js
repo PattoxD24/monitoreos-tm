@@ -7,7 +7,7 @@ import downloadZipWithImages from "@/Utils/downloadZipWithImages";
 import ArchivedModal from "@/components/ArchivedModal";
 import StudentList from "@/components/StudentList";
 import useStudentData from "@/hooks/useStudentData";
-import Loading from "@/Utils/loading";
+import Loading from "@/components/Loading";
 import Sidebar from "@/components/Sidebar";
 import ColumnModal from "@/components/ColumnModal";
 import ScriptsModal from "@/components/ScriptsModal";
