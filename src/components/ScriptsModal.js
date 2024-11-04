@@ -1,10 +1,23 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 export default function ScriptsModal({ visible, onClose, scripts, setScripts }) {
   const [newScriptName, setNewScriptName] = useState("");
   const [newScriptContent, setNewScriptContent] = useState("");
   const [editingIndex, setEditingIndex] = useState(null);
+  const textAreaRef = useRef(null);
+
+  const variableList = [
+    { label: "Alumno", variable: "{{alumno}}" },
+    { label: "Matricula", variable: "{{matricula}}" },
+    { label: "NE", variable: "{{ne}}" },
+    { label: "Ponderacion", variable: "{{ponderacion}}" },
+    { label: "SC", variable: "{{sc}}" },
+    { label: "Faltas", variable: "{{faltas}}" },
+    { label: "Primer Parcial", variable: "{{primerParcial}}" },
+    { label: "Segundo Parcial", variable: "{{segundoParcial}}" },
+    { label: "Muy Bien", variable: "{{muyBien}}" },
+  ]
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -43,16 +56,39 @@ export default function ScriptsModal({ visible, onClose, scripts, setScripts }) 
     setNewScriptContent(scripts[index].content);
   };
 
-  if (!visible) return null;
-
   const handleClickOutside = (e) => {
     if (e.target.id === "modal-background") onClose();
   };
 
+  const insertVariable = (variable) => {
+    const textArea = textAreaRef.current;
+    if (textArea) {
+      const { selectionStart, selectionEnd, value } = textArea;
+      const newValue = value.slice(0, selectionStart) + variable + value.slice(selectionEnd);
+      setNewScriptContent(newValue);
+      textArea.setSelectionRange(selectionStart + variable.length, selectionStart + variable.length);
+      textArea.focus();
+    }
+  }
+  
+  if (!visible) return null;
+
   return (
     <div id="modal-background" className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={handleClickOutside}>
-      <div className="bg-white p-6 rounded-lg shadow-lg max-w-lg w-full">
+      <div className="bg-white p-6 rounded-lg shadow-lg w-4/5">
         <h2 className="text-xl text-gray-800 font-semibold mb-4">Scripts</h2>
+        {/* Variable insertion buttons */}
+        <div className="flex gap-2 mb-4">
+          {variableList.map(({ label, variable }) => (
+            <button
+              key={variable}
+              onClick={() => insertVariable(variable)}
+              className="px-2 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <div className="mb-4">
           <input
             type="text"
@@ -62,6 +98,7 @@ export default function ScriptsModal({ visible, onClose, scripts, setScripts }) 
             className="border p-2 rounded w-full mb-2 text-gray-600"
           />
           <textarea
+            ref={textAreaRef}
             placeholder="Contenido del Script"
             value={newScriptContent}
             onChange={(e) => setNewScriptContent(e.target.value)}
