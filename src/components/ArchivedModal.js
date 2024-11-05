@@ -26,9 +26,9 @@ export default function ArchivedModal({ visible, onClose, archivedStudents, rest
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
       onClick={handleClickOutside}
     >
-      <div className="bg-white p-6 rounded-lg shadow-lg w-3/4 h-4/5 overflow-y-auto">
+      <div className="bg-white p-6 rounded-lg shadow-lg overflow-auto max-h-[80vh] w-[80vw]">
         <h2 className="text-xl text-gray-800 font-semibold mb-4">Estudiantes Archivados</h2>
-        <div className="grid grid-cols-[repeat(7,auto)] gap-4 ">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,200px))] gap-4 justify-center">
           {archivedStudents.map((student) => (
             <StudentCard
               key={student.matricula}
