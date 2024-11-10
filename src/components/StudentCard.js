@@ -85,7 +85,7 @@ export default function StudentCard({
   };
 
   const getCircleBackgroundColor = (count, color) =>
-    count > 0 ? color : "bg-gray-300";
+    count > 0 ? color : "bg-gray-300 hidden";
 
   return (
     <div
