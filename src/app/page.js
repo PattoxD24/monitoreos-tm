@@ -255,7 +255,7 @@ export default function Home() {
           />
 
           {/* Tarjetas de Estudiantes */}
-          <StudentList students={filteredStudents} openModal={openModal} handleDeleteStudent={handleDeleteStudent} />
+          <StudentList students={filteredStudents} studentsData={filteredData} openModal={openModal} handleDeleteStudent={handleDeleteStudent} />
 
           {/* Sección de Archivados */}
           <ArchivedModal

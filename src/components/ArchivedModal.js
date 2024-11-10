@@ -33,6 +33,7 @@ export default function ArchivedModal({ visible, onClose, archivedStudents, rest
             <StudentCard
               key={student.matricula}
               student={student}
+              studentsData={[]}
               onClick={() => restoreStudent(student.matricula)}
               onDelete={null} 
             />
