@@ -20,6 +20,7 @@ export default function StudentCard({
       calculateFaltasPercentage();
       calculateCounts();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studentsData]);
 
   const studentData = studentsData[student.matricula] || [];
