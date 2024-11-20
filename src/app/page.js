@@ -70,6 +70,7 @@ export default function Home() {
   };
 
   const toggleShowScriptsModal = () => setShowScriptsModal(!showScriptsModal);
+  const closeScriptsModal = () => setShowScriptsModal(false);
 
   const getFilledAColumns = (rows) => {
     const maxColumns = 50;
@@ -224,7 +225,7 @@ export default function Home() {
       )}
       <ScriptsModal
         visible={showScriptsModal}
-        onClose={toggleShowScriptsModal}
+        onClose={closeScriptsModal}
         scripts={scripts}
         setScripts={setScripts}
       />
