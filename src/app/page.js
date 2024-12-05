@@ -47,6 +47,7 @@ export default function Home() {
     archivedStudents,
     columns,
     visibleColumns,
+    ponderationData,
     selectedStudent,
     setSelectedStudent,
     setArchivedStudents,
@@ -278,6 +279,7 @@ export default function Home() {
               getFilledAColumns={getFilledAColumns}
               scripts={scripts}
               whatsapp={whatsapp}
+              ponderationData={ponderationData}
             />
           )}
         </div>

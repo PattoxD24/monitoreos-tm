@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import html2canvas from "html2canvas";
 import ScriptsModal from "./ScriptsModal";
 
@@ -13,9 +13,11 @@ export default function StudentModal({
   reorderColumns,
   getFilledAColumns,
   scripts,
-  whatsapp
+  whatsapp,
+  ponderationData
 }) {
   const [isTableVisible, setIsTableVisible] = useState(false);
+  const [isPonderationTableVisible, setIsPonderationTableVisible] = useState(false);
   const [includeImage, setIncludeImage] = useState(false);
   const modalRef = useRef(null);
   const hiddenTableRef = useRef(null);
@@ -25,6 +27,10 @@ export default function StudentModal({
   const toggleTableVisibility = () => {
     setIsTableVisible((prev) => !prev);
   }
+
+  const togglePonderationTableVisibility = () => {
+    setIsPonderationTableVisible((prev) => !prev);
+  };
 
   const toggleScriptContent = () => setShowScriptContent((prev) => !prev);
 
@@ -49,6 +55,27 @@ export default function StudentModal({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [closeModal]);
+
+  const calculatePonderations = () => {
+    const studentData = filteredData[student.matricula] || [];
+    const results = [];
+
+    studentData.forEach((row) => {
+      const materia = row["Nombre de la materia"];
+      const ponderations = ponderationData[materia] || {};
+
+      const activityResults = Object.keys(ponderations).map((activity) => {
+        const ponderation = ponderations[activity];
+        const grade = parseFloat(row[activity]) || 0;
+        const result = (grade * (ponderation / 100)).toFixed(2);
+        return { activity, ponderation, grade, result };
+      })
+      results.push({ materia, activities: activityResults })
+    });
+    return results;
+  }
+
+  const ponderationResults = calculatePonderations();
 
   // const nombre = student.preferredName.toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
   const replaceVariables = (content) => {
@@ -216,6 +243,57 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
           >
             {isTableVisible ? "Ocultar Tabla" : "Mostrar Tabla"}
           </button>
+          <button
+            onClick={togglePonderationTableVisibility}
+            className="mb-4 px-4 py-2 bg-green-500 text-white rounded-lg shadow hover:bg-green-600 transition"
+          >
+            {isPonderationTableVisible ? "Ocultar Ponderaciones" : "Mostrar Ponderaciones"}
+          </button>
+
+          {/* Tabla de Ponderaciones */}
+          {isPonderationTableVisible && (
+            <div className="overflow-auto">
+              <table className="table-fixed border-collapse border border-gray-300 mb-4 ">
+                <thead>
+                  <tr>
+                    <th className="border px-2 py-1 text-sm text-gray-700">Nombre de la Materia</th>
+                    <th className="border px-2 py-1 text-sm text-gray-700">Detalle</th>
+                    {getFilledAColumns(filteredData[student.matricula] || []).map((col) => (
+                      <th key={col} className="border px-2 py-1 text-sm text-gray-700">{col}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {ponderationResults.map(({ materia, activities }, index) => (
+                    <React.Fragment key={index}>
+                      {/* Fila de Materias */}
+                      <tr>
+                        <td rowSpan={3} className="border px-2 py-1 text-sm text-gray-700 text-nowrap">{materia}</td>
+                        <td className="border px-2 py-1 text-sm text-gray-700">Calificación del Alumno</td>
+                        {activities.map((activity, idx) => (
+                          <td key={idx} className="border px-2 py-1 text-sm text-gray-700">{activity.grade}</td>
+                        ))}
+                      </tr>
+                      {/* Fila de Ponderaciones */}
+                      <tr>
+                        <td className="border px-2 py-1 text-sm text-gray-700">Ponderación Materia</td>
+                        {activities.map((activity, idx) => (
+                          <td key={idx} className="border px-2 py-1 text-sm text-gray-700">{activity.ponderation}</td>
+                        ))}
+                      </tr>
+                      {/* Fila de Ponderaciones Finales */}
+                      <tr>
+                        <td className="border px-2 py-1 text-sm text-gray-700">Ponderación Final</td>
+                        {activities.map((activity, idx) => (
+                          <td key={idx} className="border px-2 py-1 text-sm text-gray-700">{activity.result}</td>
+                        ))}
+                      </tr>
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {isTableVisible && (
           <div className="overflow-auto">
