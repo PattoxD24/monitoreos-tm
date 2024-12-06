@@ -109,19 +109,6 @@ export default function StudentModal({
     setEditableInputs((prev) => ({ ...prev, [activity]: !prev[activity] }));
   }
 
-  // Get list of materias from ponderationData, excluding those with "SD" grades
-  // const materias = Object.keys(ponderationData || {}).filter((materia) => {
-  //   const studentData = filteredData[student.matricula] || [];
-  //   const materiaRow = studentData.find((row) => row["Nombre de la materia"] === materia);
-
-  //   console.log(studentData, materiaRow,materia);
-  //   // Exclude the subject if it has an "SD" grade in any activity
-  //   if (!materiaRow) return true;
-  //   return !Object.keys(ponderationData[materia] || {}).some(
-  //     (activity) => materiaRow[activity] === "SD"
-  //   );
-  // });
-
   const materias = [
     ...new Set(
       (filteredData[student.matricula] || [])
