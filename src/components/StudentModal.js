@@ -79,14 +79,15 @@ export default function StudentModal({
             // Exclude rows with grade "SD"
             if (row[activity] === "SD" || manualGrades[activity] === "SD") return null;
             const color = row[activity] === "NE" ? "bg-red-300" : row[activity] === "SC" ? "bg-yellow-300" : row[activity] === "DA" ? "bg-green-300" : "";
+            const ponderado = row['Ponderado'];
 
             const result = (grade * (ponderation / 100)).toFixed(2);
-            return { activity, ponderation, grade, result, color };
+            return { activity, ponderation, grade, result, color, ponderado };
           })
           .filter(Boolean); // Remove null entries
 
         if (activityResults.length > 0) {
-          results.push({ materia, activities: activityResults, color: activityResults[0].color });
+          results.push({ materia, activities: activityResults, color: activityResults[0].color, ponderado: activityResults[0].ponderado });
         }
       }
     });
@@ -333,17 +334,17 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                     {/* {getFilledAColumns(filteredData[student.matricula] || []).map((col) => (
                       <th key={col} className="border px-2 py-1 text-sm text-gray-700">{col}</th>
                     ))} */}
-                    <th className="border px-2 py-1 text-sm text-gray-700">Promedio</th>
+                    <th className="border px-2 py-1 text-sm text-gray-700">Ponderación</th>
                   </tr>
                 </thead>
                 <tbody>
                   {ponderationResults
                     .filter(({ materia }) => materia === selectedMateria)
-                    .map(({ materia, activities }, index) => {
+                    .map(({ materia, activities, ponderado }, index) => {
                       // Calculate averages for each criterion
-                      const avgGrade = (
-                        activities.reduce((sum, activity) => sum + parseFloat(activity.grade || 0), 0) / activities.length
-                      ).toFixed(2);
+                      const avgGrade = ponderado;
+
+                      console.log(ponderationResults);
 
                       const avgPonderation = (
                         activities.reduce((sum, activity) => sum + parseFloat(activity.ponderation || 0), 0).toFixed(2));
@@ -360,7 +361,7 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                           {activities.map((activity) => (
                             <td key={activity.activity} className={`border px-2 py-1 text-sm text-gray-700 ${activity.color}`}>
                               <input
-                                value={manualGrades[activity.activity] || activity.grade || "0"}
+                                value={manualGrades[activity.activity] || activity.grade || ""}
                                 onChange={(e) =>
                                   handleGradeChange(activity.activity, e.target.value)
                                 }
@@ -376,7 +377,7 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                               />
                             </td>
                           ))}
-                          <td className="border px-2 py-1 text-sm text-gray-700 font-bold">{avgGrade}</td>
+                            <td className="border px-2 py-1 text-sm text-gray-700 font-bold">{avgGrade}</td>
                         </tr>
                         {/* Fila de Ponderaciones */}
                         <tr>
