@@ -20,6 +20,8 @@ export default function StudentModal({
   const [isPonderationTableVisible, setIsPonderationTableVisible] = useState(false);
   const [selectedMateria, setSelectedMateria] = useState("");
   const [activityColumns, setActivityColumns] = useState([]);
+  const [lastActivityColumn, setLastActivityColumn] = useState("");
+  const [originalLastActivityColumn, setOriginalLastActivityColumn] = useState("");
   const [manualGrades, setManualGrades] = useState({});
   const [editableInputs, setEditableInputs] = useState({});
   const [includeImage, setIncludeImage] = useState(false);
@@ -63,10 +65,18 @@ export default function StudentModal({
   const calculatePonderations = () => {
     const studentData = filteredData[student.matricula] || [];
     const results = [];
+    let lastActivity = "";
 
     studentData.forEach((row) => {
       const materia = row["Nombre de la materia"];
       if (materia === selectedMateria) {
+
+        // get last activity with a value from studentdata row
+        lastActivity = Object.keys(row)
+          .filter((column) => /^A\d+$/.test(column) && row[column])
+          .sort((a, b) => parseInt(a.slice(1)) - parseInt(b.slice(1)))
+          .pop();
+
         const ponderations = ponderationData[materia] || {};
         const activityResults = Object.keys(ponderations)
           .map((activity) => {
@@ -75,26 +85,38 @@ export default function StudentModal({
               manualGrades[activity] !== undefined
                 ? parseFloat(manualGrades[activity])
                 : parseFloat(row[activity]) || 0;
+            const gradeValue = parseFloat(row[activity]) || '';
 
             // Exclude rows with grade "SD"
             if (row[activity] === "SD" || manualGrades[activity] === "SD") return null;
             const color = row[activity] === "NE" ? "bg-red-300" : row[activity] === "SC" ? "bg-yellow-300" : row[activity] === "DA" ? "bg-green-300" : "";
             const ponderado = row['Ponderado'];
 
+            if (gradeValue) {
+              // lastActivity = activity;
+            }
+
             const result = (grade * (ponderation / 100)).toFixed(2);
-            return { activity, ponderation, grade, result, color, ponderado };
+            return { activity, ponderation, grade, result, color, ponderado, lastActivity };
           })
           .filter(Boolean); // Remove null entries
 
         if (activityResults.length > 0) {
-          results.push({ materia, activities: activityResults, color: activityResults[0].color, ponderado: activityResults[0].ponderado });
+          results.push({ materia, activities: activityResults, color: activityResults[0].color, ponderado: activityResults[0].ponderado, lastActivity: activityResults[0].lastActivity });
         }
       }
     });
-    return results;
+    return { results, lastActivity };
   }
 
-  const ponderationResults = calculatePonderations();
+  const { results: ponderationResults, lastActivity } = calculatePonderations();
+
+  useEffect(() => {
+    if (lastActivity) {
+      setLastActivityColumn(lastActivity);
+      setOriginalLastActivityColumn(lastActivity);
+    }
+  }, [lastActivity]);
 
   const handleMateriaChange = (e) => {
     const materia = e.target.value;
@@ -104,6 +126,22 @@ export default function StudentModal({
 
   const handleGradeChange = (activity, value) => {
     setManualGrades((prev) => ({ ...prev, [activity]: value }));
+
+    if (value === "" || value === "0") {
+      const { [activity]: removed, ...rest } = manualGrades;
+      setManualGrades(rest);
+    }
+    const lastActivity = Object.keys(manualGrades)
+      .filter((column) => /^A\d+$/.test(column) && manualGrades[column])
+      .sort((a, b) => parseInt(a.slice(1)) - parseInt(b.slice(1)))
+      .pop();
+
+
+    if (typeof(lastActivity) === "undefined") {
+      setLastActivityColumn(originalLastActivityColumn);
+    } else {
+      setLastActivityColumn(lastActivity);
+    }
   }
 
   const toggleEditable = (activity) => {
@@ -344,13 +382,35 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                       // Calculate averages for each criterion
                       const avgGrade = ponderado;
 
-                      console.log(ponderationResults);
+                      let sumPonderation = 0;
+
+                      const lastActivityColumnNumber = parseInt(lastActivityColumn.slice(1));
+                      activities.map(activity => {
+                        const activityNumber = parseInt(activity.activity.slice(1));
+                        if (activityNumber <= lastActivityColumnNumber) {
+                          sumPonderation += parseFloat(activity.ponderation || 0);
+                        }
+                        return activity;
+                      });
+                    
+
+
+
+                      {/* for (let i = 0; i < activities.length; i++) {
+                        if (activities[i].activity === activities[i].lastActivity || activities[i].lastActivity === "") {
+                          sumPonderation += parseFloat(activities[i].ponderation || 0);
+                          console.log(activities[i].activity, activities[i].lastActivity, sumPonderation);
+                        }
+                      } */}
 
                       const avgPonderation = (
                         activities.reduce((sum, activity) => sum + parseFloat(activity.ponderation || 0), 0).toFixed(2));
 
                       const avgFinalPonderation = (
                         activities.reduce((sum, activity) => sum + parseFloat(activity.result || 0), 0)).toFixed(2);
+                      
+                      const avg = ((avgFinalPonderation * 100) / sumPonderation).toFixed(0);
+                      console.log(sumPonderation, avgFinalPonderation, avg);
 
                       return (
                       <React.Fragment key={index}>
@@ -377,7 +437,7 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                               />
                             </td>
                           ))}
-                            <td className="border px-2 py-1 text-sm text-gray-700 font-bold">{avgGrade}</td>
+                            <td className="border px-2 py-1 text-sm text-gray-700 font-bold">{avgGrade} - { avg}</td>
                         </tr>
                         {/* Fila de Ponderaciones */}
                         <tr>
