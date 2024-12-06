@@ -63,7 +63,6 @@ export default function StudentModal({
   const calculatePonderations = () => {
     const studentData = filteredData[student.matricula] || [];
     const results = [];
-    console.log(studentData);
 
     studentData.forEach((row) => {
       const materia = row["Nombre de la materia"];
@@ -111,15 +110,30 @@ export default function StudentModal({
   }
 
   // Get list of materias from ponderationData, excluding those with "SD" grades
-  const materias = Object.keys(ponderationData || {}).filter((materia) => {
-    const studentData = filteredData[student.matricula] || [];
-    const materiaRow = studentData.find((row) => row["Nombre de la materia"] === materia);
-    // Exclude the subject if it has an "SD" grade in any activity
-    if (!materiaRow) return true;
-    return !Object.keys(ponderationData[materia] || {}).some(
-      (activity) => materiaRow[activity] === "SD"
-    );
-  });
+  // const materias = Object.keys(ponderationData || {}).filter((materia) => {
+  //   const studentData = filteredData[student.matricula] || [];
+  //   const materiaRow = studentData.find((row) => row["Nombre de la materia"] === materia);
+
+  //   console.log(studentData, materiaRow,materia);
+  //   // Exclude the subject if it has an "SD" grade in any activity
+  //   if (!materiaRow) return true;
+  //   return !Object.keys(ponderationData[materia] || {}).some(
+  //     (activity) => materiaRow[activity] === "SD"
+  //   );
+  // });
+
+  const materias = [
+    ...new Set(
+      (filteredData[student.matricula] || [])
+        .filter(
+          (row) =>
+            !Object.values(row)
+              .filter((value, index) => /^A\d+$/.test(Object.keys(row)[index]))
+              .includes("SD")
+        )
+        .map((row) => row["Nombre de la materia"])
+    ),
+  ];
 
   useEffect(() => {
     // Only initialize the selectedMateria and activityColumns on the first load
@@ -340,8 +354,6 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                     .filter(({ materia }) => materia === selectedMateria)
                     .map(({ materia, activities }, index) => {
                       // Calculate averages for each criterion
-                      
-                      console.log(activities);
                       const avgGrade = (
                         activities.reduce((sum, activity) => sum + parseFloat(activity.grade || 0), 0) / activities.length
                       ).toFixed(2);
