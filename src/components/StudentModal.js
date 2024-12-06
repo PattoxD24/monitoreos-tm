@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import html2canvas from "html2canvas";
 import ScriptsModal from "./ScriptsModal";
 
@@ -13,9 +13,15 @@ export default function StudentModal({
   reorderColumns,
   getFilledAColumns,
   scripts,
-  whatsapp
+  whatsapp,
+  ponderationData
 }) {
   const [isTableVisible, setIsTableVisible] = useState(false);
+  const [isPonderationTableVisible, setIsPonderationTableVisible] = useState(false);
+  const [selectedMateria, setSelectedMateria] = useState("");
+  const [activityColumns, setActivityColumns] = useState([]);
+  const [manualGrades, setManualGrades] = useState({});
+  const [editableInputs, setEditableInputs] = useState({});
   const [includeImage, setIncludeImage] = useState(false);
   const modalRef = useRef(null);
   const hiddenTableRef = useRef(null);
@@ -25,6 +31,10 @@ export default function StudentModal({
   const toggleTableVisibility = () => {
     setIsTableVisible((prev) => !prev);
   }
+
+  const togglePonderationTableVisibility = () => {
+    setIsPonderationTableVisible((prev) => !prev);
+  };
 
   const toggleScriptContent = () => setShowScriptContent((prev) => !prev);
 
@@ -49,6 +59,77 @@ export default function StudentModal({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [closeModal]);
+
+  const calculatePonderations = () => {
+    const studentData = filteredData[student.matricula] || [];
+    const results = [];
+
+    studentData.forEach((row) => {
+      const materia = row["Nombre de la materia"];
+      if (materia === selectedMateria) {
+        const ponderations = ponderationData[materia] || {};
+        const activityResults = Object.keys(ponderations)
+          .map((activity) => {
+            const ponderation = ponderations[activity];
+            const grade =
+              manualGrades[activity] !== undefined
+                ? parseFloat(manualGrades[activity])
+                : parseFloat(row[activity]) || 0;
+
+            // Exclude rows with grade "SD"
+            if (row[activity] === "SD" || manualGrades[activity] === "SD") return null;
+            const color = row[activity] === "NE" ? "bg-red-300" : row[activity] === "SC" ? "bg-yellow-300" : row[activity] === "DA" ? "bg-green-300" : "";
+
+            const result = (grade * (ponderation / 100)).toFixed(2);
+            return { activity, ponderation, grade, result, color };
+          })
+          .filter(Boolean); // Remove null entries
+
+        if (activityResults.length > 0) {
+          results.push({ materia, activities: activityResults, color: activityResults[0].color });
+        }
+      }
+    });
+    return results;
+  }
+
+  const ponderationResults = calculatePonderations();
+
+  const handleMateriaChange = (e) => {
+    const materia = e.target.value;
+    setSelectedMateria(e.target.value);
+    setActivityColumns(Object.keys(ponderationData[materia] || {}));
+  }
+
+  const handleGradeChange = (activity, value) => {
+    setManualGrades((prev) => ({ ...prev, [activity]: value }));
+  }
+
+  const toggleEditable = (activity) => {
+    setEditableInputs((prev) => ({ ...prev, [activity]: !prev[activity] }));
+  }
+
+  const materias = [
+    ...new Set(
+      (filteredData[student.matricula] || [])
+        .filter(
+          (row) =>
+            !Object.values(row)
+              .filter((value, index) => /^A\d+$/.test(Object.keys(row)[index]))
+              .includes("SD")
+        )
+        .map((row) => row["Nombre de la materia"])
+    ),
+  ];
+
+  useEffect(() => {
+    // Only initialize the selectedMateria and activityColumns on the first load
+    if (materias.length > 0 && selectedMateria === "") {
+      const defaultMateria = materias[0];
+      setSelectedMateria(defaultMateria); // Select the first materia
+      setActivityColumns(Object.keys(ponderationData[defaultMateria] || {})); // Initialize activity columns
+    }
+  }, [materias, selectedMateria, ponderationData]);
 
   // const nombre = student.preferredName.toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
   const replaceVariables = (content) => {
@@ -208,14 +289,117 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
             onClick={downloadTableAsImage}
             className="mb-4 px-4 py-2 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 transition"
           >
-            Descargar Tabla como Imagen
+            Descargar Monitoreo como Imagen
           </button>
           <button
             onClick={toggleTableVisibility}
             className="mb-4 px-4 py-2 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 transition"
           >
-            {isTableVisible ? "Ocultar Tabla" : "Mostrar Tabla"}
+            {isTableVisible ? "Ocultar Monitoreo" : "Mostrar Monitoreo"}
           </button>
+          <button
+            onClick={togglePonderationTableVisibility}
+            className="mb-4 px-4 py-2 bg-green-500 text-white rounded-lg shadow hover:bg-green-600 transition"
+          >
+            {isPonderationTableVisible ? "Ocultar Predicciones" : "Mostrar Predicciones"}
+          </button>
+
+          {/* Tabla de Ponderaciones */}
+          {isPonderationTableVisible && (
+            <div className="overflow-auto">
+            {/* Selector de materias */}
+            <div className="mb-4">
+                <h3 className="text-lg font-bold text-gray-800">Seleccionar Materia</h3>
+                <select
+                  value={selectedMateria}
+                  onChange={handleMateriaChange}
+                  className="border p-2 rounded w-full text-gray-700"
+                >
+                  {materias.map((materia) => (
+                    <option key={materia} value={materia}>
+                      {materia}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <table className="table-fixed border-collapse border border-gray-300 mb-4 ">
+                <thead>
+                  <tr>
+                    <th className="border px-2 py-1 text-sm text-gray-700">Nombre de la Materia</th>
+                    <th className="border px-2 py-1 text-sm text-gray-700">Detalle</th>
+                    {activityColumns.map((col) => (
+                      <th key={col} className="border px-2 py-1 text-sm text-gray-700">{col}</th>
+                    ))}
+                    {/* {getFilledAColumns(filteredData[student.matricula] || []).map((col) => (
+                      <th key={col} className="border px-2 py-1 text-sm text-gray-700">{col}</th>
+                    ))} */}
+                    <th className="border px-2 py-1 text-sm text-gray-700">Promedio</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ponderationResults
+                    .filter(({ materia }) => materia === selectedMateria)
+                    .map(({ materia, activities }, index) => {
+                      // Calculate averages for each criterion
+                      const avgGrade = (
+                        activities.reduce((sum, activity) => sum + parseFloat(activity.grade || 0), 0) / activities.length
+                      ).toFixed(2);
+
+                      const avgPonderation = (
+                        activities.reduce((sum, activity) => sum + parseFloat(activity.ponderation || 0), 0).toFixed(2));
+
+                      const avgFinalPonderation = (
+                        activities.reduce((sum, activity) => sum + parseFloat(activity.result || 0), 0)).toFixed(2);
+
+                      return (
+                      <React.Fragment key={index}>
+                        {/* Fila de Materias */}
+                        <tr>
+                          <td rowSpan={3} className="border px-2 py-1 text-sm text-gray-700 text-nowrap">{materia}</td>
+                          <td className="border px-2 py-1 text-sm text-gray-700">Calificación del Alumno</td>
+                          {activities.map((activity) => (
+                            <td key={activity.activity} className={`border px-2 py-1 text-sm text-gray-700 ${activity.color}`}>
+                              <input
+                                value={manualGrades[activity.activity] || activity.grade || "0"}
+                                onChange={(e) =>
+                                  handleGradeChange(activity.activity, e.target.value)
+                                }
+                                className="w-full border border-gray-400 rounded px-1"
+                                min="0"
+                                max="100"
+                                readOnly={!editableInputs[activity.activity]}
+                                onDoubleClick={() => toggleEditable(activity.activity)}
+                                style={{
+                                  backgroundColor: editableInputs[activity.activity] ? "white" : "#f0f0f0",
+                                  cursor: editableInputs[activity.activity] ? "text" : "default",
+                                }}
+                              />
+                            </td>
+                          ))}
+                          <td className="border px-2 py-1 text-sm text-gray-700 font-bold">{avgGrade}</td>
+                        </tr>
+                        {/* Fila de Ponderaciones */}
+                        <tr>
+                          <td className="border px-2 py-1 text-sm text-gray-700">Ponderación Materia</td>
+                          {activities.map((activity, idx) => (
+                            <td key={idx} className="border px-2 py-1 text-sm text-gray-700">{activity.ponderation}</td>
+                          ))}
+                          <td className="border px-2 py-1 text-sm text-gray-700 font-bold">{avgPonderation}</td>
+                        </tr>
+                        {/* Fila de Ponderaciones Finales */}
+                        <tr>
+                          <td className="border px-2 py-1 text-sm text-gray-700">Ponderación Final</td>
+                          {activities.map((activity, idx) => (
+                            <td key={idx} className="border px-2 py-1 text-sm text-gray-700">{activity.result}</td>
+                          ))}
+                          <td className="border px-2 py-1 text-sm text-gray-700 font-bold">{avgFinalPonderation}</td>
+                        </tr>
+                      </React.Fragment>
+                    )})}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {isTableVisible && (
           <div className="overflow-auto">

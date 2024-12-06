@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import { useState } from "react";
 import * as XLSX from "xlsx";
 
@@ -12,6 +12,7 @@ export default function useStudentData(defaultVisibleColumns) {
   const [visibleColumns, setVisibleColumns] = useState({});
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [ponderationData, setPonderationData] = useState({}); // Nueva estructura para valores de ponderación
 
   const handleFile1Change = (e) => setFile1(e.target.files[0]);
   const handleFile2Change = (e) => setFile2(e.target.files[0]);
@@ -29,6 +30,23 @@ export default function useStudentData(defaultVisibleColumns) {
         preferredName: row.ALUMNOS.split(" ")[parseInt(row.favName, 10) - 1]?.toUpperCase(),
       }));
 
+      // Procesar ponderaciones de materias desde archivo 1 (a partir de columna F)
+      const ponderationInfo = {};
+      data1.forEach((row) => {
+        const materia = row["Nombre Materia"]; // Columna F en adelante
+        if (!materia) return;
+
+        const activities = Object.keys(row)
+          .filter((col) => /^A\d+$/.test(col)) // Filtrar columnas de actividades
+          .reduce((acc, col) => {
+            acc[col] = parseFloat(row[col]) || 0; // Guardar ponderación
+            return acc;
+          }, {});
+
+        ponderationInfo[materia] = activities;
+      });
+
+      // Agrupar información de actividades por estudiante
       const groupedData = filtered.reduce((acc, row) => {
         const matricula = row.Matrícula;
         if (!acc[matricula]) acc[matricula] = [];
@@ -36,6 +54,7 @@ export default function useStudentData(defaultVisibleColumns) {
         return acc;
       }, {});
 
+      // Identificar columnas visibles
       const uniqueColumns = Object.keys(filtered[0] || {}).filter((col) => !/^A\d+$/.test(col));
       const initialVisibleColumns = uniqueColumns.reduce((acc, col) => {
         acc[col] = defaultVisibleColumns[col] || false;
@@ -46,6 +65,7 @@ export default function useStudentData(defaultVisibleColumns) {
       setColumns(uniqueColumns);
       setVisibleColumns(initialVisibleColumns);
       setFilteredData(groupedData);
+      setPonderationData(ponderationInfo); // Guardar información de ponderaciones
     } catch (error) {
       console.error("Error al procesar archivos:", error);
     }
@@ -68,6 +88,7 @@ export default function useStudentData(defaultVisibleColumns) {
     visibleColumns,
     selectedStudent,
     isLoading,
+    ponderationData, // Exponer ponderationData para uso posterior
     setFile1,
     setFile2,
     setSelectedStudent,

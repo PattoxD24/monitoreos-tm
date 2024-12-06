@@ -47,6 +47,7 @@ export default function Home() {
     archivedStudents,
     columns,
     visibleColumns,
+    ponderationData,
     selectedStudent,
     setSelectedStudent,
     setArchivedStudents,
@@ -70,6 +71,7 @@ export default function Home() {
   };
 
   const toggleShowScriptsModal = () => setShowScriptsModal(!showScriptsModal);
+  const closeScriptsModal = () => setShowScriptsModal(false);
 
   const getFilledAColumns = (rows) => {
     const maxColumns = 50;
@@ -224,7 +226,7 @@ export default function Home() {
       )}
       <ScriptsModal
         visible={showScriptsModal}
-        onClose={toggleShowScriptsModal}
+        onClose={closeScriptsModal}
         scripts={scripts}
         setScripts={setScripts}
       />
@@ -277,6 +279,7 @@ export default function Home() {
               getFilledAColumns={getFilledAColumns}
               scripts={scripts}
               whatsapp={whatsapp}
+              ponderationData={ponderationData}
             />
           )}
         </div>
