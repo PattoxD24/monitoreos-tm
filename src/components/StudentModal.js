@@ -70,7 +70,6 @@ export default function StudentModal({
     studentData.forEach((row) => {
       const materia = row["Nombre de la materia"];
       if (materia === selectedMateria) {
-        console.log(row)
 
         // get last activity with a value from studentdata row
         lastActivity = Object.keys(row)
