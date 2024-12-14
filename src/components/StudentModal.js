@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import html2canvas from "html2canvas";
 import ScriptsModal from "./ScriptsModal";
 
@@ -82,9 +82,9 @@ export default function StudentModal({
           .map((activity) => {
             const ponderation = ponderations[activity];
             console.log(activity, ponderation);
-            if (activity === "A28") {
-              console.log(row[activity].replace(/\s/g,'')+"hola");
-            }
+            // if (activity === "A28") {
+            //   console.log(row[activity].replace(/\s/g,'')+"hola");
+            // }
             const grade =
               manualGrades[activity] !== undefined
                 ? parseFloat(manualGrades[activity])
@@ -156,18 +156,18 @@ export default function StudentModal({
     setEditableInputs((prev) => ({ ...prev, [activity]: !prev[activity] }));
   }
 
-  const materias = [
+  const materias = useMemo(() => [
     ...new Set(
       (filteredData[student.matricula] || [])
         .filter(
           (row) =>
             !Object.values(row)
-              .filter((value, index) => /^A\d+$/.test(Object.keys(row)[index]))
+              .filter((_, index) => /^A\d+$/.test(Object.keys(row)[index]))
               .includes("SD")
         )
         .map((row) => row["Nombre de la materia"])
     ),
-  ];
+  ], [filteredData, student.matricula]);
 
   useEffect(() => {
     // Only initialize the selectedMateria and activityColumns on the first load
@@ -477,18 +477,53 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                 </tr>
               </thead>
               <tbody>
-                {(filteredData[student.matricula] || []).map((row, idx) => (
+              {(filteredData[student.matricula] || []).map((row, idx) => {
+                const hasDA = Object.values(row).some((value) => value === "DA");
+                const hasSD = Object.values(row).some((value) => value === "SD");
+                const ponderado = parseFloat(row["Ponderado"]) || 0;
+      
+                return (
                   <tr key={idx}>
                     {reorderColumns(
                       columns.filter((col) => visibleColumns[col]),
                       getFilledAColumns(filteredData[student.matricula] || [])
                     ).map((col, valIdx) => (
-                      <td key={valIdx} className="border px-2 py-1 text-sm text-gray-700 text-nowrap">
+                      <td
+                        key={valIdx}
+                        className={`border px-2 py-1 text-sm text-gray-700 text-nowrap ${
+                          row[col] === "DA" ? "bg-green-300" : row[col] === "NE" ?  "bg-red-300" : row[col] === "SC" ? "bg-yellow-300" : row[col] === "SD" ? "bg-blue-300" : ""
+                        }`}
+                      >
                         {row[col] || ""}
                       </td>
                     ))}
+                    {hasDA && ponderado < 70 && ponderado > 49 && (
+                      <td
+                        className="border px-2 py-1 text-sm text-red-500 font-bold text-nowrap"
+                        colSpan={columns.length}
+                      >
+                        {"El estudiante no puede realizar examen extraordinario (Ponderado < 70 y DA)"}
+                      </td>
+                    )}
+                    {ponderado < 50 && !hasSD && (
+                      <td
+                        className="border px-2 py-1 text-sm text-red-500 font-bold text-nowrap"
+                        colSpan={columns.length}
+                      >
+                        {"El estudiante no puede realizar examen extraordinario (Ponderado < 50)"}
+                      </td>
+                    )}
+                    {hasSD && (
+                      <td
+                        className="border px-2 py-1 text-sm text-red-500 font-bold text-nowrap"
+                        colSpan={columns.length}
+                      >
+                        {"El estudiante no puede realizar examen extraordinario (SD)"}
+                      </td>
+                    )}
                   </tr>
-                ))}
+                );
+              })}
               </tbody>
             </table>
             </div>
