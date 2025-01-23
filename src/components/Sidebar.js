@@ -1,7 +1,6 @@
 // components/Sidebar.js
 "use client";
 import React, { useState } from "react";
-import SortAndFilterControls from "./SortAndFilterControls";
 import ColumnSelector from "./ColumnSelector";
 import { FaAngleLeft, FaAngleRight } from "react-icons/fa";
 
@@ -107,14 +106,6 @@ export default function Sidebar({
           )}
 
           {/* Barra de búsqueda y ordenación */}
-          <SortAndFilterControls
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
-            sortOrder={sortOrder}
-            setSortOrder={setSortOrder}
-            toggleSortDirection={toggleSortDirection}
-            isAscending={isAscending}
-          />
         </>
       )}
     </div>

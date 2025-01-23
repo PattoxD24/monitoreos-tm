@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import StudentModal from "@/components/StudentModal";
 import downloadZipWithImages from "@/Utils/downloadZipWithImages";
 import ArchivedModal from "@/components/ArchivedModal";
@@ -9,6 +9,7 @@ import StudentList from "@/components/StudentList";
 import useStudentData from "@/hooks/useStudentData";
 import Loading from "@/components/Loading";
 import Sidebar from "@/components/Sidebar";
+import SortAndFilterControls from "@/components/SortAndFilterControls"
 import ColumnModal from "@/components/ColumnModal";
 import ScriptsModal from "@/components/ScriptsModal";
 import dynamic from "next/dynamic";
@@ -28,6 +29,10 @@ export default function Home() {
   const [showUploader, setShowUploader] = useState(true);
   const [scripts, setScripts] = useState([]);
   const [whatsapp, setWhatsapp] = useState("");
+  const [uniqueTeachers, setUniqueTeachers] = useState([]);
+  const [uniqueGroups, setUniqueGroups] = useState([]);
+  const [selectedTeacher, setSelectedTeacher] = useState("");
+  const [selectedGroup, setSelectedGroup] = useState("");
 
   const defaultVisibleColumns = {
     Matrícula: true,
@@ -57,6 +62,25 @@ export default function Home() {
     filteredData,
     setVisibleColumns,
   } = useStudentData(defaultVisibleColumns);
+
+  useEffect(() => {
+    const teachers = new Set();
+    const groups = new Set();
+
+    Object.values(filteredData).forEach(subjects => {
+      subjects.forEach(subject => {
+        if (subject['Nombre del profesor']) {
+          teachers.add(subject['Nombre del profesor']);
+        }
+        if (subject['# Grupo']) {
+          groups.add(subject['# Grupo']);
+        }
+      });
+    });
+
+    setUniqueTeachers(Array.from(teachers).sort());
+    setUniqueGroups(Array.from(groups).sort());
+  }, [filteredData]);
 
   const handleProcessFilesWithHide = async () => {
     await handleProcessFiles();
@@ -162,11 +186,17 @@ export default function Home() {
   // Filtrar los estudiantes según el término de búsqueda
   const filteredStudents = sortedStudents.filter((student) => {
     const search = searchTerm.toLowerCase();
-    return (
-      student.matricula.toLowerCase().includes(search) ||
+    const matchesSearch = student.matricula.toLowerCase().includes(search) ||
       student.preferredName.toLowerCase().includes(search) ||
-      student.fullName.toLowerCase().includes(search)
-    );
+      student.fullName.toLowerCase().includes(search);
+
+    const studentSubjects = filteredData[student.matricula] || [];
+    const matchesTeacher = !selectedTeacher || 
+      studentSubjects.some(subject => subject['Nombre del profesor'] === selectedTeacher);
+    const matchesGroup = !selectedGroup ||
+      studentSubjects.some(subject => subject['# Grupo'].toString() === selectedGroup.toString());
+
+    return matchesSearch && matchesTeacher && matchesGroup;
   });
 
   const handleDeleteStudent = (matricula) => {
@@ -196,6 +226,8 @@ export default function Home() {
       return updatedArchived;
     });
   };
+
+  const toggleSortDirection = () => setIsAscending(!isAscending)
 
   const downloadZip = () => { downloadZipWithImages(studentData, filteredData, getFilledAColumns, reorderColumns, visibleColumns, setIsLoading)};
 
@@ -256,7 +288,26 @@ export default function Home() {
             toggleColumnVisibility={toggleColumnVisibility}
           />
 
-          {/* Tarjetas de Estudiantes */}
+          {!showUploader && ( 
+          <SortAndFilterControls
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            sortOrder={sortOrder}
+            setSortOrder={setSortOrder}
+            toggleSortDirection={toggleSortDirection}
+            isAscending={isAscending}
+            uniqueTeachers={uniqueTeachers}
+            uniqueGroups={uniqueGroups}
+            selectedTeacher={selectedTeacher}
+            setSelectedTeacher={setSelectedTeacher}
+            selectedGroup={selectedGroup}
+            setSelectedGroup={setSelectedGroup}
+          />
+          )}
+          {/* Tarjetas de Estudiantes */
+            console.log(uniqueGroups)}
+            {console.log(uniqueTeachers)}
+            {console.log(filteredData)}
           <StudentList students={filteredStudents} studentsData={filteredData} openModal={openModal} handleDeleteStudent={handleDeleteStudent} />
 
           {/* Sección de Archivados */}
