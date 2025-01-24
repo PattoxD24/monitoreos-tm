@@ -31,9 +31,10 @@ export default function Home() {
   const [whatsapp, setWhatsapp] = useState("");
   const [uniqueTeachers, setUniqueTeachers] = useState([]);
   const [uniqueGroups, setUniqueGroups] = useState([]);
+  const [uniqueSubjects, setUniqueSubjects] = useState([]);
   const [selectedTeacher, setSelectedTeacher] = useState("");
   const [selectedGroup, setSelectedGroup] = useState("");
-
+  const [selectedSubject, setSelectedSubject] = useState("");
   const defaultVisibleColumns = {
     Matrícula: true,
     "Nombre del alumno": true,
@@ -66,6 +67,7 @@ export default function Home() {
   useEffect(() => {
     const teachers = new Set();
     const groups = new Set();
+    const materias = new Set();
 
     Object.values(filteredData).forEach(subjects => {
       subjects.forEach(subject => {
@@ -75,11 +77,15 @@ export default function Home() {
         if (subject['# Grupo']) {
           groups.add(subject['# Grupo']);
         }
+        if (subject['Nombre de la materia']) {
+          materias.add(subject['Nombre de la materia']);
+        }
       });
     });
 
     setUniqueTeachers(Array.from(teachers).sort());
     setUniqueGroups(Array.from(groups).sort());
+    setUniqueSubjects(Array.from(materias).sort());
   }, [filteredData]);
 
   const handleProcessFilesWithHide = async () => {
@@ -195,8 +201,10 @@ export default function Home() {
       studentSubjects.some(subject => subject['Nombre del profesor'] === selectedTeacher);
     const matchesGroup = !selectedGroup ||
       studentSubjects.some(subject => subject['# Grupo'].toString() === selectedGroup.toString());
+    const matchesSubject = !selectedSubject ||
+      studentSubjects.some(subject => subject['Nombre de la materia'] === selectedSubject);
 
-    return matchesSearch && matchesTeacher && matchesGroup;
+    return matchesSearch && matchesTeacher && matchesGroup && matchesSubject;
   });
 
   const handleDeleteStudent = (matricula) => {
@@ -302,12 +310,12 @@ export default function Home() {
             setSelectedTeacher={setSelectedTeacher}
             selectedGroup={selectedGroup}
             setSelectedGroup={setSelectedGroup}
+            uniqueSubjects={uniqueSubjects}
+            selectedSubject={selectedSubject}
+            setSelectedSubject={setSelectedSubject}
           />
           )}
-          {/* Tarjetas de Estudiantes */
-            console.log(uniqueGroups)}
-            {console.log(uniqueTeachers)}
-            {console.log(filteredData)}
+          {/* Tarjetas de Estudiantes */}
           <StudentList students={filteredStudents} studentsData={filteredData} openModal={openModal} handleDeleteStudent={handleDeleteStudent} />
 
           {/* Sección de Archivados */}

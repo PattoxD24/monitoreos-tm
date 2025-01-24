@@ -10,15 +10,20 @@ export default function SortAndFilterControls({
   isAscending,
   uniqueTeachers = [],
   uniqueGroups = [],
+  uniqueSubjects = [],
   selectedTeacher,
   setSelectedTeacher,
   selectedGroup,
   setSelectedGroup,
+  selectedSubject,
+  setSelectedSubject,
 }) {
   const [teacherSearch, setTeacherSearch] = useState("");
   const [groupSearch, setGroupSearch] = useState("");
+  const [subjectSearch, setSubjectSearch] = useState("");
   const [showTeacherOptions, setShowTeacherOptions] = useState(false);
   const [showGroupOptions, setShowGroupOptions] = useState(false);
+  const [showSubjectOptions, setShowSubjectOptions] = useState(false);
 
   const filteredTeachers = Array.isArray(uniqueTeachers) 
     ? uniqueTeachers.filter(teacher =>
@@ -30,18 +35,69 @@ export default function SortAndFilterControls({
     ? uniqueGroups.filter(group =>
         group?.toString().includes(groupSearch)
       )
+    : []; 
+
+  const filteredSubjects = Array.isArray(uniqueSubjects)
+    ? uniqueSubjects.filter(subject =>
+        subject?.toString().includes(subjectSearch)
+      )
     : [];
 
   const handleClickOutside = () => {
     setTimeout(() => {
       setShowTeacherOptions(false);
       setShowGroupOptions(false);
+      setShowSubjectOptions(false);
     }, 200);
   };
 
   return (
     <div className="mt-4 flex flex-wrap gap-2">
       <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
+
+      {/* Filtro de Materia */}
+      <div className="relative">
+        <input
+          type="text"
+          value={subjectSearch}
+          onChange={(e) => {
+            setSubjectSearch(e.target.value);
+            setShowSubjectOptions(true);
+          }}
+          onFocus={() => setShowSubjectOptions(true)}
+          onBlur={handleClickOutside}
+          placeholder="Buscar materia..."
+          className="border rounded-lg p-2 text-gray-700"
+        />
+        {showSubjectOptions && filteredSubjects.length > 0 && (
+          <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-60 overflow-auto text-gray-700">
+            <div
+              className="p-2 hover:bg-gray-100 cursor-pointer text-gray-500"
+              onClick={() => {
+                setSelectedSubject("");
+                setSubjectSearch("");
+                setShowSubjectOptions(false);
+              }}
+            >
+              Mostrar todos
+            </div>
+            {filteredSubjects.map((subject, index) => (
+              <div
+                key={index}
+                className="p-2 hover:bg-gray-100 cursor-pointer"
+                onClick={() => {
+                  setSelectedSubject(subject);
+                  setSubjectSearch(subject);
+                  setShowSubjectOptions(false);
+                }}
+              >
+                {subject}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      
       
       {/* Filtro de Profesor */}
       <div className="relative">
