@@ -81,7 +81,6 @@ export default function StudentModal({
         const activityResults = Object.keys(ponderations)
           .map((activity) => {
             const ponderation = ponderations[activity];
-            console.log(activity, ponderation);
             // if (activity === "A28") {
             //   console.log(row[activity].replace(/\s/g,'')+"hola");
             // }
@@ -409,7 +408,6 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                         activities.reduce((sum, activity) => sum + parseFloat(activity.result || 0), 0)).toFixed(2);
                       
                       const avg = ((avgFinalPonderation * 100) / sumPonderation).toFixed(0);
-                      console.log(sumPonderation, avgFinalPonderation, avg);
 
                       return (
                       <React.Fragment key={index}>
