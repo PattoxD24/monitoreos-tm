@@ -235,6 +235,23 @@ export default function Home() {
     });
   };
 
+  const restoreAllStudents = () => {
+
+    setArchivedStudents((prevArchived) => {
+      const updatedArchived = [];
+      prevArchived.forEach((student) => {
+        setStudentData((prevData) => {
+          if (!prevData.some((studentPrev) => studentPrev.matricula === student.matricula)) {
+            return [...prevData, student];
+          }
+          return prevData;
+        });
+      });
+      return updatedArchived;
+    }
+    );
+  };
+
   const toggleSortDirection = () => setIsAscending(!isAscending)
 
   const downloadZip = () => { downloadZipWithImages(studentData, filteredData, getFilledAColumns, reorderColumns, visibleColumns, setIsLoading)};
@@ -324,6 +341,7 @@ export default function Home() {
             onClose={() => setShowArchivedModal(false)}
             archivedStudents={archivedStudents}
             restoreStudent={restoreStudent}
+            restoreAllStudents={restoreAllStudents}
           />
 
           {/* Modal de Detalles */}

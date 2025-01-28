@@ -4,7 +4,7 @@
 import { useEffect } from "react";
 import StudentCard from "./StudentCard";
 
-export default function ArchivedModal({ visible, onClose, archivedStudents, restoreStudent }) {
+export default function ArchivedModal({ visible, onClose, archivedStudents, restoreStudent, restoreAllStudents }) {
   useEffect(() => {
     const handleKeyDown = (event) => {
       if (event.key === "Escape") onClose();
@@ -39,12 +39,21 @@ export default function ArchivedModal({ visible, onClose, archivedStudents, rest
             />
           ))}
         </div>
+        <div className="flex justify-between mt-4">
+
         <button
           onClick={onClose}
           className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
         >
           Cerrar
-        </button>
+          </button>
+          <button
+            onClick={restoreAllStudents}
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            Restaurar todos
+          </button>
+        </div>
       </div>
     </div>
   );
