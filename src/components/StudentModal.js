@@ -70,20 +70,29 @@ export default function StudentModal({
     studentData.forEach((row) => {
       const materia = row["Nombre de la materia"];
       if (materia === selectedMateria) {
-
-        // get last activity with a value from studentdata row
-        lastActivity = Object.keys(row)
+        // Obtener la última actividad real del estudiante
+        const lastRealActivity = Object.keys(row)
           .filter((column) => /^A\d+$/.test(column) && row[column].replace(/\s/g, ''))
           .sort((a, b) => parseInt(a.slice(1)) - parseInt(b.slice(1)))
           .pop();
+
+        // Obtener la última actividad modificada manualmente
+        const lastManualActivity = Object.keys(manualGrades)
+          .filter((column) => /^A\d+$/.test(column) && manualGrades[column])
+          .sort((a, b) => parseInt(a.slice(1)) - parseInt(b.slice(1)))
+          .pop();
+
+        // Comparar números de actividad y usar el mayor
+        const lastRealActivityNum = lastRealActivity ? parseInt(lastRealActivity.slice(1)) : 0;
+        const lastManualActivityNum = lastManualActivity ? parseInt(lastManualActivity.slice(1)) : 0;
+
+        lastActivity = lastManualActivityNum > lastRealActivityNum ? 
+          lastManualActivity : lastRealActivity;
 
         const ponderations = ponderationData[materia] || {};
         const activityResults = Object.keys(ponderations)
           .map((activity) => {
             const ponderation = ponderations[activity];
-            // if (activity === "A28") {
-            //   console.log(row[activity].replace(/\s/g,'')+"hola");
-            // }
             const grade =
               manualGrades[activity] !== undefined
                 ? parseFloat(manualGrades[activity])
@@ -105,7 +114,13 @@ export default function StudentModal({
           .filter(Boolean); // Remove null entries
 
         if (activityResults.length > 0) {
-          results.push({ materia, activities: activityResults, color: activityResults[0].color, ponderado: activityResults[0].ponderado, lastActivity: activityResults[0].lastActivity });
+          results.push({ 
+            materia, 
+            activities: activityResults, 
+            color: activityResults[0].color, 
+            ponderado: activityResults[0].ponderado, 
+            lastActivity 
+          });
         }
       }
     });
@@ -131,24 +146,14 @@ export default function StudentModal({
   }
 
   const handleGradeChange = (activity, value) => {
-    setManualGrades((prev) => ({ ...prev, [activity]: value }));
+    // Limitar el valor a 100
+    const limitedValue = Math.min(parseFloat(value) || 0, 100);
+    setManualGrades((prev) => ({ ...prev, [activity]: limitedValue }));
 
     if (value === "" || value === "0") {
       const { [activity]: removed, ...rest } = manualGrades;
       setManualGrades(rest);
     }
-    const lastActivity = Object.keys(manualGrades)
-      .filter((column) => /^A\d+$/.test(column) && manualGrades[column])
-      .sort((a, b) => parseInt(a.slice(1)) - parseInt(b.slice(1)))
-      .pop();
-
-
-    if (typeof(lastActivity) === "undefined") {
-      setLastActivityColumn(originalLastActivityColumn);
-    } else {
-      setLastActivityColumn(lastActivity);
-    }
-    console.log(lastActivity,lastActivityColumn,originalLastActivityColumn);
   }
 
   const toggleEditable = (activity) => {
@@ -400,7 +405,6 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                         return activity;
                       });
                     
-
                       const avgPonderation = (
                         activities.reduce((sum, activity) => sum + parseFloat(activity.ponderation || 0), 0).toFixed(2));
 
@@ -416,20 +420,31 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                           <td rowSpan={3} className="border px-2 py-1 text-sm text-gray-700 text-nowrap">{materia}</td>
                           <td className="border px-2 py-1 text-sm text-gray-700">Calificación del Alumno</td>
                           {activities.map((activity) => (
-                            <td key={activity.activity} className={`border px-2 py-1 text-sm text-gray-700 ${activity.color}`}>
+                            <td key={activity.activity} className={`border px-0 py-0 text-sm text-gray-700 ${activity.color}`} style={{ padding: 0 }}>
                               <input
                                 value={manualGrades[activity.activity] || activity.grade || "0"}
-                                onChange={(e) =>
-                                  handleGradeChange(activity.activity, e.target.value)
-                                }
-                                className="w-full border border-gray-400 rounded px-1"
+                                onChange={(e) => handleGradeChange(activity.activity, e.target.value)}
+                                className="w-full h-full border-none"
+                                type="number"
                                 min="0"
                                 max="100"
+                                step="any"
                                 readOnly={!editableInputs[activity.activity]}
                                 onDoubleClick={() => toggleEditable(activity.activity)}
                                 style={{
                                   backgroundColor: editableInputs[activity.activity] ? "white" : "#f0f0f0",
                                   cursor: editableInputs[activity.activity] ? "text" : "default",
+                                  WebkitAppearance: "none",
+                                  MozAppearance: "textfield",
+                                  margin: 0,
+                                  padding: "4px 8px",
+                                  boxSizing: "border-box",
+                                  width: "100%",
+                                  height: "100%",
+                                  minHeight: "30px",
+                                  display: "block",
+                                  outline: "none",
+                                  border: "1px solid #e2e8f0"
                                 }}
                               />
                             </td>
