@@ -62,7 +62,18 @@ export default function Home() {
     handleProcessFiles,
     filteredData,
     setVisibleColumns,
+    clearAllData,
+    hasLoadedData,
+    notification,
   } = useStudentData(defaultVisibleColumns);
+
+  useEffect(() => {
+    if (hasLoadedData || Object.keys(filteredData).length > 0) {
+      setShowUploader(false);
+    } else {
+      setShowUploader(true);
+    }
+  }, [hasLoadedData, filteredData]);
 
   useEffect(() => {
     const teachers = new Set();
@@ -256,8 +267,20 @@ export default function Home() {
 
   const downloadZip = () => { downloadZipWithImages(studentData, filteredData, getFilledAColumns, reorderColumns, visibleColumns, setIsLoading)};
 
+  const handleClearAllData = () => {
+    clearAllData();
+    setShowUploader(true);
+  };
+
   return (
     <div className="flex">
+      {/* Notificación */}
+      {notification.show && (
+        <div className="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded shadow-lg z-50 animate-fade-in-out">
+          {notification.message}
+        </div>
+      )}
+
       {Object.keys(filteredData).length > 0 && (
     <Sidebar
         showColumnSelector={showColumnSelector}
@@ -279,6 +302,9 @@ export default function Home() {
         showWhatsappInput={showWhatsappInput}
         whatsapp={whatsapp}
         setWhatsapp={setWhatsapp}
+        clearAllData={handleClearAllData}
+        handleFile1Change={handleFile1Change}
+        handleFile2Change={handleFile2Change}
       />
       )}
       <ScriptsModal

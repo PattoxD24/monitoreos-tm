@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
 
 export default function useStudentData(defaultVisibleColumns) {
@@ -12,16 +12,88 @@ export default function useStudentData(defaultVisibleColumns) {
   const [visibleColumns, setVisibleColumns] = useState({});
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [ponderationData, setPonderationData] = useState({}); // Nueva estructura para valores de ponderación
+  const [ponderationData, setPonderationData] = useState({});
+  const [hasLoadedData, setHasLoadedData] = useState(false);
+  const [notification, setNotification] = useState({ show: false, message: '' });
 
-  const handleFile1Change = (e) => setFile1(e.target.files[0]);
-  const handleFile2Change = (e) => setFile2(e.target.files[0]);
+  // Cargar datos del localStorage al iniciar
+  useEffect(() => {
+    const savedData = localStorage.getItem('studentAppData');
+    if (savedData) {
+      const parsedData = JSON.parse(savedData);
+      setStudentData(parsedData.studentData || []);
+      setArchivedStudents(parsedData.archivedStudents || []);
+      setFilteredData(parsedData.filteredData || {});
+      setColumns(parsedData.columns || []);
+      setVisibleColumns(parsedData.visibleColumns || {});
+      setPonderationData(parsedData.ponderationData || {});
+      setHasLoadedData(true);
+    }
+  }, []);
 
-  const handleProcessFiles = async () => {
-    if (!file1 || !file2) return alert("Por favor, sube ambos archivos.");
+  // Guardar datos en localStorage cuando cambien
+  useEffect(() => {
+    const dataToSave = {
+      studentData,
+      archivedStudents,
+      filteredData,
+      columns,
+      visibleColumns,
+      ponderationData
+    };
+    localStorage.setItem('studentAppData', JSON.stringify(dataToSave));
+  }, [studentData, archivedStudents, filteredData, columns, visibleColumns, ponderationData]);
+
+  const clearAllData = () => {
+    localStorage.removeItem('studentAppData');
+    setStudentData([]);
+    setArchivedStudents([]);
+    setFilteredData({});
+    setColumns([]);
+    setVisibleColumns({});
+    setPonderationData({});
+    setFile1(null);
+    setFile2(null);
+    setHasLoadedData(false);
+  };
+
+  const showNotification = (message) => {
+    setNotification({ show: true, message });
+    setTimeout(() => {
+      setNotification({ show: false, message: '' });
+    }, 3000); // La notificación desaparecerá después de 3 segundos
+  };
+
+  const handleFile1Change = async (e) => {
+    const newFile = e.target.files[0];
+    setFile1(newFile);
+    if (newFile && file2) {
+      await handleProcessFiles(newFile, file2);
+      showNotification('Archivo Base actualizado correctamente');
+    }
+  };
+
+  const handleFile2Change = async (e) => {
+    const newFile = e.target.files[0];
+    setFile2(newFile);
+    if (file1 && newFile) {
+      await handleProcessFiles(file1, newFile);
+      showNotification('Archivo de Monitoreos actualizado correctamente');
+    }
+  };
+
+  const handleProcessFiles = async (file1Override = null, file2Override = null) => {
+    const fileToProcess1 = file1Override || file1;
+    const fileToProcess2 = file2Override || file2;
+
+    if (!fileToProcess1 || !fileToProcess2) return alert("Por favor, sube ambos archivos.");
 
     try {
-      const [data1, data2] = await Promise.all([readExcel(file1), readExcel(file2)]);
+      const [data1, data2] = await Promise.all([
+        readExcel(fileToProcess1), 
+        readExcel(fileToProcess2)
+      ]);
+      
       const matriculas = new Set(data1.map((row) => row.MATRICULA));
       const filtered = data2.filter((row) => matriculas.has(row.Matrícula));
       const studentData = data1.map((row) => ({
@@ -30,16 +102,16 @@ export default function useStudentData(defaultVisibleColumns) {
         preferredName: row.ALUMNOS.split(" ")[parseInt(row.favName, 10) - 1]?.toUpperCase(),
       }));
 
-      // Procesar ponderaciones de materias desde archivo 1 (a partir de columna F)
+      // Procesar ponderaciones de materias desde archivo 1
       const ponderationInfo = {};
       data1.forEach((row) => {
-        const materia = row["Nombre Materia"]; // Columna F en adelante
+        const materia = row["Nombre Materia"];
         if (!materia) return;
 
         const activities = Object.keys(row)
-          .filter((col) => /^A\d+$/.test(col)) // Filtrar columnas de actividades
+          .filter((col) => /^A\d+$/.test(col))
           .reduce((acc, col) => {
-            acc[col] = parseFloat(row[col]) || 0; // Guardar ponderación
+            acc[col] = parseFloat(row[col]) || 0;
             return acc;
           }, {});
 
@@ -65,9 +137,11 @@ export default function useStudentData(defaultVisibleColumns) {
       setColumns(uniqueColumns);
       setVisibleColumns(initialVisibleColumns);
       setFilteredData(groupedData);
-      setPonderationData(ponderationInfo); // Guardar información de ponderaciones
+      setPonderationData(ponderationInfo);
+      setHasLoadedData(true);
     } catch (error) {
       console.error("Error al procesar archivos:", error);
+      alert("Error al procesar los archivos. Por favor, verifica el formato.");
     }
   };
 
@@ -88,7 +162,7 @@ export default function useStudentData(defaultVisibleColumns) {
     visibleColumns,
     selectedStudent,
     isLoading,
-    ponderationData, // Exponer ponderationData para uso posterior
+    ponderationData,
     setFile1,
     setFile2,
     setSelectedStudent,
@@ -99,5 +173,8 @@ export default function useStudentData(defaultVisibleColumns) {
     filteredData,
     setVisibleColumns,
     setFilteredData,
+    clearAllData,
+    notification,
+    hasLoadedData,
   };
 }
