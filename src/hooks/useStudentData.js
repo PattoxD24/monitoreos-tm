@@ -27,7 +27,11 @@ export default function useStudentData(defaultVisibleColumns) {
       setColumns(parsedData.columns || []);
       setVisibleColumns(parsedData.visibleColumns || {});
       setPonderationData(parsedData.ponderationData || {});
-      setHasLoadedData(true);
+      if (studentData.length == 0) {
+        setHasLoadedData(false);
+      } else {
+        setHasLoadedData(true);
+      }
     }
   }, []);
 
@@ -66,19 +70,50 @@ export default function useStudentData(defaultVisibleColumns) {
 
   const handleFile1Change = async (e) => {
     const newFile = e.target.files[0];
-    setFile1(newFile);
-    if (newFile && file2) {
-      await handleProcessFiles(newFile, file2);
-      showNotification('Archivo Base actualizado correctamente');
+    if (newFile) {
+      try {
+        setIsLoading(true);
+        const data = await readExcel(newFile);
+        // Verificar si el archivo tiene el formato esperado
+        if (!data[0]?.MATRICULA || !data[0]?.ALUMNOS) {
+          alert("El archivo Base no tiene el formato correcto");
+          return;
+        }
+        if (file2) {
+          await handleProcessFiles(newFile, file2);
+          showNotification('Archivo Base actualizado correctamente');
+        }
+      } catch (error) {
+        console.error("Error al procesar archivo Base:", error);
+        alert("Error al procesar el archivo Base");
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
   const handleFile2Change = async (e) => {
     const newFile = e.target.files[0];
-    setFile2(newFile);
-    if (file1 && newFile) {
-      await handleProcessFiles(file1, newFile);
-      showNotification('Archivo de Monitoreos actualizado correctamente');
+    if (newFile) {
+      try {
+        setIsLoading(true);
+        const data = await readExcel(newFile);
+        // Verificar si el archivo tiene el formato esperado
+        if (!data[0]?.Matrícula) {
+          alert("El archivo de Monitoreos no tiene el formato correcto");
+          return;
+        }
+        setFile2(newFile);
+        if (file1) {
+          await handleProcessFiles(file1, newFile);
+          showNotification('Archivo de Monitoreos actualizado correctamente');
+        }
+      } catch (error) {
+        console.error("Error al procesar archivo de Monitoreos:", error);
+        alert("Error al procesar el archivo de Monitoreos");
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -89,13 +124,27 @@ export default function useStudentData(defaultVisibleColumns) {
     if (!fileToProcess1 || !fileToProcess2) return alert("Por favor, sube ambos archivos.");
 
     try {
+      setIsLoading(true);
       const [data1, data2] = await Promise.all([
         readExcel(fileToProcess1), 
         readExcel(fileToProcess2)
       ]);
+
+      // Validar formatos de archivos
+      if (!data1[0]?.MATRICULA || !data1[0]?.ALUMNOS) {
+        throw new Error("El archivo Base no tiene el formato correcto");
+      }
+      if (!data2[0]?.Matrícula) {
+        throw new Error("El archivo de Monitoreos no tiene el formato correcto");
+      }
       
       const matriculas = new Set(data1.map((row) => row.MATRICULA));
       const filtered = data2.filter((row) => matriculas.has(row.Matrícula));
+
+      if (filtered.length === 0) {
+        throw new Error("No se encontraron coincidencias entre los archivos");
+      }
+
       const studentData = data1.map((row) => ({
         matricula: row.MATRICULA,
         fullName: row.ALUMNOS,
@@ -141,7 +190,11 @@ export default function useStudentData(defaultVisibleColumns) {
       setHasLoadedData(true);
     } catch (error) {
       console.error("Error al procesar archivos:", error);
-      alert("Error al procesar los archivos. Por favor, verifica el formato.");
+      alert(error.message || "Error al procesar los archivos. Por favor, verifica el formato.");
+      // Limpiar estados en caso de error
+      clearAllData();
+    } finally {
+      setIsLoading(false);
     }
   };
 
