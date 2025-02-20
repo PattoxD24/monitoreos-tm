@@ -79,6 +79,7 @@ export default function useStudentData(defaultVisibleColumns) {
           alert("El archivo Base no tiene el formato correcto");
           return;
         }
+        setFile1(newFile);
         if (file2) {
           await handleProcessFiles(newFile, file2);
           showNotification('Archivo Base actualizado correctamente');
@@ -187,7 +188,11 @@ export default function useStudentData(defaultVisibleColumns) {
       setVisibleColumns(initialVisibleColumns);
       setFilteredData(groupedData);
       setPonderationData(ponderationInfo);
-      setHasLoadedData(true);
+      if (studentData.length == 0) {
+        setHasLoadedData(false);
+      } else {
+        setHasLoadedData(true);
+      }
     } catch (error) {
       console.error("Error al procesar archivos:", error);
       alert(error.message || "Error al procesar los archivos. Por favor, verifica el formato.");
