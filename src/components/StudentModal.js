@@ -187,7 +187,7 @@ export default function StudentModal({
     const nombre = student.preferredName.toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
     const matricula = student.matricula;
   
-    console.log(student.matricula);
+    console.log(filteredData[student.matricula]);
 
     const neMaterias = findMateriasWithLastColumnNE(filteredData[student.matricula]);
     const scMaterias = findMateriasWithLastColumnSC(filteredData[student.matricula]);
