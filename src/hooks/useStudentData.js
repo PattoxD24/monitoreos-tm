@@ -27,6 +27,7 @@ export default function useStudentData(defaultVisibleColumns) {
       setColumns(parsedData.columns || []);
       setVisibleColumns(parsedData.visibleColumns || {});
       setPonderationData(parsedData.ponderationData || {});
+
       if (studentData.length == 0) {
         setHasLoadedData(false);
       } else {
@@ -45,7 +46,13 @@ export default function useStudentData(defaultVisibleColumns) {
       visibleColumns,
       ponderationData
     };
-    localStorage.setItem('studentAppData', JSON.stringify(dataToSave));
+    
+    try {
+      localStorage.setItem('studentAppData', JSON.stringify(dataToSave));
+    } catch (error) {
+      console.error("Error al guardar en localStorage:", error);
+      // Opcional: Mostrar una notificación al usuario
+    }
   }, [studentData, archivedStudents, filteredData, columns, visibleColumns, ponderationData]);
 
   const clearAllData = () => {
@@ -123,6 +130,7 @@ export default function useStudentData(defaultVisibleColumns) {
     const fileToProcess2 = file2Override || file2;
 
     if (!fileToProcess1 || !fileToProcess2) return alert("Por favor, sube ambos archivos.");
+    console.log(fileToProcess1, fileToProcess2)
 
     try {
       setIsLoading(true);
@@ -175,6 +183,22 @@ export default function useStudentData(defaultVisibleColumns) {
         acc[matricula].push(row);
         return acc;
       }, {});
+
+      // Limpiar espacios en blanco de las actividades A1-A50 manteniendo todas las columnas
+      Object.keys(groupedData).forEach((matricula) => {
+        groupedData[matricula].forEach((materia) => {
+          // Recorrer las columnas A1 hasta A50
+          for (let i = 1; i <= 50; i++) {
+            const activityKey = `A${i}`;
+            // Asegurarse de que la propiedad exista, si no existe, crearla como cadena vacía
+            if (!(activityKey in materia)) {
+              materia[activityKey] = '';
+            } else if (typeof materia[activityKey] === 'string' && materia[activityKey].trim() === '') {
+              materia[activityKey] = '';
+            }
+          }
+        });
+      });
 
       // Identificar columnas visibles
       const uniqueColumns = Object.keys(filtered[0] || {}).filter((col) => !/^A\d+$/.test(col));
