@@ -149,6 +149,7 @@ export default function Home() {
   
     let neCount = 0;
     let minPonderado = Infinity;
+    let totalFaltas = 0;
   
     studentSubjects.forEach((subject) => {
       const lastAColumn = Object.keys(subject)
@@ -162,6 +163,11 @@ export default function Home() {
   
       if (subject.Ponderado && !isNaN(subject.Ponderado)) {
         minPonderado = Math.min(minPonderado, parseInt(subject.Ponderado));
+      }
+  
+      // Sumar faltas de cada materia
+      if (subject["Faltas del alumno"] && !isNaN(subject["Faltas del alumno"])) {
+        totalFaltas += parseInt(subject["Faltas del alumno"]);
       }
     });
   
@@ -177,7 +183,7 @@ export default function Home() {
       backgroundColor = "#CCFFCC"; // Verde suave
     }
   
-    return { neCount, minPonderado, backgroundColor };
+    return { neCount, minPonderado, backgroundColor, totalFaltas };
   };
 
   const sortStudents = (students) => {
@@ -187,6 +193,8 @@ export default function Home() {
         comparison = a.matricula.localeCompare(b.matricula);
       } else if (sortOrder === "nombre") {
         comparison = a.preferredName.localeCompare(b.preferredName);
+      } else if (sortOrder === "faltas") {
+        comparison = a.totalFaltas - b.totalFaltas;
       } else if (sortOrder === "original") {
         comparison = (a.neCount !== b.neCount ) ? b.neCount - a.neCount : a.minPonderado - b.minPonderado;
       }

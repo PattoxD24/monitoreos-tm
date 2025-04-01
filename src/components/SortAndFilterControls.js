@@ -193,6 +193,7 @@ export default function SortAndFilterControls({
         <option value="original">Orden original</option>
         <option value="matricula">Matrícula</option>
         <option value="nombre">Nombre</option>
+        <option value="faltas"># Faltas</option>
       </select>
 
       <button
