@@ -23,12 +23,6 @@ export default function StudentCard({
       calculateCounts();
       calculateMateriasConFaltas();
       calculateTodasLasMaterias();
-      
-      // Log para depuración
-      console.log("Student:", student);
-      console.log("StudentsData:", studentsData);
-      console.log("Esta matrícula:", student.matricula);
-      console.log("Datos de este estudiante:", studentsData[student.matricula]);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studentsData]);
@@ -123,7 +117,6 @@ export default function StudentCard({
   const calculateTodasLasMaterias = () => {
     // Verificar que studentData sea un array
     if (!Array.isArray(studentData) || studentData.length === 0) {
-      console.log("No hay datos de materias para este estudiante, usando datos de ejemplo");
       
       // Crear datos de ejemplo para visualización
       const materiasEjemplo = [
@@ -137,8 +130,6 @@ export default function StudentCard({
       setTodasLasMaterias(materiasEjemplo);
       return;
     }
-    
-    console.log("Estructura de datos del estudiante:", studentData);
     
     // Verificar cómo son los datos de las materias
     // Asumiendo que cada fila puede representar una materia
@@ -219,7 +210,6 @@ export default function StudentCard({
         };
       });
     
-    console.log("Materias procesadas:", todasMaterias);
     setTodasLasMaterias(todasMaterias);
   };
 
