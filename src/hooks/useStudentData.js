@@ -28,7 +28,7 @@ export default function useStudentData(defaultVisibleColumns) {
       setVisibleColumns(parsedData.visibleColumns || {});
       setPonderationData(parsedData.ponderationData || {});
 
-      if (studentData.length == 0) {
+      if (parsedData.studentData?.length === 0) {
         setHasLoadedData(false);
       } else {
         setHasLoadedData(true);
@@ -130,7 +130,6 @@ export default function useStudentData(defaultVisibleColumns) {
     const fileToProcess2 = file2Override || file2;
 
     if (!fileToProcess1 || !fileToProcess2) return alert("Por favor, sube ambos archivos.");
-    console.log(fileToProcess1, fileToProcess2)
 
     try {
       setIsLoading(true);
