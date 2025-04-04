@@ -13,7 +13,6 @@ export default function StudentCard({
   const [scCount, setScCount] = useState(0);
   const [daCount, setDaCount] = useState(0);
   const [sdCount, setSdCount] = useState(0);
-  const [materiasConFaltas, setMateriasConFaltas] = useState([]);
   const [todasLasMaterias, setTodasLasMaterias] = useState([]);
 
   useEffect(() => {
@@ -21,7 +20,6 @@ export default function StudentCard({
       calculatePonderadoAverage();
       calculateFaltasPercentage();
       calculateCounts();
-      calculateMateriasConFaltas();
       calculateTodasLasMaterias();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -89,48 +87,7 @@ export default function StudentCard({
     setSdCount(sd);
   };
 
-  const calculateMateriasConFaltas = () => {
-    const materiasConMasFaltas = studentData
-      .filter(row => {
-        const faltasAlumno = parseFloat(row["Faltas del alumno"]) || 0;
-        const limiteFaltas = parseFloat(row["Límite de faltas"]) || 0;
-        
-        // Calcular porcentaje de faltas para esta materia
-        const porcentaje = limiteFaltas > 0 ? (faltasAlumno / limiteFaltas) * 100 : 0;
-        return porcentaje >= 50;
-      })
-      .map(row => {
-        const faltasAlumno = parseFloat(row["Faltas del alumno"]) || 0;
-        const limiteFaltas = parseFloat(row["Límite de faltas"]) || 1;
-        const porcentaje = (faltasAlumno / limiteFaltas) * 100;
-        
-        return {
-          nombre: row.Materia || "Materia sin nombre",
-          porcentaje: porcentaje,
-          color: getFaltasBarColor(porcentaje)
-        };
-      });
-    
-    setMateriasConFaltas(materiasConMasFaltas);
-  };
-
   const calculateTodasLasMaterias = () => {
-    // Verificar que studentData sea un array
-    if (!Array.isArray(studentData) || studentData.length === 0) {
-      
-      // Crear datos de ejemplo para visualización
-      const materiasEjemplo = [
-        { nombre: "Matemáticas", porcentaje: 75, color: "bg-red-500" },
-        { nombre: "Español", porcentaje: 30, color: "bg-green-500" },
-        { nombre: "Ciencias", porcentaje: 55, color: "bg-yellow-500" },
-        { nombre: "Historia", porcentaje: 45, color: "bg-green-500" },
-        { nombre: "Inglés", porcentaje: 10, color: "bg-green-500" }
-      ];
-      
-      setTodasLasMaterias(materiasEjemplo);
-      return;
-    }
-    
     // Verificar cómo son los datos de las materias
     // Asumiendo que cada fila puede representar una materia
     const todasMaterias = studentData
