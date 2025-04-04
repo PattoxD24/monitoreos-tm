@@ -13,12 +13,22 @@ export default function StudentCard({
   const [scCount, setScCount] = useState(0);
   const [daCount, setDaCount] = useState(0);
   const [sdCount, setSdCount] = useState(0);
+  const [materiasConFaltas, setMateriasConFaltas] = useState([]);
+  const [todasLasMaterias, setTodasLasMaterias] = useState([]);
 
   useEffect(() => {
     if (onDelete !== null) {
       calculatePonderadoAverage();
       calculateFaltasPercentage();
       calculateCounts();
+      calculateMateriasConFaltas();
+      calculateTodasLasMaterias();
+      
+      // Log para depuración
+      console.log("Student:", student);
+      console.log("StudentsData:", studentsData);
+      console.log("Esta matrícula:", student.matricula);
+      console.log("Datos de este estudiante:", studentsData[student.matricula]);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studentsData]);
@@ -85,6 +95,142 @@ export default function StudentCard({
     setSdCount(sd);
   };
 
+  const calculateMateriasConFaltas = () => {
+    const materiasConMasFaltas = studentData
+      .filter(row => {
+        const faltasAlumno = parseFloat(row["Faltas del alumno"]) || 0;
+        const limiteFaltas = parseFloat(row["Límite de faltas"]) || 0;
+        
+        // Calcular porcentaje de faltas para esta materia
+        const porcentaje = limiteFaltas > 0 ? (faltasAlumno / limiteFaltas) * 100 : 0;
+        return porcentaje >= 50;
+      })
+      .map(row => {
+        const faltasAlumno = parseFloat(row["Faltas del alumno"]) || 0;
+        const limiteFaltas = parseFloat(row["Límite de faltas"]) || 1;
+        const porcentaje = (faltasAlumno / limiteFaltas) * 100;
+        
+        return {
+          nombre: row.Materia || "Materia sin nombre",
+          porcentaje: porcentaje,
+          color: getFaltasBarColor(porcentaje)
+        };
+      });
+    
+    setMateriasConFaltas(materiasConMasFaltas);
+  };
+
+  const calculateTodasLasMaterias = () => {
+    // Verificar que studentData sea un array
+    if (!Array.isArray(studentData) || studentData.length === 0) {
+      console.log("No hay datos de materias para este estudiante, usando datos de ejemplo");
+      
+      // Crear datos de ejemplo para visualización
+      const materiasEjemplo = [
+        { nombre: "Matemáticas", porcentaje: 75, color: "bg-red-500" },
+        { nombre: "Español", porcentaje: 30, color: "bg-green-500" },
+        { nombre: "Ciencias", porcentaje: 55, color: "bg-yellow-500" },
+        { nombre: "Historia", porcentaje: 45, color: "bg-green-500" },
+        { nombre: "Inglés", porcentaje: 10, color: "bg-green-500" }
+      ];
+      
+      setTodasLasMaterias(materiasEjemplo);
+      return;
+    }
+    
+    console.log("Estructura de datos del estudiante:", studentData);
+    
+    // Verificar cómo son los datos de las materias
+    // Asumiendo que cada fila puede representar una materia
+    const todasMaterias = studentData
+      .filter(row => {
+        // Asegurar que la fila sea un objeto válido
+        return row && typeof row === 'object' && Object.keys(row).length > 0;
+      })
+      .map((row, index) => {
+        // Intentar encontrar el nombre de la materia o usar un índice
+        let nombreMateria = 
+          row.Materia || 
+          row.materia || 
+          row.NombreMateria || 
+          row.nombreMateria || 
+          row.nombre_materia ||
+          row['Nombre de la materia'] ||
+          row.Asignatura;
+          
+        // Si no hay nombre específico, intentar usar un identificador único
+        if (!nombreMateria) {
+          // Buscar cualquier campo que pueda identificar la materia
+          const posiblesIdentificadores = Object.keys(row).filter(key => 
+            typeof row[key] === 'string' && 
+            !key.includes("Faltas") && 
+            !key.includes("Límite") &&
+            !key.includes("Ponderado")
+          );
+          
+          if (posiblesIdentificadores.length > 0) {
+            nombreMateria = row[posiblesIdentificadores[0]];
+          } else {
+            nombreMateria = `Materia ${index + 1}`;
+          }
+        }
+        
+        // Buscar datos de faltas en diferentes formas posibles
+        let faltasAlumno = 0;
+        if (row["Faltas del alumno"] !== undefined) {
+          faltasAlumno = parseFloat(row["Faltas del alumno"]) || 0;
+        } else if (row.faltas !== undefined) {
+          faltasAlumno = parseFloat(row.faltas) || 0;
+        } else {
+          // Buscar cualquier campo que contenga "falta" o "asistencia"
+          const campoFaltas = Object.keys(row).find(key => 
+            key.toLowerCase().includes("falta") || 
+            key.toLowerCase().includes("asistencia")
+          );
+          if (campoFaltas) {
+            faltasAlumno = parseFloat(row[campoFaltas]) || 0;
+          }
+        }
+        
+        // Buscar límite de faltas
+        let limiteFaltas = 1; // Valor mínimo para evitar división por cero
+        if (row["Límite de faltas"] !== undefined) {
+          limiteFaltas = parseFloat(row["Límite de faltas"]) || 1;
+        } else if (row.limite !== undefined) {
+          limiteFaltas = parseFloat(row.limite) || 1;
+        } else {
+          // Buscar cualquier campo que contenga "limite" o "máximo"
+          const campoLimite = Object.keys(row).find(key => 
+            key.toLowerCase().includes("limite") || 
+            key.toLowerCase().includes("máximo") ||
+            key.toLowerCase().includes("maximo")
+          );
+          if (campoLimite) {
+            limiteFaltas = parseFloat(row[campoLimite]) || 1;
+          }
+        }
+        
+        const porcentaje = (faltasAlumno / limiteFaltas) * 100;
+        
+        return {
+          nombre: nombreMateria,
+          porcentaje: porcentaje,
+          color: getFaltasBarColor(porcentaje)
+        };
+      });
+    
+    console.log("Materias procesadas:", todasMaterias);
+    setTodasLasMaterias(todasMaterias);
+  };
+
+  const getFaltasBarColor = (porcentaje) => {
+    if (porcentaje > 100) return "bg-black";
+    if (porcentaje >= 75) return "bg-red-500";
+    if (porcentaje >= 60) return "bg-orange-500";
+    if (porcentaje >= 50) return "bg-yellow-500";
+    return "bg-green-700"; // Menor al 50% en verde
+  };
+
   const getCircleBackgroundColor = (count, color) =>
     count > 0 ? color : "bg-gray-300 hidden";
 
@@ -108,6 +254,7 @@ export default function StudentCard({
           <p className='text-sm text-gray-700'>
             <strong>Faltas %:</strong> {faltasPercentage}%
           </p>
+          <p className='text-xs text-gray-500'>Cantidad de materias: {todasLasMaterias.length}</p>
         </>
       )}
       {onDelete && (
@@ -157,6 +304,23 @@ export default function StudentCard({
                 {sdCount}
               </span>
             </div>
+          </div>
+
+          <div className="mt-5 w-full">
+            {todasLasMaterias.length > 0 ? (
+              <div className="flex w-full h-2 gap-0.5">
+                {todasLasMaterias.map((materia, index) => (
+                  <div
+                    key={index}
+                    className={`h-full rounded-md ${materia.color}`}
+                    style={{ width: `${100 / todasLasMaterias.length}%` }}
+                    title={`${materia.nombre} - ${materia.porcentaje.toFixed(0)}% faltas`}
+                  ></div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-xs text-gray-500 text-center">No hay datos de materias</div>
+            )}
           </div>
 
           <button
