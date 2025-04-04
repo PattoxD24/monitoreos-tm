@@ -13,12 +13,14 @@ export default function StudentCard({
   const [scCount, setScCount] = useState(0);
   const [daCount, setDaCount] = useState(0);
   const [sdCount, setSdCount] = useState(0);
+  const [materiasConFaltas, setMateriasConFaltas] = useState([]);
 
   useEffect(() => {
     if (onDelete !== null) {
       calculatePonderadoAverage();
       calculateFaltasPercentage();
       calculateCounts();
+      calculateMateriasConFaltas();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studentsData]);
@@ -83,6 +85,38 @@ export default function StudentCard({
     setScCount(sc);
     setDaCount(da);
     setSdCount(sd);
+  };
+
+  const calculateMateriasConFaltas = () => {
+    const materiasConMasFaltas = studentData
+      .filter(row => {
+        const faltasAlumno = parseFloat(row["Faltas del alumno"]) || 0;
+        const limiteFaltas = parseFloat(row["Límite de faltas"]) || 0;
+        
+        // Calcular porcentaje de faltas para esta materia
+        const porcentaje = limiteFaltas > 0 ? (faltasAlumno / limiteFaltas) * 100 : 0;
+        return porcentaje >= 50;
+      })
+      .map(row => {
+        const faltasAlumno = parseFloat(row["Faltas del alumno"]) || 0;
+        const limiteFaltas = parseFloat(row["Límite de faltas"]) || 1;
+        const porcentaje = (faltasAlumno / limiteFaltas) * 100;
+        
+        return {
+          nombre: row.Materia || "Materia sin nombre",
+          porcentaje: porcentaje,
+          color: getFaltasBarColor(porcentaje)
+        };
+      });
+    
+    setMateriasConFaltas(materiasConMasFaltas);
+  };
+
+  const getFaltasBarColor = (porcentaje) => {
+    if (porcentaje > 100) return "bg-black";
+    if (porcentaje >= 75) return "bg-red-500";
+    if (porcentaje >= 60) return "bg-orange-500";
+    return "bg-yellow-500";
   };
 
   const getCircleBackgroundColor = (count, color) =>
@@ -158,6 +192,22 @@ export default function StudentCard({
               </span>
             </div>
           </div>
+
+          {materiasConFaltas.length > 0 && (
+            <div className="mt-5 w-full">
+              <div className="flex w-full h-2 gap-0.5">
+                {materiasConFaltas.map((materia, index) => (
+                  <div
+                    key={index}
+                    // className={`h-full rounded-md ${materia.color}`}
+                    className={`h-full rounded-md ${materia.color}`}
+                    style={{ width: `${100 / materiasConFaltas.length}%` }}
+                    title={`${materia.nombre} - ${materia.porcentaje.toFixed(0)}% faltas`}
+                  ></div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <button
             onClick={(e) => {
