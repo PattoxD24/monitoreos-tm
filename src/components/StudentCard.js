@@ -171,8 +171,9 @@ export default function StudentCard({
   };
 
   const getFaltasBarColor = (porcentaje) => {
-    if (porcentaje > 100) return "bg-black";
-    if (porcentaje >= 75) return "bg-red-500";
+    if (porcentaje > 100) return "bg-black h-3";
+    if (porcentaje == 100) return "bg-blue-300 h-3 border border-black"
+    if (porcentaje >= 75) return "bg-red-700";
     if (porcentaje >= 60) return "bg-orange-500";
     if (porcentaje >= 50) return "bg-yellow-500";
     return "bg-green-700"; // Menor al 50% en verde
@@ -255,7 +256,7 @@ export default function StudentCard({
 
           <div className="mt-5 w-full">
             {todasLasMaterias.length > 0 ? (
-              <div className="flex w-full h-2 gap-0.5">
+              <div className="flex w-full h-2 gap-0.5 items-center">
                 {todasLasMaterias.map((materia, index) => (
                   <div
                     key={index}
