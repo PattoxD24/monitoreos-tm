@@ -153,6 +153,8 @@ export default function StudentModal({
         case 'ae': return 'Avance de evidencia';
         case 'cta': return 'Certificación de tercer año';
         case 'r': return 'Reto';
+        case 'pv': return 'Propósito de vida';
+        case 'cp': return 'Celebrando propósito';
         case 'rf': return 'Reto final';
         case 'v': return 'VIVE';
         case 'q': return 'Quiz';
