@@ -190,7 +190,7 @@ export default function SortAndFilterControls({
         onChange={(e) => setSortOrder(e.target.value)}
         className="border rounded-lg p-2 text-gray-700"
       >
-        <option value="original">Orden original</option>
+        <option value="original">Ponderación</option>
         <option value="matricula">Matrícula</option>
         <option value="nombre">Nombre</option>
         <option value="faltas"># Faltas</option>
