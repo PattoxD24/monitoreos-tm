@@ -168,7 +168,7 @@ export default function useStudentData(defaultVisibleColumns) {
         const activities = Object.keys(row)
           .filter((col) => /^A\d+$/.test(col))
           .reduce((acc, col) => {
-            acc[col] = parseFloat(row[col]) || 0;
+            acc[col] = row[col] || 0;
             return acc;
           }, {});
 

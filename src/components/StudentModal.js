@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import html2canvas from "html2canvas";
 import ScriptsModal from "./ScriptsModal";
+import { ClientPageRoot } from "next/dist/client/components/client-page";
 
 export default function StudentModal({
   student,
@@ -24,6 +25,7 @@ export default function StudentModal({
   const [originalLastActivityColumn, setOriginalLastActivityColumn] = useState("");
   const [manualGrades, setManualGrades] = useState({});
   const [editableInputs, setEditableInputs] = useState({});
+  const [editedCells, setEditedCells] = useState({});
   const [includeImage, setIncludeImage] = useState(false);
   const modalRef = useRef(null);
   const hiddenTableRef = useRef(null);
@@ -93,6 +95,10 @@ export default function StudentModal({
         const activityResults = Object.keys(ponderations)
           .map((activity) => {
             const ponderation = ponderations[activity];
+            
+            // Extraer sufijo para determinar el tipo de actividad
+            const activityType = extractActivityType(ponderation);
+            
             const grade =
               manualGrades[activity] !== undefined
                 ? parseFloat(manualGrades[activity])
@@ -108,8 +114,8 @@ export default function StudentModal({
               // lastActivity = activity;
             }
 
-            const result = (grade * (ponderation / 100)).toFixed(2);
-            return { activity, ponderation, grade, result, color, ponderado, lastActivity };
+            const result = (grade * (parseFloat(ponderation) / 100)).toFixed(2);
+            return { activity, ponderation, grade, result, color, ponderado, lastActivity, activityType };
           })
           .filter(Boolean); // Remove null entries
 
@@ -125,6 +131,63 @@ export default function StudentModal({
       }
     });
     return { results, lastActivity };
+  }
+
+  // Función para extraer el tipo de actividad desde la ponderación
+  const extractActivityType = (ponderation) => {
+    // Si es un string y contiene una letra al final después de un número
+    if (typeof ponderation === 'string' && ponderation.match(/\d+[a-zA-Z]+$/)) {
+      const suffix = ponderation.match(/([a-zA-Z]+)$/)[1].toLowerCase();
+      
+      switch(suffix) {
+        case 'a': return 'Actividad';
+        case 'ap': return 'Actividad Previa';
+        case 'cl': return 'Comprobación de lectura';
+        case 'e': return 'Evidencia';
+        case 'evf': return 'Evidencia final';
+        case 'er': return 'Examen rápido';
+        case 'ep': return 'Examen parcial';
+        case 'ef': return 'Examen final';
+        case 'g': return 'Gamificaión';
+        case 'ae': return 'Avance de evidencia';
+        case 'cta': return 'Certificación de tercer año';
+        case 'r': return 'Reto';
+        case 'rf': return 'Reto final';
+        case 'v': return 'VIVE';
+        case 'q': return 'Quiz';
+        default: return null;
+      }
+    }
+    return null; // Si no hay sufijo reconocible
+  }
+
+  // Función para obtener el nombre descriptivo de la actividad
+  const getActivityName = (activity, activities) => {
+    // Buscar el tipo de actividad correspondiente
+    const activityData = activities.find(a => a.activity === activity);
+    const activityType = activityData?.activityType;
+
+    if (!activityType) return activity;
+
+    // Crear un mapa de contadores por tipo de actividad
+    const counters = {};
+    
+    // Ordenar las actividades por su número
+    const sortedActivities = activities
+      .filter(a => a.activityType === activityType)
+      .sort((a, b) => {
+        const numA = parseInt(a.activity.replace('A', ''));
+        const numB = parseInt(b.activity.replace('A', ''));
+        return numA - numB;
+      });
+
+    // Encontrar el índice de la actividad actual
+    const currentIndex = sortedActivities.findIndex(a => a.activity === activity);
+    
+    // El consecutivo es el índice + 1
+    const consecutivo = currentIndex + 1;
+
+    return `${activityType} ${consecutivo}`;
   }
 
   const { results: ponderationResults, lastActivity } = calculatePonderations();
@@ -143,12 +206,14 @@ export default function StudentModal({
     setLastActivityColumn("");
     setManualGrades({});
     setEditableInputs({});
+    setEditedCells({});
   }
 
   const handleGradeChange = (activity, value) => {
     // Limitar el valor a 100
     const limitedValue = Math.min(parseFloat(value) || 0, 100);
     setManualGrades((prev) => ({ ...prev, [activity]: limitedValue }));
+    setEditedCells((prev) => ({ ...prev, [activity]: true }));
 
     if (value === "" || value === "0") {
       const { [activity]: removed, ...rest } = manualGrades;
@@ -380,12 +445,18 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                   <tr>
                     <th className="border px-2 py-1 text-sm text-gray-700">Nombre de la Materia</th>
                     <th className="border px-2 py-1 text-sm text-gray-700">Detalle</th>
-                    {activityColumns.map((col) => (
-                      <th key={col} className="border px-2 py-1 text-sm text-gray-700">{col}</th>
-                    ))}
-                    {/* {getFilledAColumns(filteredData[student.matricula] || []).map((col) => (
-                      <th key={col} className="border px-2 py-1 text-sm text-gray-700">{col}</th>
-                    ))} */}
+                    {activityColumns.map((col) => {
+                      // Obtener el tipo de actividad para la columna actual
+                      const currentMateria = ponderationResults.find(result => result.materia === selectedMateria);
+                      const activityType = currentMateria ? 
+                        getActivityName(col, currentMateria.activities) : col;
+                      
+                      return (
+                        <th key={col} className="border px-2 py-1 text-sm text-gray-700">
+                          {activityType}
+                        </th>
+                      );
+                    })}
                     <th className="border px-2 py-1 text-sm text-gray-700">Ponderación</th>
                   </tr>
                 </thead>
@@ -408,7 +479,7 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                       });
                     
                       const avgPonderation = (
-                        activities.reduce((sum, activity) => sum + parseFloat(activity.ponderation || 0), 0).toFixed(2));
+                        activities.reduce((sum, activity) => sum + parseFloat(activity.ponderation || 0), 0).toFixed(0));
 
                       const avgFinalPonderation = (
                         activities.reduce((sum, activity) => sum + parseFloat(activity.result || 0), 0)).toFixed(2);
@@ -434,7 +505,7 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                                 readOnly={!editableInputs[activity.activity]}
                                 onDoubleClick={() => toggleEditable(activity.activity)}
                                 style={{
-                                  backgroundColor: editableInputs[activity.activity] ? "white" : "#f0f0f0",
+                                  backgroundColor: editedCells[activity.activity] ? "#e9d5ff" : editableInputs[activity.activity] ? "white" : "#f0f0f0",
                                   cursor: editableInputs[activity.activity] ? "text" : "default",
                                   WebkitAppearance: "none",
                                   MozAppearance: "textfield",
@@ -457,7 +528,7 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                         <tr>
                           <td className="border px-2 py-1 text-sm text-gray-700">Ponderación Materia</td>
                           {activities.map((activity, idx) => (
-                            <td key={idx} className="border px-2 py-1 text-sm text-gray-700">{activity.ponderation}</td>
+                            <td key={idx} className="border px-2 py-1 text-sm text-gray-700">{(activity.ponderation || '').toString().replace(/[a-zA-Z]/g, '')}</td>
                           ))}
                           <td className="border px-2 py-1 text-sm text-gray-700 font-bold">{avgPonderation}</td>
                         </tr>
