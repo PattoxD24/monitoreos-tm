@@ -144,6 +144,7 @@ export default function StudentModal({
         case 'ap': return 'Actividad Previa';
         case 'cl': return 'Comprobación de lectura';
         case 'e': return 'Evidencia';
+        case 'j': return 'Ejercicio';
         case 'evf': return 'Evidencia final';
         case 'er': return 'Examen rápido';
         case 'ep': return 'Examen parcial';
