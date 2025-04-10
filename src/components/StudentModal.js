@@ -31,6 +31,8 @@ export default function StudentModal({
   const hiddenTableRef = useRef(null);
   const [showScriptContent, setShowScriptContent] = useState(false);
   const [copiedScript, setCopiedScript] = useState(null);
+  const [automaticGrades, setAutomaticGrades] = useState({});
+  const [showAutomaticTable, setShowAutomaticTable] = useState(false);
 
   const toggleTableVisibility = () => {
     setIsTableVisible((prev) => !prev);
@@ -254,8 +256,6 @@ export default function StudentModal({
   const replaceVariables = (content) => {
     const nombre = student.preferredName.toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
     const matricula = student.matricula;
-  
-    console.log(filteredData[student.matricula]);
 
     const neMaterias = findMateriasWithLastColumnNE(filteredData[student.matricula]);
     const scMaterias = findMateriasWithLastColumnSC(filteredData[student.matricula]);
@@ -397,6 +397,82 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
     setTimeout(() => setCopiedScript(null), 2000);
   };
 
+  // Función para calcular la predicción máxima posible
+  const calculateMaxPrediction = (activities) => {
+    // Separar actividades completadas y futuras
+    const completedActivities = activities.filter(activity => {
+      const activityNumber = parseInt(activity.activity.slice(1));
+      const lastActivityNumber = lastActivity ? parseInt(lastActivity.slice(1)) : 0;
+      return activityNumber <= lastActivityNumber;
+    });
+
+    const futureActivities = activities.filter(activity => {
+      const activityNumber = parseInt(activity.activity.slice(1));
+      const lastActivityNumber = lastActivity ? parseInt(lastActivity.slice(1)) : 0;
+      return activityNumber > lastActivityNumber;
+    });
+
+    // Calcular suma de actividades completadas
+    const completedSum = completedActivities.reduce((sum, activity) => {
+      const grade = Math.round(parseFloat(activity.grade)) || 0;
+      const ponderation = parseFloat(activity.ponderation) || 0;
+      return sum + (grade * ponderation / 100);
+    }, 0);
+
+    // Calcular suma máxima posible de actividades futuras (asumiendo 100 en cada una)
+    const maxFutureSum = futureActivities.reduce((sum, activity) => {
+      const ponderation = parseFloat(activity.ponderation) || 0;
+      return sum + (100 * ponderation / 100);
+    }, 0);
+
+    return Math.round(completedSum + maxFutureSum);
+  };
+
+  // Función para actualizar calificaciones basadas en predicción
+  const updateGradesForPrediction = (targetPrediction, activities) => {
+    const newGrades = { ...automaticGrades };
+    
+    // Separar actividades completadas y futuras
+    const completedActivities = activities.filter(activity => {
+      const activityNumber = parseInt(activity.activity.slice(1));
+      const lastActivityNumber = lastActivity ? parseInt(lastActivity.slice(1)) : 0;
+      return activityNumber <= lastActivityNumber;
+    });
+
+    const futureActivities = activities.filter(activity => {
+      const activityNumber = parseInt(activity.activity.slice(1));
+      const lastActivityNumber = lastActivity ? parseInt(lastActivity.slice(1)) : 0;
+      return activityNumber > lastActivityNumber;
+    });
+
+    // Calcular la suma actual de ponderaciones y calificaciones de actividades completadas
+    const completedSum = completedActivities.reduce((sum, activity) => {
+      const grade = Math.round(parseFloat(activity.grade)) || 0;
+      const ponderation = parseFloat(activity.ponderation) || 0;
+      return sum + (grade * ponderation / 100);
+    }, 0);
+
+    // Calcular la suma total de ponderaciones de actividades futuras
+    const futurePonderationSum = futureActivities.reduce((sum, activity) => 
+      sum + parseFloat(activity.ponderation), 0);
+
+    if (futureActivities.length > 0 && futurePonderationSum > 0) {
+      // Calcular cuánto necesitamos para alcanzar la predicción deseada
+      const neededTotal = targetPrediction - completedSum;
+      
+      // Calcular la calificación base necesaria para todas las actividades futuras
+      const baseGrade = (neededTotal * 100) / futurePonderationSum;
+
+      // Asignar la misma calificación base a todas las actividades futuras
+      futureActivities.forEach(activity => {
+        const grade = Math.round(Math.min(100, Math.max(0, baseGrade)));
+        newGrades[activity.activity] = grade;
+      });
+    }
+
+    setAutomaticGrades(newGrades);
+  };
+
   return (
     <>
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-auto">
@@ -406,30 +482,107 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
             Detalles de {student.preferredName} ({student.matricula})
           </h2>
 
-          <button
-            onClick={downloadTableAsImage}
-            className="mb-4 px-4 py-2 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 transition"
-          >
-            Descargar Monitoreo como Imagen
-          </button>
-          <button
-            onClick={toggleTableVisibility}
-            className="mb-4 px-4 py-2 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 transition"
-          >
-            {isTableVisible ? "Ocultar Monitoreo" : "Mostrar Monitoreo"}
-          </button>
-          <button
-            onClick={togglePonderationTableVisibility}
-            className="mb-4 px-4 py-2 bg-green-500 text-white rounded-lg shadow hover:bg-green-600 transition"
-          >
-            {isPonderationTableVisible ? "Ocultar Predicciones" : "Mostrar Predicciones"}
-          </button>
+          <div className="flex space-x-2 mb-4">
+            <button
+              onClick={downloadTableAsImage}
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 transition"
+            >
+              Descargar Monitoreo como Imagen
+            </button>
+            <button
+              onClick={toggleTableVisibility}
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 transition"
+            >
+              {isTableVisible ? "Ocultar Monitoreo" : "Mostrar Monitoreo"}
+            </button>
+            <button
+              onClick={togglePonderationTableVisibility}
+              className="px-4 py-2 bg-green-500 text-white rounded-lg shadow hover:bg-green-600 transition"
+            >
+              {isPonderationTableVisible ? "Ocultar Predicciones" : "Mostrar Predicciones"}
+            </button>
+            <button
+              onClick={() => setShowAutomaticTable(prev => !prev)}
+              className="px-4 py-2 bg-purple-500 text-white rounded-lg shadow hover:bg-purple-600 transition"
+            >
+              {showAutomaticTable ? "Ocultar Predicción Automática" : "Mostrar Predicción Automática"}
+            </button>
+          </div>
 
-          {/* Tabla de Ponderaciones */}
+          {/* Tabla de Monitoreo */}
+          {isTableVisible && (
+            <div className="overflow-auto">
+              <table className="table-fixed border-collapse border border-gray-300">
+                <thead>
+                  <tr>
+                    {reorderColumns(
+                      columns.filter((col) => visibleColumns[col]),
+                      getFilledAColumns(filteredData[student.matricula] || [])
+                    ).map((col, idx) => (
+                      <th key={idx} className="border px-2 py-1 text-sm text-gray-700 min-w-[80px]">
+                        {col}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                {(filteredData[student.matricula] || []).map((row, idx) => {
+                  const hasDA = Object.values(row).some((value) => value === "DA");
+                  const hasSD = Object.values(row).some((value) => value === "SD");
+                  const ponderado = parseFloat(row["Ponderado"]) || 0;
+        
+                  return (
+                    <tr key={idx}>
+                      {reorderColumns(
+                        columns.filter((col) => visibleColumns[col]),
+                        getFilledAColumns(filteredData[student.matricula] || [])
+                      ).map((col, valIdx) => (
+                        <td
+                          key={valIdx}
+                          className={`border px-2 py-1 text-sm text-gray-700 text-nowrap ${
+                            row[col] === "DA" ? "bg-green-300" : row[col] === "NE" ?  "bg-red-300" : row[col] === "SC" ? "bg-yellow-300" : row[col] === "SD" ? "bg-blue-300" : ""
+                          }`}
+                        >
+                          {row[col] || ""}
+                        </td>
+                      ))}
+                      {hasDA && ponderado < 70 && ponderado > 49 && (
+                        <td
+                          className="border px-2 py-1 text-sm text-red-500 font-bold text-nowrap"
+                          colSpan={columns.length}
+                        >
+                          {"El estudiante no puede realizar examen extraordinario (Ponderado < 70 y DA)"}
+                        </td>
+                      )}
+                      {ponderado < 50 && !hasSD && (
+                        <td
+                          className="border px-2 py-1 text-sm text-red-500 font-bold text-nowrap"
+                          colSpan={columns.length}
+                        >
+                          {"El estudiante no puede realizar examen extraordinario (Ponderado < 50)"}
+                        </td>
+                      )}
+                      {hasSD && (
+                        <td
+                          className="border px-2 py-1 text-sm text-red-500 font-bold text-nowrap"
+                          colSpan={columns.length}
+                        >
+                          {"El estudiante no puede realizar examen extraordinario (SD)"}
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Tabla de Predicciones Manual */}
           {isPonderationTableVisible && (
             <div className="overflow-auto">
-            {/* Selector de materias */}
-            <div className="mb-4">
+              {/* Selector de materias */}
+              <div className="mb-4">
                 <h3 className="text-lg font-bold text-gray-800">Seleccionar Materia</h3>
                 <select
                   value={selectedMateria}
@@ -443,7 +596,7 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                   ))}
                 </select>
               </div>
-              <table className="table-fixed border-collapse border border-gray-300 mb-4 ">
+              <table className="table-fixed border-collapse border border-gray-300 mb-4">
                 <thead>
                   <tr>
                     <th className="border px-2 py-1 text-sm text-gray-700">Nombre de la Materia</th>
@@ -525,7 +678,7 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                               />
                             </td>
                           ))}
-                            <td className="border px-2 py-1 text-sm text-gray-700 font-bold">Banner: {avgGrade} <br/> Pred: { avg}</td>
+                          <td className="border px-2 py-1 text-sm text-gray-700 font-bold">Banner: {avgGrade} <br/> Pred: { avg}</td>
                         </tr>
                         {/* Fila de Ponderaciones */}
                         <tr>
@@ -550,122 +703,204 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
             </div>
           )}
 
-          {isTableVisible && (
-          <div className="overflow-auto">
-            <table className="table-fixed border-collapse border border-gray-300">
-              <thead>
-                <tr>
-                  {reorderColumns(
-                    columns.filter((col) => visibleColumns[col]),
-                    getFilledAColumns(filteredData[student.matricula] || [])
-                  ).map((col, idx) => (
-                    <th key={idx} className="border px-2 py-1 text-sm text-gray-700 min-w-[80px]">
-                      {col}
-                    </th>
+          {/* Nueva Tabla de Predicción Automática */}
+          {showAutomaticTable && (
+            <div className="overflow-auto mt-4">
+              <h3 className="text-lg font-bold text-gray-800 mb-4">Predicción Automática</h3>
+              <div className="mb-4">
+                <select
+                  value={selectedMateria}
+                  onChange={handleMateriaChange}
+                  className="border p-2 rounded w-full text-gray-700"
+                >
+                  {materias.map((materia) => (
+                    <option key={materia} value={materia}>
+                      {materia}
+                    </option>
                   ))}
-                </tr>
-              </thead>
-              <tbody>
-              {(filteredData[student.matricula] || []).map((row, idx) => {
-                const hasDA = Object.values(row).some((value) => value === "DA");
-                const hasSD = Object.values(row).some((value) => value === "SD");
-                const ponderado = parseFloat(row["Ponderado"]) || 0;
-      
-                return (
-                  <tr key={idx}>
-                    {reorderColumns(
-                      columns.filter((col) => visibleColumns[col]),
-                      getFilledAColumns(filteredData[student.matricula] || [])
-                    ).map((col, valIdx) => (
-                      <td
-                        key={valIdx}
-                        className={`border px-2 py-1 text-sm text-gray-700 text-nowrap ${
-                          row[col] === "DA" ? "bg-green-300" : row[col] === "NE" ?  "bg-red-300" : row[col] === "SC" ? "bg-yellow-300" : row[col] === "SD" ? "bg-blue-300" : ""
-                        }`}
-                      >
-                        {row[col] || ""}
-                      </td>
+                </select>
+              </div>
+              <table className="table-fixed border-collapse border border-gray-300 mb-4">
+                <thead>
+                  <tr>
+                    <th className="border px-2 py-1 text-sm text-gray-700">Materia</th>
+                    <th className="border px-2 py-1 text-sm text-gray-700">Detalle</th>
+                    {activityColumns.map((col) => (
+                      <th key={col} className="border px-2 py-1 text-sm text-gray-700">
+                        {getActivityName(col, ponderationResults[0]?.activities || [])}
+                      </th>
                     ))}
-                    {hasDA && ponderado < 70 && ponderado > 49 && (
-                      <td
-                        className="border px-2 py-1 text-sm text-red-500 font-bold text-nowrap"
-                        colSpan={columns.length}
-                      >
-                        {"El estudiante no puede realizar examen extraordinario (Ponderado < 70 y DA)"}
-                      </td>
-                    )}
-                    {ponderado < 50 && !hasSD && (
-                      <td
-                        className="border px-2 py-1 text-sm text-red-500 font-bold text-nowrap"
-                        colSpan={columns.length}
-                      >
-                        {"El estudiante no puede realizar examen extraordinario (Ponderado < 50)"}
-                      </td>
-                    )}
-                    {hasSD && (
-                      <td
-                        className="border px-2 py-1 text-sm text-red-500 font-bold text-nowrap"
-                        colSpan={columns.length}
-                      >
-                        {"El estudiante no puede realizar examen extraordinario (SD)"}
-                      </td>
-                    )}
+                    <th className="border px-2 py-1 text-sm text-gray-700">Predicción</th>
                   </tr>
-                );
-              })}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {ponderationResults
+                    .filter(({ materia }) => materia === selectedMateria)
+                    .map(({ materia, activities, ponderado }, index) => {
+                      const avgGrade = ponderado;
+                      const maxPrediction = calculateMaxPrediction(activities);
+                      const currentPrediction = activities.reduce((sum, activity) => {
+                        const activityNumber = parseInt(activity.activity.slice(1));
+                        const lastActivityNumber = lastActivity ? parseInt(lastActivity.slice(1)) : 0;
+                        const isFutureActivity = activityNumber > lastActivityNumber;
+                        
+                        const grade = automaticGrades[activity.activity] !== undefined ?
+                          parseFloat(automaticGrades[activity.activity]) :
+                          (isFutureActivity ? 100 : parseFloat(activity.grade)) || 0;
+                        
+                        return sum + (grade * parseFloat(activity.ponderation) / 100);
+                      }, 0);
+
+                      return (
+                        <React.Fragment key={index}>
+                          {/* Fila de Calificaciones */}
+                          <tr>
+                            <td rowSpan={3} className="border px-2 py-1 text-sm text-gray-700 text-nowrap">{materia}</td>
+                            <td className="border px-2 py-1 text-sm text-gray-700">Calificación</td>
+                            {activities.map((activity) => {
+                              const activityNumber = parseInt(activity.activity.slice(1));
+                              const lastActivityNumber = lastActivity ? parseInt(lastActivity.slice(1)) : 0;
+                              const isFutureActivity = activityNumber > lastActivityNumber;
+
+                              return (
+                                <td key={activity.activity} className="border px-2 py-1 text-sm text-gray-700">
+                                  <input
+                                    type="number"
+                                    value={isFutureActivity ? 
+                                      (automaticGrades[activity.activity] !== undefined ? 
+                                        automaticGrades[activity.activity] : "100") : 
+                                      (activity.grade || "0")}
+                                    onChange={(e) => {
+                                      const value = e.target.value;
+                                      if (isFutureActivity) {
+                                        const numValue = Math.min(100, Math.max(0, parseInt(value) || 0));
+                                        setAutomaticGrades(prev => ({
+                                          ...prev,
+                                          [activity.activity]: numValue
+                                        }));
+                                      }
+                                    }}
+                                    className="w-full border-none text-center"
+                                    min="0"
+                                    max="100"
+                                    style={{
+                                      backgroundColor: isFutureActivity ? "white" : "#f0f0f0",
+                                      cursor: isFutureActivity ? "text" : "default"
+                                    }}
+                                  />
+                                </td>
+                              );
+                            })}
+                            <td className="border px-2 py-1 text-sm text-gray-700">
+                              <div className="flex items-center justify-between">
+                                <input
+                                  type="number"
+                                  value={Math.round(currentPrediction)}
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+                                    if (value === "" || isNaN(value)) return;
+                                    const numValue = parseInt(value);
+                                    if (numValue >= 0 && numValue <= maxPrediction) {
+                                      updateGradesForPrediction(numValue, activities);
+                                    }
+                                  }}
+                                  className="w-20 border rounded px-1"
+                                  min="0"
+                                  max={maxPrediction}
+                                />
+                                <span className="text-xs text-gray-500 ml-1">
+                                  (Max: {Math.round(maxPrediction)})
+                                </span>
+                              </div>
+                            </td>
+                          </tr>
+                          {/* Fila de Ponderaciones */}
+                          <tr>
+                            <td className="border px-2 py-1 text-sm text-gray-700">Ponderación</td>
+                            {activities.map((activity, idx) => (
+                              <td key={idx} className="border px-2 py-1 text-sm text-gray-700 text-center">
+                                {parseFloat(activity.ponderation).toFixed(0)}
+                              </td>
+                            ))}
+                            <td className="border px-2 py-1 text-sm text-gray-700 text-center">100</td>
+                          </tr>
+                          {/* Fila de Resultados */}
+                          <tr>
+                            <td className="border px-2 py-1 text-sm text-gray-700">Resultado</td>
+                            {activities.map((activity, idx) => {
+                              const activityNumber = parseInt(activity.activity.slice(1));
+                              const lastActivityNumber = lastActivity ? parseInt(lastActivity.slice(1)) : 0;
+                              const isFutureActivity = activityNumber > lastActivityNumber;
+                              const grade = isFutureActivity ? 
+                                (automaticGrades[activity.activity] !== undefined ? automaticGrades[activity.activity] : 100) : 
+                                parseFloat(activity.grade) || 0;
+                              const result = (grade * parseFloat(activity.ponderation) / 100).toFixed(2);
+
+                              return (
+                                <td key={idx} className="border px-2 py-1 text-sm text-gray-700 text-center">
+                                  {result}
+                                </td>
+                              );
+                            })}
+                            <td className="border px-2 py-1 text-sm text-gray-700 text-center font-bold">
+                              {(currentPrediction).toFixed(2)}
+                            </td>
+                          </tr>
+                        </React.Fragment>
+                      );
+                    })}
+                </tbody>
+              </table>
             </div>
           )}
+
           {/* Scripts Section */}
-        <h3 className="text-lg text-gray-800 font-semibold mb-2">Scripts Disponibles</h3>
-        <ul className="space-y-2">
-          {scripts.map((script, index) => (
-            <li key={index} className="flex justify-between items-center p-2 bg-gray-100 rounded" title={replaceVariables(script.content)}>
-              <span
-                className="text-gray-100 border border-dashed border-gray-400 cursor-pointer rounded px-2 py-1 bg-purple-400"
-                onClick={toggleScriptContent}>
-                {script.name}
-              </span>
-              {showScriptContent && (
-              <span className="text-gray-500 text-sm">
-                {script.content.length > 20 ? `${replaceVariables(script.content).slice(0, -1)}...` : replaceVariables(script.content)}
-              </span>
-              )}
-              <div className="flex items-center">
-                {/* <input
-                  type="checkbox"
-                  checked={includeImage}
-                  onChange={() => setIncludeImage((prev) => !prev)}
-                  className="mr-2"
-                />
-                <label className="text-sm text-gray-700 mr-4">Incluir Imagen</label> */}
-                <button
+          <h3 className="text-lg text-gray-800 font-semibold mb-2">Scripts Disponibles</h3>
+          <ul className="space-y-2">
+            {scripts.map((script, index) => (
+              <li key={index} className="flex justify-between items-center p-2 bg-gray-100 rounded" title={replaceVariables(script.content)}>
+                <span
+                  className="text-gray-100 border border-dashed border-gray-400 cursor-pointer rounded px-2 py-1 bg-purple-400"
+                  onClick={toggleScriptContent}
+                >
+                  {script.name}
+                </span>
+                {showScriptContent && (
+                  <span className="text-gray-500 text-sm">
+                    {script.content.length > 20 ? `${replaceVariables(script.content).slice(0, -1)}...` : replaceVariables(script.content)}
+                  </span>
+                )}
+                <div className="flex items-center">
+                  <button
                     onClick={() => copyToClipboard(script.content)}
                     className="bg-blue-500 text-white px-2 py-1 rounded text-sm"
                   >
                     Copiar
-                </button>
-                {whatsapp && (
-                  <button
-                    onClick={() => handleSendWhatsApp(script.content)}
-                    className="bg-green-500 text-white px-4 py-1 rounded text-sm"
-                  >
-                    Enviar por WhatsApp
                   </button>
-                )}
-                {copiedScript === script.content && (
-                  <span className="text-green-500 text-sm ml-2">Copiado!</span>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
+                  {whatsapp && (
+                    <button
+                      onClick={() => handleSendWhatsApp(script.content)}
+                      className="bg-green-500 text-white px-4 py-1 rounded text-sm"
+                    >
+                      Enviar por WhatsApp
+                    </button>
+                  )}
+                  {copiedScript === script.content && (
+                    <span className="text-green-500 text-sm ml-2">Copiado!</span>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
 
       {/* Tabla oculta con estilos inline */}
-      <div ref={hiddenTableRef} style={{ position: "absolute", top: "-9999px", left: "-9999px" }} className="bg-white">
+      <div 
+        ref={hiddenTableRef} 
+        style={{ position: "absolute", top: "-9999px", left: "-9999px" }} 
+        className="bg-white"
+      >
         <table style={{ borderCollapse: "collapse", width: "100%", fontFamily: "Arial, sans-serif" }}>
           <thead>
             <tr>
