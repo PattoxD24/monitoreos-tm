@@ -212,6 +212,7 @@ export default function StudentModal({
     setManualGrades({});
     setEditableInputs({});
     setEditedCells({});
+    setAutomaticGrades({});
   }
 
   const handleGradeChange = (activity, value) => {
