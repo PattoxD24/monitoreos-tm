@@ -157,6 +157,8 @@ export default function useStudentData(defaultVisibleColumns) {
         matricula: row.MATRICULA,
         fullName: row.ALUMNOS,
         preferredName: row.ALUMNOS.split(" ")[parseInt(row.favName, 10) - 1]?.toUpperCase(),
+        beca: row.BECA || row.Beca || null,
+        equipoRepresentativo: row["EQUIPO REPRESENTATIVO"] || row["Equipo Representativo"] || null,
       }));
 
       // Procesar ponderaciones de materias desde archivo 1
