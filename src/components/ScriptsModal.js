@@ -19,6 +19,24 @@ export default function ScriptsModal({ visible, onClose, scripts, setScripts }) 
     { label: "Muy Bien", variable: "{{muyBien}}" },
   ]
 
+  // Load scripts from localStorage when component mounts
+  useEffect(() => {
+    const savedScripts = localStorage.getItem('monitoreo-scripts');
+    if (savedScripts) {
+      try {
+        const parsedScripts = JSON.parse(savedScripts);
+        setScripts(parsedScripts);
+      } catch (error) {
+        console.error('Error parsing scripts from localStorage:', error);
+      }
+    }
+  }, [setScripts]);
+
+  // Save scripts to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('monitoreo-scripts', JSON.stringify(scripts));
+  }, [scripts]);
+
   useEffect(() => {
     const handleKeyDown = (event) => {
       if (event.key === "Escape") onClose();
