@@ -52,7 +52,7 @@ export default function Sidebar({
         
         {!isCollapsed && (
           <div className="mb-4 flex justify-end">
-            <ThemeToggle />
+            {/* <ThemeToggle /> */}
           </div>
         )}
 

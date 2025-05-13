@@ -169,11 +169,47 @@ export default function RiesgoPage() {
     setSelectedStudent(null);
   };
 
+  // Calcular conteos de estudiantes por status
+  const getStatusCounts = useCallback(() => {
+    let peligroCount = 0;
+    let recursarCount = 0;
+
+    Object.keys(filteredData).forEach(matricula => {
+      const studentRows = filteredData[matricula] || [];
+      let hasRecursar = false;
+      let hasPeligro = false;
+
+      studentRows.forEach(row => {
+        const ponderado = parseFloat(row["Ponderado"]) || 0;
+        const faltasAlumno = parseFloat(row["Faltas del alumno"]) || 0;
+        const limiteFaltas = parseFloat(row["Límite de faltas"]) || 1;
+        const porcentajeFaltas = (faltasAlumno / limiteFaltas) * 100;
+        
+        const neAlumno = parseFloat(row["NE alumno"]) || 0;
+        const limiteNE = parseFloat(row["Límite de NE"]) || 1;
+        const porcentajeNE = (neAlumno / limiteNE) * 100;
+
+        if (porcentajeFaltas > 100 || porcentajeNE > 100 || ponderado < 50) {
+          hasRecursar = true;
+        } else if (porcentajeFaltas >= 80 || porcentajeNE >= 80 || ponderado < 70) {
+          hasPeligro = true;
+        }
+      });
+
+      if (hasRecursar) recursarCount++;
+      else if (hasPeligro) peligroCount++;
+    });
+
+    return { peligroCount, recursarCount };
+  }, [filteredData]);
+
   // Para manejar el estado del sidebar
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const handleSidebarToggle = (isCollapsed) => {
     setSidebarCollapsed(isCollapsed);
   };
+
+  const { peligroCount, recursarCount } = getStatusCounts();
 
   return (
     <div className="min-h-screen flex bg-gray-50 dark:bg-gray-800">
@@ -184,8 +220,8 @@ export default function RiesgoPage() {
       }`}>
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-800">Alumnos en Riesgo Académico</h1>
-            <p className="text-gray-600 mt-2">
+            <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Alumnos en Riesgo Académico</h1>
+            <p className="text-gray-600 dark:text-gray-200 mt-2">
               Listado de alumnos con indicadores académicos críticos
             </p>
           </div>
@@ -228,7 +264,41 @@ export default function RiesgoPage() {
         {/* Filtros por Status */}
         <div className="mb-6 p-4 bg-white dark:bg-gray-700 rounded-lg shadow">
           <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100">Filtrar por status</h2>
-          <StatusFilter statusFilter={statusFilter} setStatusFilter={setStatusFilter} />
+          <div className="flex gap-4">
+            <button 
+              className={`px-4 py-2 rounded-md transition-colors relative ${
+                statusFilter === 'todos' ? 'bg-blue-600 text-white' : 
+                'bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-100 hover:bg-gray-300 dark:hover:bg-gray-500'
+              }`}
+              onClick={() => setStatusFilter('todos')}
+            >
+              Todos
+            </button>
+            <button 
+              className={`px-4 py-2 rounded-md transition-colors relative ${
+                statusFilter === 'peligro' ? 'bg-yellow-500 text-white' : 
+                'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+              }`}
+              onClick={() => setStatusFilter('peligro')}
+            >
+              Peligro
+              <span className="ml-2 inline-flex items-center justify-center bg-yellow-200 text-yellow-800 text-xs font-bold rounded-full h-5 w-5">
+                {peligroCount}
+              </span>
+            </button>
+            <button 
+              className={`px-4 py-2 rounded-md transition-colors relative ${
+                statusFilter === 'recursar' ? 'bg-red-500 text-white' : 
+                'bg-red-100 text-red-800 hover:bg-red-200'
+              }`}
+              onClick={() => setStatusFilter('recursar')}
+            >
+              Recursar
+              <span className="ml-2 inline-flex items-center justify-center bg-red-200 text-red-800 text-xs font-bold rounded-full h-5 w-5">
+                {recursarCount}
+              </span>
+            </button>
+          </div>
         </div>
 
         {/* Lista de estudiantes */}
@@ -240,7 +310,7 @@ export default function RiesgoPage() {
               <div key={student.matricula} className="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-md">
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">{student.preferredName || student.fullName}</h3>
+                    <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">{student.fullName}</h3>
                     <p className="text-gray-600 dark:text-gray-300">{student.matricula}</p>
                   </div>
                   <button 
