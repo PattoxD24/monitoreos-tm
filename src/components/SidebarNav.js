@@ -1,23 +1,53 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FaAngleLeft, FaAngleRight, FaHome, FaExclamationTriangle, FaBell } from "react-icons/fa";
+import { FaAngleLeft, FaAngleRight, FaHome, FaExclamationTriangle, FaExclamationCircle, FaBell } from "react-icons/fa";
+import ThemeToggle from "./ThemeToggle";
 
-export default function SidebarNav() {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+export default function SidebarNav({ onToggle, initialState = false }) {
+  const [isCollapsed, setIsCollapsed] = useState(initialState);
   const pathname = usePathname();
+  
+  // Cargar estado del sidebar desde localStorage
+  useEffect(() => {
+    try {
+      const savedState = localStorage.getItem('sidebarCollapsed');
+      if (savedState !== null) {
+        const collapsed = savedState === 'true';
+        setIsCollapsed(collapsed);
+        if (onToggle) {
+          onToggle(collapsed);
+        }
+      }
+    } catch (e) {
+      console.error('Error loading sidebar state:', e);
+    }
+  }, [onToggle]);
 
-  const handleToggle = () => setIsCollapsed(!isCollapsed);
+  const handleToggle = () => {
+    const newState = !isCollapsed;
+    setIsCollapsed(newState);
+    if (onToggle) {
+      onToggle(newState);
+    }
+    
+    // Guardar preferencia en localStorage
+    try {
+      localStorage.setItem('sidebarCollapsed', String(newState));
+    } catch (e) {
+      console.error('Error saving sidebar state:', e);
+    }
+  };
 
   const navLinks = [
     { href: "/", label: "Inicio", icon: <FaHome /> },
     { href: "/riesgo", label: "Alumnos en Riesgo", icon: <FaExclamationTriangle /> },
-    { href: "/situacion-critica", label: "Situación Crítica", icon: <FaBell /> }
+
   ];
 
   return (
-    <div className={`fixed left-0 top-0 h-screen p-4 bg-gray-800 text-white transition-all duration-300 z-20 flex flex-col justify-between ${
+    <div className={`fixed left-0 top-0 h-screen p-4 bg-gray-800 dark:bg-gray-900 text-white transition-all duration-300 z-20 flex flex-col justify-between ${
       isCollapsed ? "w-16" : "w-64"
     }`}>
       <div>
@@ -30,6 +60,12 @@ export default function SidebarNav() {
             {isCollapsed ? <FaAngleRight /> : <FaAngleLeft />}
           </button>
         </div>
+        
+        {!isCollapsed && (
+          <div className="mb-4 flex justify-end">
+            <ThemeToggle />
+          </div>
+        )}
 
         <nav className="flex flex-col gap-2">
           {navLinks.map((link) => (
