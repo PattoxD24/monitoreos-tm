@@ -1,0 +1,288 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import Link from 'next/link';
+import useStudentData from "@/hooks/useStudentData";
+import RiskSidebar from "@/components/RiskSidebar";
+import Loading from "@/components/Loading";
+import StudentModal from "@/components/StudentModal";
+import SidebarNav from "@/components/SidebarNav";
+
+export default function RiesgoPage() {
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [riesgoStudents, setRiesgoStudents] = useState([]);
+  const [filterType, setFilterType] = useState("todos"); // todos, faltas, ne, ponderado
+
+  const defaultVisibleColumns = {
+    Matrícula: true,
+    "Nombre del alumno": true,
+    "Nombre de la materia": true,
+    "# Grupo": true,
+    "Límite de faltas": true,
+    "Faltas del alumno": true,
+    "Límite de NE": true,
+    "NE alumno": true,
+    Ponderado: true,
+  };
+
+  const {
+    studentData,
+    filteredData,
+    columns,
+    visibleColumns,
+    ponderationData,
+    scripts,
+    whatsapp
+  } = useStudentData(defaultVisibleColumns);
+
+  const processStudentsAtRisk = useCallback(() => {
+    const studentsAtRisk = [];
+
+    Object.keys(filteredData).forEach(matricula => {
+      const studentRows = filteredData[matricula] || [];
+      const student = studentData.find(s => s.matricula === matricula);
+      
+      if (!student) return;
+
+      // Verificar cada materia del estudiante
+      const materiasEnRiesgo = [];
+      
+      studentRows.forEach(row => {
+        const nombreMateria = row["Nombre de la materia"];
+        const ponderado = parseFloat(row["Ponderado"]) || 0;
+        
+        // Calcular porcentaje de faltas
+        const faltasAlumno = parseFloat(row["Faltas del alumno"]) || 0;
+        const limiteFaltas = parseFloat(row["Límite de faltas"]) || 1;
+        const porcentajeFaltas = (faltasAlumno / limiteFaltas) * 100;
+        
+        // Calcular porcentaje de NE
+        const neAlumno = parseFloat(row["NE alumno"]) || 0;
+        const limiteNE = parseFloat(row["Límite de NE"]) || 1;
+        const porcentajeNE = (neAlumno / limiteNE) * 100;
+        
+        // Verificar condiciones de riesgo basadas en el filtro actual
+        let enRiesgo = false;
+        
+        switch(filterType) {
+          case "faltas":
+            enRiesgo = porcentajeFaltas >= 80;
+            break;
+          case "ne":
+            enRiesgo = porcentajeNE >= 80;
+            break;
+          case "ponderado":
+            enRiesgo = ponderado < 70;
+            break;
+          default: // "todos"
+            enRiesgo = (porcentajeFaltas >= 80 || porcentajeNE >= 80) || ponderado < 70;
+        }
+        
+        if (enRiesgo) {
+          let statusClass = "";
+          let statusText = "";
+          
+          // Determinar el estatus de riesgo
+          if (ponderado < 50) {
+            statusClass = "bg-red-100 border-red-500 text-red-700";
+            statusText = "Recursar";
+          } else if (ponderado < 60) {
+            statusClass = "bg-orange-100 border-orange-500 text-orange-700";
+            statusText = "Extraordinario";
+          } else if (ponderado < 70) {
+            statusClass = "bg-yellow-100 border-yellow-500 text-yellow-700";
+            statusText = "Peligro";
+          }
+          
+          materiasEnRiesgo.push({
+            nombreMateria,
+            ponderado,
+            faltasAlumno,
+            limiteFaltas,
+            porcentajeFaltas,
+            neAlumno,
+            limiteNE,
+            porcentajeNE,
+            statusClass,
+            statusText
+          });
+        }
+      });
+      
+      if (materiasEnRiesgo.length > 0) {
+        studentsAtRisk.push({
+          ...student,
+          materiasEnRiesgo
+        });
+      }
+    });
+
+    setRiesgoStudents(studentsAtRisk);
+  }, [filteredData, studentData, filterType]);
+
+  useEffect(() => {
+    if (Object.keys(filteredData).length > 0) {
+      processStudentsAtRisk();
+    }
+  }, [filteredData, filterType, processStudentsAtRisk]);
+  
+  const openModal = (student) => {
+    // Transformar las materias en riesgo a la estructura esperada por StudentModal
+    const parsedCriticalSubjects = student.materiasEnRiesgo.map(materia => {
+      // Asegurarse de que todos los valores sean del tipo correcto
+      return {
+        "Nombre de la materia": materia.nombreMateria,
+        "Ponderado": parseFloat(materia.ponderado || 0),
+        "Faltas del alumno": parseInt(materia.faltasAlumno || 0),
+        "Límite de faltas": parseInt(materia.limiteFaltas || 1),
+        "NE alumno": parseInt(materia.neAlumno || 0),
+        "Límite de NE": parseInt(materia.limiteNE || 1)
+      };
+    });
+    
+    setSelectedStudent({
+      ...student,
+      criticalSubjects: parsedCriticalSubjects
+    });
+  };
+
+  const closeModal = () => {
+    setSelectedStudent(null);
+  };
+
+  return (
+    <div className="min-h-screen flex bg-gray-50">
+      <SidebarNav />
+      <div className="flex flex-1 ml-64">
+        <RiskSidebar />
+        
+        <div className="flex-1">
+          <main className="p-8">
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-800">Alumnos en Riesgo Académico</h1>
+                <p className="text-gray-600 mt-2">
+                  Listado de alumnos con indicadores académicos críticos
+                </p>
+              </div>
+            </div>
+
+            {/* Filtros */}
+            <div className="mb-6 p-4 bg-white rounded-lg shadow">
+              <h2 className="text-xl font-semibold mb-4">Filtrar por tipo de riesgo</h2>
+              <div className="flex flex-wrap gap-4">
+                <button 
+                  className={`px-4 py-2 rounded-md ${filterType === 'todos' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'}`}
+                  onClick={() => setFilterType('todos')}
+                >
+                  Todos los criterios
+                </button>
+                <button 
+                  className={`px-4 py-2 rounded-md ${filterType === 'faltas' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'}`}
+                  onClick={() => setFilterType('faltas')}
+                >
+                  Faltas ≥ 80%
+                </button>
+                <button 
+                  className={`px-4 py-2 rounded-md ${filterType === 'ne' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'}`}
+                  onClick={() => setFilterType('ne')}
+                >
+                  NE ≥ 80%
+                </button>
+                <button 
+                  className={`px-4 py-2 rounded-md ${filterType === 'ponderado' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'}`}
+                  onClick={() => setFilterType('ponderado')}
+                >
+                  Ponderado &lt; 70
+                </button>
+              </div>
+            </div>
+
+            {/* Lista de estudiantes */}
+            {isLoading ? (
+              <Loading />
+            ) : riesgoStudents.length > 0 ? (
+              <div className="grid grid-cols-1 gap-6">
+                {riesgoStudents.map(student => (
+                  <div key={student.matricula} className="bg-white p-6 rounded-lg shadow-md">
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-800">{student.preferredName || student.nombre}</h3>
+                        <p className="text-gray-600">{student.matricula}</p>
+                      </div>
+                      <button 
+                        onClick={() => openModal(student)} 
+                        className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                      >
+                        Ver Detalles
+                      </button>
+                    </div>
+                    
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full bg-white">
+                        <thead>
+                          <tr className="bg-gray-100">
+                            <th className="py-2 px-4 border-b text-left">Materia</th>
+                            <th className="py-2 px-4 border-b text-center">Status</th>
+                            <th className="py-2 px-4 border-b text-center">Ponderado</th>
+                            <th className="py-2 px-4 border-b text-center">Faltas</th>
+                            <th className="py-2 px-4 border-b text-center">NE</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {student.materiasEnRiesgo.map((materia, index) => (
+                            <tr key={index} className="hover:bg-gray-50">
+                              <td className="py-2 px-4 border-b">{materia.nombreMateria}</td>
+                              <td className="py-2 px-4 border-b">
+                                <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${materia.statusClass}`}>
+                                  {materia.statusText}
+                                </span>
+                              </td>
+                              <td className="py-2 px-4 border-b text-center">{materia.ponderado}</td>
+                              <td className="py-2 px-4 border-b text-center">
+                                {materia.faltasAlumno}/{materia.limiteFaltas} 
+                                <span className="ml-2 text-xs text-gray-500">
+                                  ({materia.porcentajeFaltas.toFixed(1)}%)
+                                </span>
+                              </td>
+                              <td className="py-2 px-4 border-b text-center">
+                                {materia.neAlumno}/{materia.limiteNE}
+                                <span className="ml-2 text-xs text-gray-500">
+                                  ({materia.porcentajeNE.toFixed(1)}%)
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center p-10 bg-white rounded-lg shadow">
+                <p className="text-xl text-gray-600">No hay estudiantes que cumplan con los criterios de riesgo seleccionados.</p>
+              </div>
+            )}
+          </main>
+        </div>
+      </div>
+
+      {selectedStudent && (
+        <StudentModal
+          student={selectedStudent}
+          filteredData={filteredData}
+          columns={columns}
+          visibleColumns={visibleColumns}
+          closeModal={closeModal}
+          reorderColumns={(cols, filledCols) => cols}
+          getFilledAColumns={(rows) => []}
+          scripts={scripts || []}
+          whatsapp={whatsapp}
+          ponderationData={ponderationData}
+        />
+      )}
+    </div>
+  );
+}

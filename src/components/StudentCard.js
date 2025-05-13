@@ -205,7 +205,7 @@ export default function StudentCard({
   return (
     <div
       onClick={() => onClick(student)}
-      className='relative flex flex-col justify-between cursor-pointer p-4 border rounded-lg shadow hover:shadow-lg transition'
+      className='relative flex flex-col justify-between cursor-pointer p-4 border rounded-lg shadow hover:shadow-lg transition bg-white dark:bg-gray-700 dark:border-gray-600'
       style={{ backgroundColor: student.backgroundColor }}
     >
       {/* Badges Container */}
@@ -298,7 +298,7 @@ export default function StudentCard({
               )} flex items-center justify-center text-gray-700 font-bold`}
             >
               NE
-              <span className='absolute -bottom-2 right-0 bg-white text-xs rounded-full w-5 h-5 flex items-center justify-center border border-gray-300'>
+              <span className='absolute -bottom-2 right-0 bg-white text-xs rounded-full w-5 h-5 flex items-center justify-center border border-gray-300 dark:border-gray-600'>
                 {neCount}
               </span>
             </div>
@@ -309,7 +309,7 @@ export default function StudentCard({
               )} flex items-center justify-center text-gray-700 font-bold`}
             >
               SC
-              <span className='absolute -bottom-2 right-0 bg-white text-xs rounded-full w-5 h-5 flex items-center justify-center border border-gray-300'>
+              <span className='absolute -bottom-2 right-0 bg-white text-xs rounded-full w-5 h-5 flex items-center justify-center border border-gray-300 dark:border-gray-600'>
                 {scCount}
               </span>
             </div>
@@ -320,7 +320,7 @@ export default function StudentCard({
               )} flex items-center justify-center text-gray-700 font-bold`}
             >
               DA
-              <span className='absolute -bottom-2 right-0 bg-white text-xs rounded-full w-5 h-5 flex items-center justify-center border border-gray-300'>
+              <span className='absolute -bottom-2 right-0 bg-white dark:bg-gray-800 text-xs rounded-full w-5 h-5 flex items-center justify-center border border-gray-300 dark:border-gray-600'>
                 {daCount}
               </span>
             </div>

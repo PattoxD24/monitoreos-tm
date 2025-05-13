@@ -14,6 +14,7 @@ import ColumnModal from "@/components/ColumnModal";
 import ScriptsModal from "@/components/ScriptsModal";
 import dynamic from "next/dynamic";
 import SidebarNav from "@/components/SidebarNav";
+import Link from "next/link";
 
 const FileUploader = dynamic(() => import("@/components/FileUploader"),{ ssr: false });
 
@@ -281,6 +282,47 @@ export default function Home() {
     setShowUploader(true);
   };
 
+  // Calculate the status counters for students
+  const calculateStatusCounters = () => {
+    let peligroCount = 0;
+    let recursarCount = 0;
+
+    Object.entries(filteredData).forEach(([studentId, subjects]) => {
+      let hasRecursar = false;
+      let hasPeligro = false;
+
+      subjects.forEach(subject => {
+        const ponderado = parseFloat(subject.Ponderado) || 0;
+        const faltasAlumno = parseFloat(subject["Faltas del alumno"]) || 0;
+        const limiteFaltas = parseFloat(subject["Límite de faltas"]) || 1;
+        const porcentajeFaltas = (faltasAlumno / limiteFaltas) * 100;
+        
+        const neAlumno = parseFloat(subject["NE alumno"]) || 0;
+        const limiteNE = parseFloat(subject["Límite de NE"]) || 1;
+        const porcentajeNE = (neAlumno / limiteNE) * 100;
+
+        if (porcentajeFaltas > 100 || porcentajeNE > 100 || ponderado < 50) {
+          hasRecursar = true;
+        } else if (!hasRecursar && (porcentajeFaltas >= 80 || porcentajeNE >= 80 || ponderado < 70)) {
+          hasPeligro = true;
+        }
+      });
+
+      // Solo contamos al alumno una vez, y si tiene materias para recursar,
+      // solo se cuenta en recursarCount aunque tenga otras en peligro
+      if (hasRecursar) {
+        recursarCount++;
+      } else if (hasPeligro) {
+        peligroCount++;
+      }
+    });
+
+    return { peligroCount, recursarCount };
+  };
+
+  // Calculate status counters whenever filteredData changes
+  const { peligroCount, recursarCount } = calculateStatusCounters();
+
   return (
     <div className="flex">
       {/* Notificación */}
@@ -290,9 +332,34 @@ export default function Home() {
         </div>
       )}
 
+      {/* Status counters */}
+      {Object.keys(filteredData).length > 0 && (
+        <div className="fixed top-4 right-4 flex gap-4 z-40">
+          <div className="relative inline-flex items-center">
+            <Link href="/riesgo" className="flex items-center justify-center w-12 h-12 bg-green-100 rounded-full">
+            <div className="flex items-center justify-center w-12 h-12 bg-yellow-100 rounded-full">
+              <span className="text-2xl font-bold text-yellow-800">P</span>
+            </div>
+            <div className="absolute -top-1 -right-1 flex items-center justify-center w-6 h-6 bg-yellow-500 rounded-full">
+              <span href="/riesgo" className="text-xs font-bold text-white">{peligroCount}</span>
+              </div>
+            </Link>
+          </div>
+          <div className="relative inline-flex items-center">
+            <Link href="/riesgo" className="flex items-center justify-center w-12 h-12 bg-red-100 rounded-full">
+            <div className="flex items-center justify-center w-12 h-12 bg-red-100 rounded-full">
+              <span className="text-2xl font-bold text-red-800">R</span>
+            </div>
+            <div className="absolute -top-1 -right-1 flex items-center justify-center w-6 h-6 bg-red-500 rounded-full">
+              <span href="/riesgo" className="text-xs font-bold text-white">{recursarCount}</span>
+              </div>
+            </Link>
+          </div>
+        </div>
+      )}
+
       {Object.keys(filteredData).length > 0 && (
         <>
-          <SidebarNav />
           <Sidebar
             showColumnSelector={showColumnSelector}
             setShowColumnSelector={setShowColumnSelector}
@@ -325,11 +392,11 @@ export default function Home() {
         scripts={scripts}
         setScripts={setScripts}
       />
-      <main className={`flex-1 p-8 pb-20 min-h-screen sm:p-20 transition-all duration-300 ${showColumnSelector ? 'ml-64' : 'ml-16'}`}>
+      <main className={`flex-1 p-8 pb-20 min-h-screen sm:p-20 transition-all duration-300 bg-gray-50 dark:bg-gray-800 ${showColumnSelector ? 'ml-64' : 'ml-16'}`}>
         <div className="flex flex-col gap-8 items-center sm:items-start w-full">
           <Image className="dark:invert" src="/next.svg" alt="Next.js logo" width={180} height={38} priority />
 
-          <h1 className="text-2xl font-bold">Cargar Archivos de Monitoreos</h1>
+          <h1 className="text-2xl font-bold dark:text-white">Cargar Archivos de Monitoreos</h1>
 
           {/* Cargar Archivos */}
           {showUploader && (

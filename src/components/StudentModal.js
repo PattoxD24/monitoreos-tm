@@ -478,14 +478,19 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
     setAutomaticGrades(newGrades);
   };
 
+  console.log(student)
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-h-[90vh] overflow-hidden">
         <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-white">{student.nombre}</h2>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-white">{student.fullName}</h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Matrícula: {student.matricula}</p>
+          </div>
           <button
             onClick={closeModal}
-            className="text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white"
+            className="text-gray-500 hover:text-gray-700 dark:text-gray-200 dark:text-gray-300 dark:hover:text-white"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -521,12 +526,6 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
             <>
               <div className="flex space-x-2 mb-4">
                 <button
-                  onClick={downloadTableAsImage}
-                  className="px-4 py-2 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 transition"
-                >
-                  Descargar Monitoreo como Imagen
-                </button>
-                <button
                   onClick={toggleTableVisibility}
                   className="px-4 py-2 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 transition"
                 >
@@ -556,7 +555,7 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                           columns.filter((col) => visibleColumns[col]),
                           getFilledAColumns(filteredData[student.matricula] || [])
                         ).map((col, idx) => (
-                          <th key={idx} className="border px-2 py-1 text-sm text-gray-700 min-w-[80px]">
+                          <th key={idx} className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200 min-w-[80px]">
                             {col}
                           </th>
                         ))}
@@ -576,7 +575,7 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                           ).map((col, valIdx) => (
                             <td
                               key={valIdx}
-                              className={`border px-2 py-1 text-sm text-gray-700 text-nowrap ${
+                              className={`border px-2 py-1 text-sm text-gray-700 dark:text-gray-200 dark:text-gray-200 text-nowrap ${
                                 row[col] === "DA" ? "bg-green-300" : row[col] === "NE" ?  "bg-red-300" : row[col] === "SC" ? "bg-yellow-300" : row[col] === "SD" ? "bg-blue-300" : ""
                               }`}
                             >
@@ -624,7 +623,7 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                     <select
                       value={selectedMateria}
                       onChange={handleMateriaChange}
-                      className="border p-2 rounded w-full text-gray-700"
+                      className="border p-2 rounded w-full text-gray-700 "
                     >
                       {materias.map((materia) => (
                         <option key={materia} value={materia}>
@@ -636,8 +635,8 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                   <table className="table-fixed border-collapse border border-gray-300 mb-4">
                     <thead>
                       <tr>
-                        <th className="border px-2 py-1 text-sm text-gray-700">Nombre de la Materia</th>
-                        <th className="border px-2 py-1 text-sm text-gray-700">Detalle</th>
+                        <th className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200">Nombre de la Materia</th>
+                        <th className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200">Detalle</th>
                         {activityColumns.map((col) => {
                           // Obtener el tipo de actividad para la columna actual
                           const currentMateria = ponderationResults.find(result => result.materia === selectedMateria);
@@ -645,12 +644,12 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                             getActivityName(col, currentMateria.activities) : col;
                           
                           return (
-                            <th key={col} className="border px-2 py-1 text-sm text-gray-700">
+                            <th key={col} className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200">
                               {activityType}
                             </th>
                           );
                         })}
-                        <th className="border px-2 py-1 text-sm text-gray-700">Ponderación</th>
+                        <th className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200">Ponderación</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -683,8 +682,8 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                           <React.Fragment key={index}>
                             {/* Fila de Materias */}
                             <tr>
-                              <td rowSpan={3} className="border px-2 py-1 text-sm text-gray-700 text-nowrap">{materia}</td>
-                              <td className="border px-2 py-1 text-sm text-gray-700">Calificación del Alumno</td>
+                              <td rowSpan={3} className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200 text-nowrap">{materia}</td>
+                              <td className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200">Calificación del Alumno</td>
                               {activities.map((activity) => (
                                 <td key={activity.activity} className={`border px-0 py-0 text-sm text-gray-700 ${activity.color}`} style={{ padding: 0 }}>
                                   <input
@@ -698,7 +697,7 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                                     readOnly={!editableInputs[activity.activity]}
                                     onDoubleClick={() => toggleEditable(activity.activity)}
                                     style={{
-                                      backgroundColor: editedCells[activity.activity] ? "#e9d5ff" : editableInputs[activity.activity] ? "white" : "#f0f0f0",
+                                      backgroundColor: editedCells[activity.activity] ? "#e9d5ff" : editableInputs[activity.activity] ? "white" : "#B5B5B5",
                                       cursor: editableInputs[activity.activity] ? "text" : "default",
                                       WebkitAppearance: "none",
                                       MozAppearance: "textfield",
@@ -715,23 +714,23 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                                   />
                                 </td>
                               ))}
-                              <td className="border px-2 py-1 text-sm text-gray-700 font-bold">Banner: {avgGrade} <br/> Pred: { avg}</td>
+                              <td className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200 font-bold">Banner: {avgGrade} <br/> Pred: { avg}</td>
                             </tr>
                             {/* Fila de Ponderaciones */}
                             <tr>
-                              <td className="border px-2 py-1 text-sm text-gray-700">Ponderación Materia</td>
+                              <td className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200">Ponderación Materia</td>
                               {activities.map((activity, idx) => (
-                                <td key={idx} className="border px-2 py-1 text-sm text-gray-700">{(activity.ponderation || '').toString().replace(/[a-zA-Z]/g, '')}</td>
+                                <td key={idx} className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200">{(activity.ponderation || '').toString().replace(/[a-zA-Z]/g, '')}</td>
                               ))}
-                              <td className="border px-2 py-1 text-sm text-gray-700 font-bold">{avgPonderation}</td>
+                              <td className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200 font-bold">{avgPonderation}</td>
                             </tr>
                             {/* Fila de Ponderaciones Finales */}
                             <tr>
-                              <td className="border px-2 py-1 text-sm text-gray-700">Ponderación Final</td>
+                              <td className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200">Ponderación Final</td>
                               {activities.map((activity, idx) => (
-                                <td key={idx} className="border px-2 py-1 text-sm text-gray-700">{activity.result}</td>
+                                <td key={idx} className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200">{activity.result}</td>
                               ))}
-                              <td className="border px-2 py-1 text-sm text-gray-700 font-bold">{avgFinalPonderation}</td>
+                              <td className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200 font-bold">{avgFinalPonderation}</td>
                             </tr>
                           </React.Fragment>
                         )})}
@@ -760,14 +759,14 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                   <table className="table-fixed border-collapse border border-gray-300 mb-4">
                     <thead>
                       <tr>
-                        <th className="border px-2 py-1 text-sm text-gray-700">Materia</th>
-                        <th className="border px-2 py-1 text-sm text-gray-700">Detalle</th>
+                        <th className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200">Materia</th>
+                        <th className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200">Detalle</th>
                         {activityColumns.map((col) => (
-                          <th key={col} className="border px-2 py-1 text-sm text-gray-700">
+                          <th key={col} className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200">
                             {getActivityName(col, ponderationResults[0]?.activities || [])}
                           </th>
                         ))}
-                        <th className="border px-2 py-1 text-sm text-gray-700">Predicción</th>
+                        <th className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200">Predicción</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -792,8 +791,8 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                             <React.Fragment key={index}>
                               {/* Fila de Calificaciones */}
                               <tr>
-                                <td rowSpan={3} className="border px-2 py-1 text-sm text-gray-700 text-nowrap">{materia}</td>
-                                <td className="border px-2 py-1 text-sm text-gray-700">Calificación</td>
+                                <td rowSpan={3} className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200 text-nowrap">{materia}</td>
+                                <td className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200">Calificación</td>
                                 {activities.map((activity) => {
                                   const activityNumber = parseInt(activity.activity.slice(1));
                                   const lastActivityNumber = lastActivity ? parseInt(lastActivity.slice(1)) : 0;
@@ -821,7 +820,7 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                                         min="0"
                                         max="100"
                                         style={{
-                                          backgroundColor: isFutureActivity ? "white" : "#f0f0f0",
+                                          backgroundColor: isFutureActivity ? "white" : "#B5B5B5",
                                           cursor: isFutureActivity ? "text" : "default"
                                         }}
                                       />
@@ -853,17 +852,17 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                               </tr>
                               {/* Fila de Ponderaciones */}
                               <tr>
-                                <td className="border px-2 py-1 text-sm text-gray-700">Ponderación</td>
+                                <td className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200">Ponderación</td>
                                 {activities.map((activity, idx) => (
-                                  <td key={idx} className="border px-2 py-1 text-sm text-gray-700 text-center">
+                                  <td key={idx} className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200 text-center">
                                     {parseFloat(activity.ponderation).toFixed(0)}
                                   </td>
                                 ))}
-                                <td className="border px-2 py-1 text-sm text-gray-700 text-center">100</td>
+                                <td className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200 text-center">100</td>
                               </tr>
                               {/* Fila de Resultados */}
                               <tr>
-                                <td className="border px-2 py-1 text-sm text-gray-700">Resultado</td>
+                                <td className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200">Resultado</td>
                                 {activities.map((activity, idx) => {
                                   const activityNumber = parseInt(activity.activity.slice(1));
                                   const lastActivityNumber = lastActivity ? parseInt(lastActivity.slice(1)) : 0;
@@ -874,12 +873,12 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                                   const result = (grade * parseFloat(activity.ponderation) / 100).toFixed(2);
 
                                   return (
-                                    <td key={idx} className="border px-2 py-1 text-sm text-gray-700 text-center">
+                                    <td key={idx} className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200 text-center">
                                       {result}
                                     </td>
                                   );
                                 })}
-                                <td className="border px-2 py-1 text-sm text-gray-700 text-center font-bold">
+                                <td className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200 text-center font-bold">
                                   {(currentPrediction).toFixed(2)}
                                 </td>
                               </tr>

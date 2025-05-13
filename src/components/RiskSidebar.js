@@ -1,19 +1,23 @@
 "use client";
 
 import React, { useState } from "react";
+import ThemeToggle from "./ThemeToggle";
 
 export default function RiskSidebar() {
   // Estado para manejar filtros si son necesarios
   const [activeFilters, setActiveFilters] = useState({});
 
   return (
-    <div className="w-64 h-screen bg-white border-r border-gray-200 p-4 fixed left-64 overflow-y-auto">
+    <div className="w-64 h-screen bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 p-4 overflow-y-auto">
+      <div className="flex justify-end mb-4">
+        <ThemeToggle />
+      </div>
       <div className="mt-6">
-        <h3 className="text-lg font-semibold text-gray-700 mb-3">Filtros de Riesgo</h3>
+        <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-3">Filtros de Riesgo</h3>
         <div className="space-y-4">
           {/* Aquí puedes agregar más filtros específicos si es necesario */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Nivel de Riesgo
             </label>
             <div className="space-y-2">
@@ -21,7 +25,7 @@ export default function RiskSidebar() {
                 <input
                   type="checkbox"
                   id="riesgo-alto"
-                  className="h-4 w-4 text-blue-600 rounded border-gray-300"
+                  className="h-4 w-4 text-blue-600 dark:text-blue-500 rounded border-gray-300 dark:border-gray-600"
                   onChange={() => {
                     setActiveFilters(prev => ({
                       ...prev,
@@ -29,7 +33,7 @@ export default function RiskSidebar() {
                     }));
                   }}
                 />
-                <label htmlFor="riesgo-alto" className="ml-2 text-sm text-gray-700">
+                <label htmlFor="riesgo-alto" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
                   Alto (Recursar)
                 </label>
               </div>
@@ -37,7 +41,7 @@ export default function RiskSidebar() {
                 <input
                   type="checkbox"
                   id="riesgo-medio"
-                  className="h-4 w-4 text-blue-600 rounded border-gray-300"
+                  className="h-4 w-4 text-blue-600 dark:text-blue-500 rounded border-gray-300 dark:border-gray-600"
                   onChange={() => {
                     setActiveFilters(prev => ({
                       ...prev,
@@ -45,7 +49,7 @@ export default function RiskSidebar() {
                     }));
                   }}
                 />
-                <label htmlFor="riesgo-medio" className="ml-2 text-sm text-gray-700">
+                <label htmlFor="riesgo-medio" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
                   Medio (Extraordinario)
                 </label>
               </div>
