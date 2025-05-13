@@ -16,42 +16,64 @@ export default function useStudentData(defaultVisibleColumns) {
   const [hasLoadedData, setHasLoadedData] = useState(false);
   const [notification, setNotification] = useState({ show: false, message: '' });
 
-  // Cargar datos del localStorage al iniciar
+  // Cargar datos del localStorage al iniciar - primera prioridad
   useEffect(() => {
+    // Usar una flag para controlar si ya se cargaron los datos
+    let isDataLoaded = false;
+    
     const savedData = localStorage.getItem('studentAppData');
     if (savedData) {
-      const parsedData = JSON.parse(savedData);
-      setStudentData(parsedData.studentData || []);
-      setArchivedStudents(parsedData.archivedStudents || []);
-      setFilteredData(parsedData.filteredData || {});
-      setColumns(parsedData.columns || []);
-      setVisibleColumns(parsedData.visibleColumns || {});
-      setPonderationData(parsedData.ponderationData || {});
-
-      if (parsedData.studentData?.length === 0) {
+      try {
+        const parsedData = JSON.parse(savedData);
+        
+        if (parsedData.studentData?.length > 0 || Object.keys(parsedData.filteredData || {}).length > 0) {
+          setStudentData(parsedData.studentData || []);
+          setArchivedStudents(parsedData.archivedStudents || []);
+          setFilteredData(parsedData.filteredData || {});
+          setColumns(parsedData.columns || []);
+          setVisibleColumns(parsedData.visibleColumns || {});
+          setPonderationData(parsedData.ponderationData || {});
+          setHasLoadedData(true);
+          isDataLoaded = true;
+          console.log("Datos cargados desde localStorage");
+        } else {
+          setHasLoadedData(false);
+        }
+      } catch (error) {
+        console.error("Error al cargar datos del localStorage:", error);
         setHasLoadedData(false);
-      } else {
-        setHasLoadedData(true);
       }
     }
+    
+    // Si no hay datos en localStorage, no hacemos nada y dejamos los estados iniciales
+    return () => {
+      // Esta función de limpieza se ejecuta cuando el componente se desmonta
+      // Podemos usarla para asegurarnos de no sobreescribir localStorage con datos vacíos
+      if (!isDataLoaded) {
+        console.log("No se encontraron datos en localStorage");
+      }
+    };
   }, []);
 
   // Guardar datos en localStorage cuando cambien
   useEffect(() => {
-    const dataToSave = {
-      studentData,
-      archivedStudents,
-      filteredData,
-      columns,
-      visibleColumns,
-      ponderationData
-    };
-    
-    try {
-      localStorage.setItem('studentAppData', JSON.stringify(dataToSave));
-    } catch (error) {
-      console.error("Error al guardar en localStorage:", error);
-      // Opcional: Mostrar una notificación al usuario
+    // Solo guardar en localStorage si hay datos reales
+    if (studentData.length > 0 || Object.keys(filteredData).length > 0) {
+      const dataToSave = {
+        studentData,
+        archivedStudents,
+        filteredData,
+        columns,
+        visibleColumns,
+        ponderationData
+      };
+      
+      try {
+        localStorage.setItem('studentAppData', JSON.stringify(dataToSave));
+      } catch (error) {
+        console.error("Error al guardar en localStorage:", error);
+        // Opcional: Mostrar una notificación al usuario
+      }
     }
   }, [studentData, archivedStudents, filteredData, columns, visibleColumns, ponderationData]);
 
@@ -221,8 +243,8 @@ export default function useStudentData(defaultVisibleColumns) {
     } catch (error) {
       console.error("Error al procesar archivos:", error);
       alert(error.message || "Error al procesar los archivos. Por favor, verifica el formato.");
-      // Limpiar estados en caso de error
-      clearAllData();
+      // No limpiamos los datos en caso de error, para no perder datos previos
+      // Simplemente, mantenemos los datos existentes
     } finally {
       setIsLoading(false);
     }

@@ -33,6 +33,10 @@ export default function StudentModal({
   const [copiedScript, setCopiedScript] = useState(null);
   const [automaticGrades, setAutomaticGrades] = useState({});
   const [showAutomaticTable, setShowAutomaticTable] = useState(false);
+  const [activeTab, setActiveTab] = useState("info");
+  
+  // Verificar si el estudiante tiene materias en situación crítica
+  const hasCriticalSubjects = Array.isArray(student?.criticalSubjects) && student.criticalSubjects.length > 0;
 
   const toggleTableVisibility = () => {
     setIsTableVisible((prev) => !prev);
@@ -474,481 +478,551 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
     setAutomaticGrades(newGrades);
   };
 
+  console.log(student)
+
   return (
-    <>
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-auto">
-        <div ref={modalRef} className="bg-white p-6 rounded-lg shadow-lg w-full max-h-[90vh] overflow-y-auto">
-          <button onClick={closeModal} className="absolute top-4 right-4 text-gray-500">X</button>
-          <h2 className="text-xl text-gray-800 font-bold mb-4">
-            Detalles de {student.preferredName} ({student.matricula})
-          </h2>
-
-          <div className="flex space-x-2 mb-4">
-            <button
-              onClick={downloadTableAsImage}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 transition"
-            >
-              Descargar Monitoreo como Imagen
-            </button>
-            <button
-              onClick={toggleTableVisibility}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 transition"
-            >
-              {isTableVisible ? "Ocultar Monitoreo" : "Mostrar Monitoreo"}
-            </button>
-            <button
-              onClick={togglePonderationTableVisibility}
-              className="px-4 py-2 bg-green-500 text-white rounded-lg shadow hover:bg-green-600 transition"
-            >
-              {isPonderationTableVisible ? "Ocultar Predicciones" : "Mostrar Predicciones"}
-            </button>
-            <button
-              onClick={() => setShowAutomaticTable(prev => !prev)}
-              className="px-4 py-2 bg-purple-500 text-white rounded-lg shadow hover:bg-purple-600 transition"
-            >
-              {showAutomaticTable ? "Ocultar Predicción Automática" : "Mostrar Predicción Automática"}
-            </button>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-h-[90vh] overflow-hidden">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-white">{student.fullName}</h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Matrícula: {student.matricula}</p>
           </div>
-
-          {/* Tabla de Monitoreo */}
-          {isTableVisible && (
-            <div className="overflow-auto">
-              <table className="table-fixed border-collapse border border-gray-300">
-                <thead>
-                  <tr>
-                    {reorderColumns(
-                      columns.filter((col) => visibleColumns[col]),
-                      getFilledAColumns(filteredData[student.matricula] || [])
-                    ).map((col, idx) => (
-                      <th key={idx} className="border px-2 py-1 text-sm text-gray-700 min-w-[80px]">
-                        {col}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                {(filteredData[student.matricula] || []).map((row, idx) => {
-                  const hasDA = Object.values(row).some((value) => value === "DA");
-                  const hasSD = Object.values(row).some((value) => value === "SD");
-                  const ponderado = parseFloat(row["Ponderado"]) || 0;
+          <button
+            onClick={closeModal}
+            className="text-gray-500 hover:text-gray-700 dark:text-gray-200 dark:text-gray-300 dark:hover:text-white"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
         
-                  return (
-                    <tr key={idx}>
-                      {reorderColumns(
-                        columns.filter((col) => visibleColumns[col]),
-                        getFilledAColumns(filteredData[student.matricula] || [])
-                      ).map((col, valIdx) => (
-                        <td
-                          key={valIdx}
-                          className={`border px-2 py-1 text-sm text-gray-700 text-nowrap ${
-                            row[col] === "DA" ? "bg-green-300" : row[col] === "NE" ?  "bg-red-300" : row[col] === "SC" ? "bg-yellow-300" : row[col] === "SD" ? "bg-blue-300" : ""
-                          }`}
-                        >
-                          {row[col] || ""}
-                        </td>
-                      ))}
-                      {hasDA && ponderado < 70 && ponderado > 49 && (
-                        <td
-                          className="border px-2 py-1 text-sm text-red-500 font-bold text-nowrap"
-                          colSpan={columns.length}
-                        >
-                          {"El estudiante no puede realizar examen extraordinario (Ponderado < 70 y DA)"}
-                        </td>
-                      )}
-                      {ponderado < 50 && !hasSD && (
-                        <td
-                          className="border px-2 py-1 text-sm text-red-500 font-bold text-nowrap"
-                          colSpan={columns.length}
-                        >
-                          {"El estudiante no puede realizar examen extraordinario (Ponderado < 50)"}
-                        </td>
-                      )}
-                      {hasSD && (
-                        <td
-                          className="border px-2 py-1 text-sm text-red-500 font-bold text-nowrap"
-                          colSpan={columns.length}
-                        >
-                          {"El estudiante no puede realizar examen extraordinario (SD)"}
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })}
-                </tbody>
-              </table>
-            </div>
+        <div className="flex border-b border-gray-200 dark:border-gray-700">
+          <button
+            className={`px-4 py-2 ${activeTab === "info" ? "border-b-2 border-blue-500 text-blue-500" : "text-gray-600 dark:text-gray-300"}`}
+            onClick={() => setActiveTab("info")}
+          >
+            Información
+          </button>
+          {hasCriticalSubjects && (
+            <button
+              className={`px-4 py-2 ${activeTab === "critico" ? "border-b-2 border-blue-500 text-blue-500" : "text-gray-600 dark:text-gray-300"}`}
+              onClick={() => setActiveTab("critico")}
+            >
+              Situación Crítica
+            </button>
           )}
-
-          {/* Tabla de Predicciones Manual */}
-          {isPonderationTableVisible && (
-            <div className="overflow-auto">
-              {/* Selector de materias */}
-              <div className="mb-4">
-                <h3 className="text-lg font-bold text-gray-800">Seleccionar Materia</h3>
-                <select
-                  value={selectedMateria}
-                  onChange={handleMateriaChange}
-                  className="border p-2 rounded w-full text-gray-700"
+          <button
+            className={`px-4 py-2 ${activeTab === "materias" ? "border-b-2 border-blue-500 text-blue-500" : "text-gray-600 dark:text-gray-300"}`}
+            onClick={() => setActiveTab("materias")}
+          >
+            Materias
+          </button>
+        </div>
+        
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-8rem)]">
+          {activeTab === "info" && (
+            <>
+              <div className="flex space-x-2 mb-4">
+                <button
+                  onClick={toggleTableVisibility}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 transition"
                 >
-                  {materias.map((materia) => (
-                    <option key={materia} value={materia}>
-                      {materia}
-                    </option>
-                  ))}
-                </select>
+                  {isTableVisible ? "Ocultar Monitoreo" : "Mostrar Monitoreo"}
+                </button>
+                <button
+                  onClick={togglePonderationTableVisibility}
+                  className="px-4 py-2 bg-green-500 text-white rounded-lg shadow hover:bg-green-600 transition"
+                >
+                  {isPonderationTableVisible ? "Ocultar Predicciones" : "Mostrar Predicciones"}
+                </button>
+                <button
+                  onClick={() => setShowAutomaticTable(prev => !prev)}
+                  className="px-4 py-2 bg-purple-500 text-white rounded-lg shadow hover:bg-purple-600 transition"
+                >
+                  {showAutomaticTable ? "Ocultar Predicción Automática" : "Mostrar Predicción Automática"}
+                </button>
               </div>
-              <table className="table-fixed border-collapse border border-gray-300 mb-4">
-                <thead>
-                  <tr>
-                    <th className="border px-2 py-1 text-sm text-gray-700">Nombre de la Materia</th>
-                    <th className="border px-2 py-1 text-sm text-gray-700">Detalle</th>
-                    {activityColumns.map((col) => {
-                      // Obtener el tipo de actividad para la columna actual
-                      const currentMateria = ponderationResults.find(result => result.materia === selectedMateria);
-                      const activityType = currentMateria ? 
-                        getActivityName(col, currentMateria.activities) : col;
-                      
+
+              {/* Tabla de Monitoreo */}
+              {isTableVisible && (
+                <div className="overflow-auto">
+                  <table className="table-fixed border-collapse border border-gray-300">
+                    <thead>
+                      <tr>
+                        {reorderColumns(
+                          columns.filter((col) => visibleColumns[col]),
+                          getFilledAColumns(filteredData[student.matricula] || [])
+                        ).map((col, idx) => (
+                          <th key={idx} className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200 min-w-[80px]">
+                            {col}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                    {(filteredData[student.matricula] || []).map((row, idx) => {
+                      const hasDA = Object.values(row).some((value) => value === "DA");
+                      const hasSD = Object.values(row).some((value) => value === "SD");
+                      const ponderado = parseFloat(row["Ponderado"]) || 0;
+            
                       return (
-                        <th key={col} className="border px-2 py-1 text-sm text-gray-700">
-                          {activityType}
-                        </th>
-                      );
-                    })}
-                    <th className="border px-2 py-1 text-sm text-gray-700">Ponderación</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ponderationResults
-                    .filter(({ materia }) => materia === selectedMateria)
-                    .map(({ materia, activities, ponderado }, index) => {
-                      // Calculate averages for each criterion
-                      const avgGrade = ponderado;
-
-                      let sumPonderation = 0;
-
-                      const lastActivityColumnNumber = parseInt(lastActivityColumn.slice(1));
-                      activities.map(activity => {
-                        const activityNumber = parseInt(activity.activity.slice(1));
-                        if (activityNumber <= lastActivityColumnNumber) {
-                          sumPonderation += parseFloat(activity.ponderation || 0);
-                        }
-                        return activity;
-                      });
-                    
-                      const avgPonderation = (
-                        activities.reduce((sum, activity) => sum + parseFloat(activity.ponderation || 0), 0).toFixed(0));
-
-                      const avgFinalPonderation = (
-                        activities.reduce((sum, activity) => sum + parseFloat(activity.result || 0), 0)).toFixed(2);
-                      
-                      const avg = ((avgFinalPonderation * 100) / sumPonderation).toFixed(0);
-
-                      return (
-                      <React.Fragment key={index}>
-                        {/* Fila de Materias */}
-                        <tr>
-                          <td rowSpan={3} className="border px-2 py-1 text-sm text-gray-700 text-nowrap">{materia}</td>
-                          <td className="border px-2 py-1 text-sm text-gray-700">Calificación del Alumno</td>
-                          {activities.map((activity) => (
-                            <td key={activity.activity} className={`border px-0 py-0 text-sm text-gray-700 ${activity.color}`} style={{ padding: 0 }}>
-                              <input
-                                value={manualGrades[activity.activity] || activity.grade || "0"}
-                                onChange={(e) => handleGradeChange(activity.activity, e.target.value)}
-                                className="w-full h-full border-none"
-                                type="number"
-                                min="0"
-                                max="100"
-                                step="any"
-                                readOnly={!editableInputs[activity.activity]}
-                                onDoubleClick={() => toggleEditable(activity.activity)}
-                                style={{
-                                  backgroundColor: editedCells[activity.activity] ? "#e9d5ff" : editableInputs[activity.activity] ? "white" : "#f0f0f0",
-                                  cursor: editableInputs[activity.activity] ? "text" : "default",
-                                  WebkitAppearance: "none",
-                                  MozAppearance: "textfield",
-                                  margin: 0,
-                                  padding: "4px 8px",
-                                  boxSizing: "border-box",
-                                  width: "100%",
-                                  height: "100%",
-                                  minHeight: "30px",
-                                  display: "block",
-                                  outline: "none",
-                                  border: "1px solid #e2e8f0"
-                                }}
-                              />
+                        <tr key={idx}>
+                          {reorderColumns(
+                            columns.filter((col) => visibleColumns[col]),
+                            getFilledAColumns(filteredData[student.matricula] || [])
+                          ).map((col, valIdx) => (
+                            <td
+                              key={valIdx}
+                              className={`border px-2 py-1 text-sm text-gray-700 dark:text-gray-200 dark:text-gray-200 text-nowrap ${
+                                row[col] === "DA" ? "bg-green-300" : row[col] === "NE" ?  "bg-red-300" : row[col] === "SC" ? "bg-yellow-300" : row[col] === "SD" ? "bg-blue-300" : ""
+                              }`}
+                            >
+                              {row[col] || ""}
                             </td>
                           ))}
-                          <td className="border px-2 py-1 text-sm text-gray-700 font-bold">Banner: {avgGrade} <br/> Pred: { avg}</td>
+                          {hasDA && ponderado < 70 && ponderado > 49 && (
+                            <td
+                              className="border px-2 py-1 text-sm text-red-500 font-bold text-nowrap"
+                              colSpan={columns.length}
+                            >
+                              {"El estudiante no puede realizar examen extraordinario (Ponderado < 70 y DA)"}
+                            </td>
+                          )}
+                          {ponderado < 50 && !hasSD && (
+                            <td
+                              className="border px-2 py-1 text-sm text-red-500 font-bold text-nowrap"
+                              colSpan={columns.length}
+                            >
+                              {"El estudiante no puede realizar examen extraordinario (Ponderado < 50)"}
+                            </td>
+                          )}
+                          {hasSD && (
+                            <td
+                              className="border px-2 py-1 text-sm text-red-500 font-bold text-nowrap"
+                              colSpan={columns.length}
+                            >
+                              {"El estudiante no puede realizar examen extraordinario (SD)"}
+                            </td>
+                          )}
                         </tr>
-                        {/* Fila de Ponderaciones */}
-                        <tr>
-                          <td className="border px-2 py-1 text-sm text-gray-700">Ponderación Materia</td>
-                          {activities.map((activity, idx) => (
-                            <td key={idx} className="border px-2 py-1 text-sm text-gray-700">{(activity.ponderation || '').toString().replace(/[a-zA-Z]/g, '')}</td>
-                          ))}
-                          <td className="border px-2 py-1 text-sm text-gray-700 font-bold">{avgPonderation}</td>
-                        </tr>
-                        {/* Fila de Ponderaciones Finales */}
-                        <tr>
-                          <td className="border px-2 py-1 text-sm text-gray-700">Ponderación Final</td>
-                          {activities.map((activity, idx) => (
-                            <td key={idx} className="border px-2 py-1 text-sm text-gray-700">{activity.result}</td>
-                          ))}
-                          <td className="border px-2 py-1 text-sm text-gray-700 font-bold">{avgFinalPonderation}</td>
-                        </tr>
-                      </React.Fragment>
-                    )})}
-                </tbody>
-              </table>
-            </div>
-          )}
+                      );
+                    })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
 
-          {/* Nueva Tabla de Predicción Automática */}
-          {showAutomaticTable && (
-            <div className="overflow-auto mt-4">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">Predicción Automática</h3>
-              <div className="mb-4">
-                <select
-                  value={selectedMateria}
-                  onChange={handleMateriaChange}
-                  className="border p-2 rounded w-full text-gray-700"
-                >
-                  {materias.map((materia) => (
-                    <option key={materia} value={materia}>
-                      {materia}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <table className="table-fixed border-collapse border border-gray-300 mb-4">
-                <thead>
-                  <tr>
-                    <th className="border px-2 py-1 text-sm text-gray-700">Materia</th>
-                    <th className="border px-2 py-1 text-sm text-gray-700">Detalle</th>
-                    {activityColumns.map((col) => (
-                      <th key={col} className="border px-2 py-1 text-sm text-gray-700">
-                        {getActivityName(col, ponderationResults[0]?.activities || [])}
-                      </th>
-                    ))}
-                    <th className="border px-2 py-1 text-sm text-gray-700">Predicción</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ponderationResults
-                    .filter(({ materia }) => materia === selectedMateria)
-                    .map(({ materia, activities, ponderado }, index) => {
-                      const avgGrade = ponderado;
-                      const maxPrediction = calculateMaxPrediction(activities);
-                      const currentPrediction = activities.reduce((sum, activity) => {
-                        const activityNumber = parseInt(activity.activity.slice(1));
-                        const lastActivityNumber = lastActivity ? parseInt(lastActivity.slice(1)) : 0;
-                        const isFutureActivity = activityNumber > lastActivityNumber;
+              {/* Tabla de Predicciones Manual */}
+              {isPonderationTableVisible && (
+                <div className="overflow-auto">
+                  {/* Selector de materias */}
+                  <div className="mb-4">
+                    <h3 className="text-lg font-bold text-gray-800">Seleccionar Materia</h3>
+                    <select
+                      value={selectedMateria}
+                      onChange={handleMateriaChange}
+                      className="border p-2 rounded w-full text-gray-700 "
+                    >
+                      {materias.map((materia) => (
+                        <option key={materia} value={materia}>
+                          {materia}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <table className="table-fixed border-collapse border border-gray-300 mb-4">
+                    <thead>
+                      <tr>
+                        <th className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200">Nombre de la Materia</th>
+                        <th className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200">Detalle</th>
+                        {activityColumns.map((col) => {
+                          // Obtener el tipo de actividad para la columna actual
+                          const currentMateria = ponderationResults.find(result => result.materia === selectedMateria);
+                          const activityType = currentMateria ? 
+                            getActivityName(col, currentMateria.activities) : col;
+                          
+                          return (
+                            <th key={col} className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200">
+                              {activityType}
+                            </th>
+                          );
+                        })}
+                        <th className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200">Ponderación</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ponderationResults
+                        .filter(({ materia }) => materia === selectedMateria)
+                        .map(({ materia, activities, ponderado }, index) => {
+                          // Calculate averages for each criterion
+                          const avgGrade = ponderado;
+
+                          let sumPonderation = 0;
+
+                          const lastActivityColumnNumber = parseInt(lastActivityColumn.slice(1));
+                          activities.map(activity => {
+                            const activityNumber = parseInt(activity.activity.slice(1));
+                            if (activityNumber <= lastActivityColumnNumber) {
+                              sumPonderation += parseFloat(activity.ponderation || 0);
+                            }
+                            return activity;
+                          });
                         
-                        const grade = automaticGrades[activity.activity] !== undefined ?
-                          parseFloat(automaticGrades[activity.activity]) :
-                          (isFutureActivity ? 100 : parseFloat(activity.grade)) || 0;
-                        
-                        return sum + (grade * parseFloat(activity.ponderation) / 100);
-                      }, 0);
+                          const avgPonderation = (
+                            activities.reduce((sum, activity) => sum + parseFloat(activity.ponderation || 0), 0).toFixed(0));
 
-                      return (
-                        <React.Fragment key={index}>
-                          {/* Fila de Calificaciones */}
-                          <tr>
-                            <td rowSpan={3} className="border px-2 py-1 text-sm text-gray-700 text-nowrap">{materia}</td>
-                            <td className="border px-2 py-1 text-sm text-gray-700">Calificación</td>
-                            {activities.map((activity) => {
-                              const activityNumber = parseInt(activity.activity.slice(1));
-                              const lastActivityNumber = lastActivity ? parseInt(lastActivity.slice(1)) : 0;
-                              const isFutureActivity = activityNumber > lastActivityNumber;
+                          const avgFinalPonderation = (
+                            activities.reduce((sum, activity) => sum + parseFloat(activity.result || 0), 0)).toFixed(2);
+                          
+                          const avg = ((avgFinalPonderation * 100) / sumPonderation).toFixed(0);
 
-                              return (
-                                <td key={activity.activity} className="border px-2 py-1 text-sm text-gray-700">
+                          return (
+                          <React.Fragment key={index}>
+                            {/* Fila de Materias */}
+                            <tr>
+                              <td rowSpan={3} className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200 text-nowrap">{materia}</td>
+                              <td className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200">Calificación del Alumno</td>
+                              {activities.map((activity) => (
+                                <td key={activity.activity} className={`border px-0 py-0 text-sm text-gray-700 ${activity.color}`} style={{ padding: 0 }}>
                                   <input
+                                    value={manualGrades[activity.activity] || activity.grade || "0"}
+                                    onChange={(e) => handleGradeChange(activity.activity, e.target.value)}
+                                    className="w-full h-full border-none"
                                     type="number"
-                                    value={isFutureActivity ? 
-                                      (automaticGrades[activity.activity] !== undefined ? 
-                                        automaticGrades[activity.activity] : "100") : 
-                                      (activity.grade || "0")}
-                                    onChange={(e) => {
-                                      const value = e.target.value;
-                                      if (isFutureActivity) {
-                                        const numValue = Math.min(100, Math.max(0, parseInt(value) || 0));
-                                        setAutomaticGrades(prev => ({
-                                          ...prev,
-                                          [activity.activity]: numValue
-                                        }));
-                                      }
-                                    }}
-                                    className="w-full border-none text-center"
                                     min="0"
                                     max="100"
+                                    step="any"
+                                    readOnly={!editableInputs[activity.activity]}
+                                    onDoubleClick={() => toggleEditable(activity.activity)}
                                     style={{
-                                      backgroundColor: isFutureActivity ? "white" : "#f0f0f0",
-                                      cursor: isFutureActivity ? "text" : "default"
+                                      backgroundColor: editedCells[activity.activity] ? "#e9d5ff" : editableInputs[activity.activity] ? "white" : "#B5B5B5",
+                                      cursor: editableInputs[activity.activity] ? "text" : "default",
+                                      WebkitAppearance: "none",
+                                      MozAppearance: "textfield",
+                                      margin: 0,
+                                      padding: "4px 8px",
+                                      boxSizing: "border-box",
+                                      width: "100%",
+                                      height: "100%",
+                                      minHeight: "30px",
+                                      display: "block",
+                                      outline: "none",
+                                      border: "1px solid #e2e8f0"
                                     }}
                                   />
                                 </td>
-                              );
-                            })}
-                            <td className="border px-2 py-1 text-sm text-gray-700">
-                              <div className="flex items-center justify-between">
-                                <input
-                                  type="number"
-                                  value={Math.round(currentPrediction)}
-                                  onChange={(e) => {
-                                    const value = e.target.value;
-                                    if (value === "" || isNaN(value)) return;
-                                    const numValue = parseInt(value);
-                                    if (numValue >= 0 && numValue <= maxPrediction) {
-                                      updateGradesForPrediction(numValue, activities);
-                                    }
-                                  }}
-                                  className="w-20 border rounded px-1"
-                                  min="0"
-                                  max={maxPrediction}
-                                />
-                                <span className="text-xs text-gray-500 ml-1">
-                                  (Max: {Math.round(maxPrediction)})
-                                </span>
-                              </div>
-                            </td>
-                          </tr>
-                          {/* Fila de Ponderaciones */}
-                          <tr>
-                            <td className="border px-2 py-1 text-sm text-gray-700">Ponderación</td>
-                            {activities.map((activity, idx) => (
-                              <td key={idx} className="border px-2 py-1 text-sm text-gray-700 text-center">
-                                {parseFloat(activity.ponderation).toFixed(0)}
-                              </td>
-                            ))}
-                            <td className="border px-2 py-1 text-sm text-gray-700 text-center">100</td>
-                          </tr>
-                          {/* Fila de Resultados */}
-                          <tr>
-                            <td className="border px-2 py-1 text-sm text-gray-700">Resultado</td>
-                            {activities.map((activity, idx) => {
-                              const activityNumber = parseInt(activity.activity.slice(1));
-                              const lastActivityNumber = lastActivity ? parseInt(lastActivity.slice(1)) : 0;
-                              const isFutureActivity = activityNumber > lastActivityNumber;
-                              const grade = isFutureActivity ? 
-                                (automaticGrades[activity.activity] !== undefined ? automaticGrades[activity.activity] : 100) : 
-                                parseFloat(activity.grade) || 0;
-                              const result = (grade * parseFloat(activity.ponderation) / 100).toFixed(2);
+                              ))}
+                              <td className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200 font-bold">Banner: {avgGrade} <br/> Pred: { avg}</td>
+                            </tr>
+                            {/* Fila de Ponderaciones */}
+                            <tr>
+                              <td className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200">Ponderación Materia</td>
+                              {activities.map((activity, idx) => (
+                                <td key={idx} className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200">{(activity.ponderation || '').toString().replace(/[a-zA-Z]/g, '')}</td>
+                              ))}
+                              <td className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200 font-bold">{avgPonderation}</td>
+                            </tr>
+                            {/* Fila de Ponderaciones Finales */}
+                            <tr>
+                              <td className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200">Ponderación Final</td>
+                              {activities.map((activity, idx) => (
+                                <td key={idx} className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200">{activity.result}</td>
+                              ))}
+                              <td className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200 font-bold">{avgFinalPonderation}</td>
+                            </tr>
+                          </React.Fragment>
+                        )})}
+                    </tbody>
+                  </table>
+                </div>
+              )}
 
-                              return (
-                                <td key={idx} className="border px-2 py-1 text-sm text-gray-700 text-center">
-                                  {result}
+              {/* Nueva Tabla de Predicción Automática */}
+              {showAutomaticTable && (
+                <div className="overflow-auto mt-4">
+                  <h3 className="text-lg font-bold text-gray-800 mb-4">Predicción Automática</h3>
+                  <div className="mb-4">
+                    <select
+                      value={selectedMateria}
+                      onChange={handleMateriaChange}
+                      className="border p-2 rounded w-full text-gray-700"
+                    >
+                      {materias.map((materia) => (
+                        <option key={materia} value={materia}>
+                          {materia}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <table className="table-fixed border-collapse border border-gray-300 mb-4">
+                    <thead>
+                      <tr>
+                        <th className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200">Materia</th>
+                        <th className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200">Detalle</th>
+                        {activityColumns.map((col) => (
+                          <th key={col} className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200">
+                            {getActivityName(col, ponderationResults[0]?.activities || [])}
+                          </th>
+                        ))}
+                        <th className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200">Predicción</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ponderationResults
+                        .filter(({ materia }) => materia === selectedMateria)
+                        .map(({ materia, activities, ponderado }, index) => {
+                          const avgGrade = ponderado;
+                          const maxPrediction = calculateMaxPrediction(activities);
+                          const currentPrediction = activities.reduce((sum, activity) => {
+                            const activityNumber = parseInt(activity.activity.slice(1));
+                            const lastActivityNumber = lastActivity ? parseInt(lastActivity.slice(1)) : 0;
+                            const isFutureActivity = activityNumber > lastActivityNumber;
+                            
+                            const grade = automaticGrades[activity.activity] !== undefined ?
+                              parseFloat(automaticGrades[activity.activity]) :
+                              (isFutureActivity ? 100 : parseFloat(activity.grade)) || 0;
+                            
+                            return sum + (grade * parseFloat(activity.ponderation) / 100);
+                          }, 0);
+
+                          return (
+                            <React.Fragment key={index}>
+                              {/* Fila de Calificaciones */}
+                              <tr>
+                                <td rowSpan={3} className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200 text-nowrap">{materia}</td>
+                                <td className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200">Calificación</td>
+                                {activities.map((activity) => {
+                                  const activityNumber = parseInt(activity.activity.slice(1));
+                                  const lastActivityNumber = lastActivity ? parseInt(lastActivity.slice(1)) : 0;
+                                  const isFutureActivity = activityNumber > lastActivityNumber;
+
+                                  return (
+                                    <td key={activity.activity} className="border px-2 py-1 text-sm text-gray-700">
+                                      <input
+                                        type="number"
+                                        value={isFutureActivity ? 
+                                          (automaticGrades[activity.activity] !== undefined ? 
+                                            automaticGrades[activity.activity] : "100") : 
+                                          (activity.grade || "0")}
+                                        onChange={(e) => {
+                                          const value = e.target.value;
+                                          if (isFutureActivity) {
+                                            const numValue = Math.min(100, Math.max(0, parseInt(value) || 0));
+                                            setAutomaticGrades(prev => ({
+                                              ...prev,
+                                              [activity.activity]: numValue
+                                            }));
+                                          }
+                                        }}
+                                        className="w-full border-none text-center"
+                                        min="0"
+                                        max="100"
+                                        style={{
+                                          backgroundColor: isFutureActivity ? "white" : "#B5B5B5",
+                                          cursor: isFutureActivity ? "text" : "default"
+                                        }}
+                                      />
+                                    </td>
+                                  );
+                                })}
+                                <td className="border px-2 py-1 text-sm text-gray-700">
+                                  <div className="flex items-center justify-between">
+                                    <input
+                                      type="number"
+                                      value={Math.round(currentPrediction)}
+                                      onChange={(e) => {
+                                        const value = e.target.value;
+                                        if (value === "" || isNaN(value)) return;
+                                        const numValue = parseInt(value);
+                                        if (numValue >= 0 && numValue <= maxPrediction) {
+                                          updateGradesForPrediction(numValue, activities);
+                                        }
+                                      }}
+                                      className="w-20 border rounded px-1"
+                                      min="0"
+                                      max={maxPrediction}
+                                    />
+                                    <span className="text-xs text-gray-500 ml-1">
+                                      (Max: {Math.round(maxPrediction)})
+                                    </span>
+                                  </div>
                                 </td>
-                              );
-                            })}
-                            <td className="border px-2 py-1 text-sm text-gray-700 text-center font-bold">
-                              {(currentPrediction).toFixed(2)}
-                            </td>
-                          </tr>
-                        </React.Fragment>
+                              </tr>
+                              {/* Fila de Ponderaciones */}
+                              <tr>
+                                <td className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200">Ponderación</td>
+                                {activities.map((activity, idx) => (
+                                  <td key={idx} className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200 text-center">
+                                    {parseFloat(activity.ponderation).toFixed(0)}
+                                  </td>
+                                ))}
+                                <td className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200 text-center">100</td>
+                              </tr>
+                              {/* Fila de Resultados */}
+                              <tr>
+                                <td className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200">Resultado</td>
+                                {activities.map((activity, idx) => {
+                                  const activityNumber = parseInt(activity.activity.slice(1));
+                                  const lastActivityNumber = lastActivity ? parseInt(lastActivity.slice(1)) : 0;
+                                  const isFutureActivity = activityNumber > lastActivityNumber;
+                                  const grade = isFutureActivity ? 
+                                    (automaticGrades[activity.activity] !== undefined ? automaticGrades[activity.activity] : 100) : 
+                                    parseFloat(activity.grade) || 0;
+                                  const result = (grade * parseFloat(activity.ponderation) / 100).toFixed(2);
+
+                                  return (
+                                    <td key={idx} className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200 text-center">
+                                      {result}
+                                    </td>
+                                  );
+                                })}
+                                <td className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200 text-center font-bold">
+                                  {(currentPrediction).toFixed(2)}
+                                </td>
+                              </tr>
+                            </React.Fragment>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          )}
+          
+          {activeTab === "critico" && hasCriticalSubjects && (
+            <div>
+              <h3 className="text-xl font-semibold mb-4">Materias en Situación Crítica</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-gray-100 dark:bg-gray-700">
+                    <tr>
+                      <th className="px-4 py-2">Materia</th>
+                      <th className="px-4 py-2">Status</th>
+                      <th className="px-4 py-2">Ponderado</th>
+                      <th className="px-4 py-2">Faltas</th>
+                      <th className="px-4 py-2">NE</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(student.criticalSubjects || []).map((subject, index) => {
+                      // Cálculo de status para cada materia
+                      const ponderado = parseFloat(subject["Ponderado"]) || 0;
+                      let statusText = "Peligro";
+                      let statusColor = "bg-yellow-500";
+                      
+                      if (ponderado < 60) {
+                        statusText = "Recursar";
+                        statusColor = "bg-red-500";
+                      } else if (ponderado < 70) {
+                        statusText = "Extraordinario";
+                        statusColor = "bg-orange-500";
+                      }
+                      
+                      // Cálculo de porcentajes
+                      const faltasAlumno = parseInt(subject["Faltas del alumno"]) || 0;
+                      const limiteFaltas = parseInt(subject["Límite de faltas"]) || 1;
+                      const porcentajeFaltas = ((faltasAlumno / limiteFaltas) * 100).toFixed(1);
+                      
+                      const neAlumno = parseInt(subject["NE alumno"]) || 0;
+                      const limiteNE = parseInt(subject["Límite de NE"]) || 1;
+                      const porcentajeNE = ((neAlumno / limiteNE) * 100).toFixed(1);
+                      
+                      return (
+                        <tr key={index} className="border-b dark:border-gray-600">
+                          <td className="px-4 py-2">{subject["Nombre de la materia"]}</td>
+                          <td className="px-4 py-2">
+                            <span className={`${statusColor} text-white text-xs px-2 py-1 rounded-full`}>
+                              {statusText}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2">{ponderado}</td>
+                          <td className="px-4 py-2">
+                            {faltasAlumno}/{limiteFaltas} ({porcentajeFaltas}%)
+                          </td>
+                          <td className="px-4 py-2">
+                            {neAlumno}/{limiteNE} ({porcentajeNE}%)
+                          </td>
+                        </tr>
                       );
                     })}
-                </tbody>
-              </table>
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
-
-          {/* Scripts Section */}
-          <h3 className="text-lg text-gray-800 font-semibold mb-2">Scripts Disponibles</h3>
-          <ul className="space-y-2">
-            {scripts.map((script, index) => (
-              <li key={index} className="flex justify-between items-center p-2 bg-gray-100 rounded" title={replaceVariables(script.content)}>
-                <span
-                  className="text-gray-100 border border-dashed border-gray-400 cursor-pointer rounded px-2 py-1 bg-purple-400"
-                  onClick={toggleScriptContent}
-                >
-                  {script.name}
-                </span>
-                {showScriptContent && (
-                  <span className="text-gray-500 text-sm">
-                    {script.content.length > 20 ? `${replaceVariables(script.content).slice(0, -1)}...` : replaceVariables(script.content)}
-                  </span>
-                )}
-                <div className="flex items-center">
-                  <button
-                    onClick={() => copyToClipboard(script.content)}
-                    className="bg-blue-500 text-white px-2 py-1 rounded text-sm"
-                  >
-                    Copiar
-                  </button>
-                  {whatsapp && (
-                    <button
-                      onClick={() => handleSendWhatsApp(script.content)}
-                      className="bg-green-500 text-white px-4 py-1 rounded text-sm"
-                    >
-                      Enviar por WhatsApp
-                    </button>
-                  )}
-                  {copiedScript === script.content && (
-                    <span className="text-green-500 text-sm ml-2">Copiado!</span>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
+          
+          {activeTab === "materias" && (
+            <div>
+              <h3 className="text-xl font-semibold mb-4">Materias del Alumno</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-gray-100 dark:bg-gray-700">
+                    <tr>
+                      <th className="px-4 py-2">Materia</th>
+                      <th className="px-4 py-2">Grupo</th>
+                      <th className="px-4 py-2">Ponderado</th>
+                      <th className="px-4 py-2">Faltas</th>
+                      <th className="px-4 py-2">NE</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(filteredData[student.matricula] || []).map((row, index) => {
+                      const ponderado = parseFloat(row["Ponderado"]) || 0;
+                      const faltasAlumno = parseInt(row["Faltas del alumno"]) || 0;
+                      const limiteFaltas = parseInt(row["Límite de faltas"]) || 1;
+                      const porcentajeFaltas = ((faltasAlumno / limiteFaltas) * 100).toFixed(1);
+                      
+                      const neAlumno = parseInt(row["NE alumno"]) || 0;
+                      const limiteNE = parseInt(row["Límite de NE"]) || 1;
+                      const porcentajeNE = ((neAlumno / limiteNE) * 100).toFixed(1);
+                      
+                      // Determinar color del ponderado
+                      let ponderadoColor = "bg-green-500";
+                      if (ponderado < 70) ponderadoColor = "bg-red-500";
+                      else if (ponderado < 80) ponderadoColor = "bg-yellow-500";
+                      
+                      // Determinar color de faltas y NE
+                      const faltasColor = parseFloat(porcentajeFaltas) >= 80 ? "bg-red-500" : "bg-green-500";
+                      const neColor = parseFloat(porcentajeNE) >= 80 ? "bg-red-500" : "bg-green-500";
+                      
+                      return (
+                        <tr key={index} className="border-b dark:border-gray-600">
+                          <td className="px-4 py-2">{row["Nombre de la materia"]}</td>
+                          <td className="px-4 py-2">{row["# Grupo"]}</td>
+                          <td className="px-4 py-2">
+                            <span className={`${ponderadoColor} text-white text-xs px-2 py-1 rounded-full`}>
+                              {ponderado}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2">
+                            <div className="flex items-center">
+                              <div className="mr-2">{faltasAlumno}/{limiteFaltas}</div>
+                              <div className={`px-1.5 py-0.5 rounded text-xs text-white ${faltasColor}`}>
+                                {porcentajeFaltas}%
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-2">
+                            <div className="flex items-center">
+                              <div className="mr-2">{neAlumno}/{limiteNE}</div>
+                              <div className={`px-1.5 py-0.5 rounded text-xs text-white ${neColor}`}>
+                                {porcentajeNE}%
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       </div>
-
-      {/* Tabla oculta con estilos inline */}
-      <div 
-        ref={hiddenTableRef} 
-        style={{ position: "absolute", top: "-9999px", left: "-9999px" }} 
-        className="bg-white"
-      >
-        <table style={{ borderCollapse: "collapse", width: "100%", fontFamily: "Arial, sans-serif" }}>
-          <thead>
-            <tr>
-              {reorderColumns(
-                columns.filter((col) => visibleColumns[col]),
-                getFilledAColumns(filteredData[student.matricula] || [])
-              ).map((col, idx) => (
-                <th
-                  key={idx}
-                  style={{
-                    border: "1px solid #ccc",
-                    padding: "8px",
-                    fontSize: "12px",
-                    color: "#333",
-                    minWidth: "80px",
-                  }}
-                >
-                  {col}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {(filteredData[student.matricula] || []).map((row, idx) => (
-              <tr key={idx}>
-                {reorderColumns(
-                  columns.filter((col) => visibleColumns[col]),
-                  getFilledAColumns(filteredData[student.matricula] || [])
-                ).map((col, valIdx) => (
-                  <td
-                    key={valIdx}
-                    style={{
-                      border: "1px solid #ccc",
-                      padding: "8px",
-                      fontSize: "12px",
-                      color: "#333",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {row[col] || ""}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </>
+    </div>
   );
 }
