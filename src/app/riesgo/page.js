@@ -334,7 +334,6 @@ export default function RiesgoPage() {
                     </thead>
                     <tbody>
                       {student.materiasEnRiesgo.map((materia, index) => {
-                        console.log(materia);
                         return (
                         <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-600">
                           <td className="py-2 px-4 border-b dark:border-gray-600 text-gray-800 dark:text-gray-200">{materia.nombreMateria}</td>

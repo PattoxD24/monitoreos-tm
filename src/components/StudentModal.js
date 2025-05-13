@@ -478,8 +478,6 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
     setAutomaticGrades(newGrades);
   };
 
-  console.log(student)
-
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-h-[90vh] overflow-hidden">
@@ -490,7 +488,7 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
           </div>
           <button
             onClick={closeModal}
-            className="text-gray-500 hover:text-gray-700 dark:text-gray-200 dark:text-gray-300 dark:hover:text-white"
+            className="text-gray-500 hover:text-gray-700 dark:text-gray-200 dark:hover:text-white"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -575,7 +573,7 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                           ).map((col, valIdx) => (
                             <td
                               key={valIdx}
-                              className={`border px-2 py-1 text-sm text-gray-700 dark:text-gray-200 dark:text-gray-200 text-nowrap ${
+                              className={`border px-2 py-1 text-sm text-gray-700 dark:text-gray-200 text-nowrap ${
                                 row[col] === "DA" ? "bg-green-300" : row[col] === "NE" ?  "bg-red-300" : row[col] === "SC" ? "bg-yellow-300" : row[col] === "SD" ? "bg-blue-300" : ""
                               }`}
                             >
@@ -913,14 +911,6 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                       let statusText = "Peligro";
                       let statusColor = "bg-yellow-500";
                       
-                      if (ponderado < 60) {
-                        statusText = "Recursar";
-                        statusColor = "bg-red-500";
-                      } else if (ponderado < 70) {
-                        statusText = "Extraordinario";
-                        statusColor = "bg-orange-500";
-                      }
-                      
                       // Cálculo de porcentajes
                       const faltasAlumno = parseInt(subject["Faltas del alumno"]) || 0;
                       const limiteFaltas = parseInt(subject["Límite de faltas"]) || 1;
@@ -930,6 +920,13 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                       const limiteNE = parseInt(subject["Límite de NE"]) || 1;
                       const porcentajeNE = ((neAlumno / limiteNE) * 100).toFixed(1);
                       
+                      if (porcentajeFaltas > 100 || porcentajeNE > 100 || ponderado < 50) {
+                        statusText = "Recursar";
+                        statusColor = "bg-red-500";
+                      } else if ((porcentajeFaltas >= 80 || porcentajeNE >= 80) || (ponderado < 70 )) {
+                        statusText = "Peligro";
+                        statusColor = "bg-yellow-500";
+                      }
                       return (
                         <tr key={index} className="border-b dark:border-gray-600">
                           <td className="px-4 py-2">{subject["Nombre de la materia"]}</td>
