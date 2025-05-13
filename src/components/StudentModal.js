@@ -17,6 +17,8 @@ export default function StudentModal({
   whatsapp,
   ponderationData
 }) {
+  const [activeTab, setActiveTab] = useState("info");
+  const [copiedScript, setCopiedScript] = useState(null);
   const [isTableVisible, setIsTableVisible] = useState(false);
   const [isPonderationTableVisible, setIsPonderationTableVisible] = useState(false);
   const [selectedMateria, setSelectedMateria] = useState("");
@@ -30,10 +32,8 @@ export default function StudentModal({
   const modalRef = useRef(null);
   const hiddenTableRef = useRef(null);
   const [showScriptContent, setShowScriptContent] = useState(false);
-  const [copiedScript, setCopiedScript] = useState(null);
   const [automaticGrades, setAutomaticGrades] = useState({});
   const [showAutomaticTable, setShowAutomaticTable] = useState(false);
-  const [activeTab, setActiveTab] = useState("info");
   
   // Verificar si el estudiante tiene materias en situación crítica
   const hasCriticalSubjects = Array.isArray(student?.criticalSubjects) && student.criticalSubjects.length > 0;
@@ -886,6 +886,48 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                     </tbody>
                   </table>
                 </div>
+              )}
+
+              {/* Sección de Scripts */}
+              {scripts.length > 0 && (
+              <div className="mt-8">
+                <h3 className="text-lg font-bold text-gray-800 mb-4">Scripts</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {scripts.map((script, index) => (
+                    <div
+                      key={index}
+                      className="p-4 border rounded-lg bg-white dark:bg-gray-700 shadow-sm"
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="font-medium text-gray-800 dark:text-white">{script.name}</h4>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => copyToClipboard(script.content)}
+                            className="text-blue-500 hover:text-blue-600 dark:text-blue-400"
+                          >
+                            {copiedScript === script.content ? (
+                              <span className="text-green-500">¡Copiado!</span>
+                            ) : (
+                              "Copiar"
+                            )}
+                          </button>
+                          {whatsapp && (
+                            <button
+                              onClick={() => handleSendWhatsApp(script.content)}
+                              className="text-green-500 hover:text-green-600"
+                            >
+                              WhatsApp
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
+                        {replaceVariables(script.content)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
               )}
             </>
           )}
