@@ -13,6 +13,7 @@ import SortAndFilterControls from "@/components/SortAndFilterControls"
 import ColumnModal from "@/components/ColumnModal";
 import ScriptsModal from "@/components/ScriptsModal";
 import dynamic from "next/dynamic";
+import SidebarNav from "@/components/SidebarNav";
 
 const FileUploader = dynamic(() => import("@/components/FileUploader"),{ ssr: false });
 
@@ -290,30 +291,33 @@ export default function Home() {
       )}
 
       {Object.keys(filteredData).length > 0 && (
-    <Sidebar
-        showColumnSelector={showColumnSelector}
-        setShowColumnSelector={setShowColumnSelector}
-        setShowColumnModal={setShowColumnModal}  
-        downloadZip={downloadZip}
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
-        sortOrder={sortOrder}
-        setSortOrder={setSortOrder}
-        toggleSortDirection={() => setIsAscending(!isAscending)}
-        isAscending={isAscending}
-        columns={columns}
-        visibleColumns={visibleColumns}
-        toggleColumnVisibility={toggleColumnVisibility}
-        onShowArchivedModal={() => setShowArchivedModal(true)}
-        onShowScriptsModal={toggleShowScriptsModal}  
-        setShowWhatsappInput={setShowWhatsappInput}
-        showWhatsappInput={showWhatsappInput}
-        whatsapp={whatsapp}
-        setWhatsapp={setWhatsapp}
-        clearAllData={handleClearAllData}
-        handleFile1Change={handleFile1Change}
-        handleFile2Change={handleFile2Change}
-      />
+        <>
+          <SidebarNav />
+          <Sidebar
+            showColumnSelector={showColumnSelector}
+            setShowColumnSelector={setShowColumnSelector}
+            setShowColumnModal={setShowColumnModal}  
+            downloadZip={downloadZip}
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            sortOrder={sortOrder}
+            setSortOrder={setSortOrder}
+            toggleSortDirection={() => setIsAscending(!isAscending)}
+            isAscending={isAscending}
+            columns={columns}
+            visibleColumns={visibleColumns}
+            toggleColumnVisibility={toggleColumnVisibility}
+            onShowArchivedModal={() => setShowArchivedModal(true)}
+            onShowScriptsModal={toggleShowScriptsModal}  
+            setShowWhatsappInput={setShowWhatsappInput}
+            showWhatsappInput={showWhatsappInput}
+            whatsapp={whatsapp}
+            setWhatsapp={setWhatsapp}
+            clearAllData={handleClearAllData}
+            handleFile1Change={handleFile1Change}
+            handleFile2Change={handleFile2Change}
+          />
+        </>
       )}
       <ScriptsModal
         visible={showScriptsModal}
