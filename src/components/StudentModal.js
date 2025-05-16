@@ -34,6 +34,7 @@ export default function StudentModal({
   const [showScriptContent, setShowScriptContent] = useState(false);
   const [automaticGrades, setAutomaticGrades] = useState({});
   const [showAutomaticTable, setShowAutomaticTable] = useState(false);
+  const [visibleScripts, setVisibleScripts] = useState({});
   
   // Verificar si el estudiante tiene materias en situación crítica
   const hasCriticalSubjects = Array.isArray(student?.criticalSubjects) && student.criticalSubjects.length > 0;
@@ -400,6 +401,13 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
     navigator.clipboard.writeText(replaceVariables(text));
     setCopiedScript(text);
     setTimeout(() => setCopiedScript(null), 2000);
+  };
+
+  const toggleScriptVisibility = (index) => {
+    setVisibleScripts(prev => ({
+      ...prev,
+      [index]: !prev[index]
+    }));
   };
 
   // Función para calcular la predicción máxima posible
@@ -899,7 +907,7 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                       className="p-4 border rounded-lg bg-white dark:bg-gray-700 shadow-sm"
                     >
                       <div className="flex justify-between items-start mb-2">
-                        <h4 className="font-medium text-gray-800 dark:text-white">{script.name}</h4>
+                        <h4 onClick={() => toggleScriptVisibility(index)} className="font-medium text-gray-800 dark:text-white">{script.name}</h4>
                         <div className="flex space-x-2">
                           <button
                             onClick={() => copyToClipboard(script.content)}
@@ -921,9 +929,11 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                           )}
                         </div>
                       </div>
-                      <p className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
-                        {replaceVariables(script.content)}
-                      </p>
+                      {visibleScripts[index] && (
+                        <p className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap mt-2 border-t pt-2">
+                          {replaceVariables(script.content)}
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -962,10 +972,13 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                       const limiteNE = parseInt(subject["Límite de NE"]) || 1;
                       const porcentajeNE = ((neAlumno / limiteNE) * 100).toFixed(1);
                       
-                      if (porcentajeFaltas > 100 || porcentajeNE > 100 || ponderado < 50) {
+                      const faltasValue = parseFloat(porcentajeFaltas);
+                      const neValue = parseFloat(porcentajeNE);
+                      
+                      if ((faltasValue > 100 || neValue > 100) || ponderado < 50) {
                         statusText = "Recursar";
                         statusColor = "bg-red-500";
-                      } else if ((porcentajeFaltas >= 80 || porcentajeNE >= 80) || (ponderado < 70 )) {
+                      } else if ((faltasValue >= 80 || neValue >= 80) || (ponderado < 70)) {
                         statusText = "Peligro";
                         statusColor = "bg-yellow-500";
                       }
@@ -979,10 +992,38 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                           </td>
                           <td className="px-4 py-2">{ponderado}</td>
                           <td className="px-4 py-2">
-                            {faltasAlumno}/{limiteFaltas} ({porcentajeFaltas}%)
+                            <div className="flex items-center">
+                              <div className="mr-2">{faltasAlumno}/{limiteFaltas}</div>
+                              {(() => {
+                                const faltasValue = parseFloat(porcentajeFaltas);
+                                let faltasColor = "bg-green-500"; // Verde por defecto (< 80%)
+                                if (faltasValue > 100) faltasColor = "bg-red-500"; // Rojo (> 100%)
+                                else if (faltasValue === 100) faltasColor = "bg-orange-500"; // Naranja (= 100%)
+                                else if (faltasValue >= 50) faltasColor = "bg-yellow-500"; // Amarillo (80-99%)
+                                return (
+                                  <div className={`px-1.5 py-0.5 rounded text-xs text-white ${faltasColor}`}>
+                                    {porcentajeFaltas}%
+                                  </div>
+                                );
+                              })()}
+                            </div>
                           </td>
                           <td className="px-4 py-2">
-                            {neAlumno}/{limiteNE} ({porcentajeNE}%)
+                            <div className="flex items-center">
+                              <div className="mr-2">{neAlumno}/{limiteNE}</div>
+                              {(() => {
+                                const neValue = parseFloat(porcentajeNE);
+                                let neColor = "bg-green-500"; // Verde por defecto (< 80%)
+                                if (neValue > 100) neColor = "bg-red-500"; // Rojo (> 100%)
+                                else if (neValue === 100) neColor = "bg-orange-500"; // Naranja (= 100%)
+                                else if (neValue >= 50) neColor = "bg-yellow-500"; // Amarillo (80-99%)
+                                return (
+                                  <div className={`px-1.5 py-0.5 rounded text-xs text-white ${neColor}`}>
+                                    {porcentajeNE}%
+                                  </div>
+                                );
+                              })()}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -1024,8 +1065,20 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                       else if (ponderado < 80) ponderadoColor = "bg-yellow-500";
                       
                       // Determinar color de faltas y NE
-                      const faltasColor = parseFloat(porcentajeFaltas) >= 80 ? "bg-red-500" : "bg-green-500";
-                      const neColor = parseFloat(porcentajeNE) >= 80 ? "bg-red-500" : "bg-green-500";
+                      let faltasColor = "bg-green-500"; // Verde por defecto (< 80%)
+                      let neColor = "bg-green-500"; // Verde por defecto (< 80%)
+                      
+                      // Lógica de colores para faltas
+                      const faltasValue = parseFloat(porcentajeFaltas);
+                      if (faltasValue > 100) faltasColor = "bg-red-500"; // Rojo (> 100%)
+                      else if (faltasValue === 100) faltasColor = "bg-orange-500"; // Naranja (= 100%)
+                      else if (faltasValue >= 50) faltasColor = "bg-yellow-500"; // Amarillo (80-99%)
+                      
+                      // Lógica de colores para NE
+                      const neValue = parseFloat(porcentajeNE);
+                      if (neValue > 100) neColor = "bg-red-500"; // Rojo (> 100%)
+                      else if (neValue === 100) neColor = "bg-orange-500"; // Naranja (= 100%)
+                      else if (neValue >= 50) neColor = "bg-yellow-500"; // Amarillo (80-99%)
                       
                       return (
                         <tr key={index} className="border-b dark:border-gray-600">
