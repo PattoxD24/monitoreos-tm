@@ -320,7 +320,7 @@ export default function StudentCard({
               )} flex items-center justify-center text-gray-700 font-bold`}
             >
               DA
-              <span className='absolute -bottom-2 right-0 bg-white dark:bg-gray-800 text-xs rounded-full w-5 h-5 flex items-center justify-center border border-gray-300 dark:border-gray-600'>
+              <span className='absolute -bottom-2 right-0 bg-white text-xs rounded-full w-5 h-5 flex items-center justify-center border border-gray-300 dark:border-gray-600'>
                 {daCount}
               </span>
             </div>
@@ -331,7 +331,7 @@ export default function StudentCard({
               )} flex items-center justify-center text-gray-700 font-bold`}
             >
               SD
-              <span className='absolute -bottom-2 right-0 bg-white text-xs rounded-full w-5 h-5 flex items-center justify-center border border-gray-300'>
+              <span className='absolute -bottom-2 right-0 bg-white text-xs rounded-full w-5 h-5 flex items-center justify-center border border-gray-300 dark:border-gray-600'>
                 {sdCount}
               </span>
             </div>
