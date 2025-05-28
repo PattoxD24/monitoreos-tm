@@ -1104,6 +1104,9 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                   </thead>
                   <tbody>
                     {(filteredData[student.matricula] || []).map((row, index) => {
+                      // Verificar si hay NP en alguna actividad de esta materia
+                      const hasNP = Object.values(row).some((value) => value === "NP");
+                      
                       const ponderado = parseFloat(row["Ponderado"]) || 0;
                       const faltasAlumno = parseInt(row["Faltas del alumno"]) || 0;
                       const limiteFaltas = parseInt(row["Límite de faltas"]) || 1;
@@ -1115,8 +1118,16 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                       
                       // Determinar color del ponderado
                       let ponderadoColor = "bg-green-500";
-                      if (ponderado < 70) ponderadoColor = "bg-red-500";
-                      else if (ponderado < 80) ponderadoColor = "bg-yellow-500";
+                      let ponderadoDisplay = ponderado;
+                      
+                      // Si hay NP, mostrar NP con color púrpura
+                      if (hasNP) {
+                        ponderadoColor = "bg-purple-500";
+                        ponderadoDisplay = "NP";
+                      } else {
+                        if (ponderado < 70) ponderadoColor = "bg-red-500";
+                        else if (ponderado < 80) ponderadoColor = "bg-yellow-500";
+                      }
                       
                       // Determinar color de faltas y NE
                       let faltasColor = "bg-green-500"; // Verde por defecto (< 80%)
@@ -1140,7 +1151,7 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                           <td className="px-4 py-2">{row["# Grupo"]}</td>
                           <td className="px-4 py-2">
                             <span className={`${ponderadoColor} text-white text-xs px-2 py-1 rounded-full`}>
-                              {ponderado}
+                              {ponderadoDisplay}
                             </span>
                           </td>
                           <td className="px-4 py-2">
