@@ -11,6 +11,7 @@ export default function ScriptsModal({ visible, onClose, scripts, setScripts }) 
     { label: "Alumno", variable: "{{alumno}}" },
     { label: "Matricula", variable: "{{matricula}}" },
     { label: "NE", variable: "{{ne}}" },
+    { label: "NP", variable: "{{np}}" },
     { label: "Ponderacion", variable: "{{ponderacion}}" },
     { label: "SC", variable: "{{sc}}" },
     { label: "Faltas", variable: "{{faltas}}" },

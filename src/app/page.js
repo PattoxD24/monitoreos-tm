@@ -144,14 +144,16 @@ export default function Home() {
     setSelectedStudent(null);
   };
 
-  // Calcular número de "NE" y mínimo "Ponderado" por estudiante
+  // Calcular número de "NE", "NP" y mínimo "Ponderado" por estudiante
   const calculateSortingCriteria = (student) => {
     const studentMatricula = student.matricula;
     const studentSubjects = filteredData[studentMatricula] || [];
   
     let neCount = 0;
+    let npCount = 0;
     let minPonderado = Infinity;
     let totalFaltas = 0;
+    let hasNP = false;
   
     studentSubjects.forEach((subject) => {
       const lastAColumn = Object.keys(subject)
@@ -162,8 +164,26 @@ export default function Home() {
       if (lastAColumn && subject[lastAColumn] === "NE") {
         neCount += 1;
       }
+      
+      if (lastAColumn && subject[lastAColumn] === "NP") {
+        npCount += 1;
+        hasNP = true;
+      }
   
-      if (subject.Ponderado && !isNaN(subject.Ponderado)) {
+      // Check for NP in ponderado or any activity column
+      if (subject.Ponderado === "NP") {
+        hasNP = true;
+        npCount += 1;
+      }
+      
+      // Check all activity columns for NP
+      Object.keys(subject).forEach(col => {
+        if (/^A\d+$/.test(col) && subject[col] === "NP") {
+          hasNP = true;
+        }
+      });
+  
+      if (subject.Ponderado && !isNaN(subject.Ponderado) && subject.Ponderado !== "NP") {
         minPonderado = Math.min(minPonderado, parseInt(subject.Ponderado));
       }
   
@@ -173,9 +193,11 @@ export default function Home() {
       }
     });
   
-    // Determinar el color de fondo según el valor de `minPonderado`
+    // Determinar el color de fondo según el valor de `minPonderado` y estado NP
     let backgroundColor = "";
-    if (minPonderado < 70) {
+    if (hasNP) {
+      backgroundColor = "#E6D3FF"; // Púrpura suave para NP (highest priority)
+    } else if (minPonderado < 70) {
       backgroundColor = "#FFCCCC"; // Rojo suave
     } else if (minPonderado >= 70 && minPonderado <= 75) {
       backgroundColor = "#FFD9B3"; // Naranja suave
@@ -185,7 +207,7 @@ export default function Home() {
       backgroundColor = "#CCFFCC"; // Verde suave
     }
   
-    return { neCount, minPonderado, backgroundColor, totalFaltas };
+    return { neCount, npCount, hasNP, minPonderado, backgroundColor, totalFaltas };
   };
 
   const sortStudents = (students) => {
@@ -198,7 +220,14 @@ export default function Home() {
       } else if (sortOrder === "faltas") {
         comparison = a.totalFaltas - b.totalFaltas;
       } else if (sortOrder === "original") {
-        comparison = (a.neCount !== b.neCount ) ? b.neCount - a.neCount : a.minPonderado - b.minPonderado;
+        // Priority order: NP (highest) > NE > low ponderado
+        if (a.hasNP !== b.hasNP) {
+          comparison = b.hasNP ? 1 : -1; // NP students come first
+        } else if (a.neCount !== b.neCount) {
+          comparison = b.neCount - a.neCount; // More NE comes first
+        } else {
+          comparison = a.minPonderado - b.minPonderado; // Lower ponderado comes first
+        }
       }
       return isAscending ? comparison : -comparison;
     });

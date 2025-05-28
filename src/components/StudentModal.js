@@ -112,9 +112,10 @@ export default function StudentModal({
                 : parseFloat(row[activity].replace(/\s/g,'')) || 0;
             const gradeValue = parseFloat(row[activity].replace(/\s/g,'')) || '';
 
-            // Exclude rows with grade "SD"
-            if (row[activity].replace(/\s/g,'') === "SD" || manualGrades[activity] === "SD") return null;
-            const color = row[activity].replace(/\s/g,'') === "NE" ? "bg-red-300" : row[activity].replace(/\s/g,'') === "SC" ? "bg-yellow-300" : row[activity].replace(/\s/g,'') === "DA" ? "bg-green-300" : "";
+            // Exclude rows with grade "SD" or "NP"
+            if (row[activity].replace(/\s/g,'') === "SD" || manualGrades[activity] === "SD" || 
+                row[activity].replace(/\s/g,'') === "NP" || manualGrades[activity] === "NP") return null;
+            const color = row[activity].replace(/\s/g,'') === "NE" ? "bg-red-300" : row[activity].replace(/\s/g,'') === "SC" ? "bg-yellow-300" : row[activity].replace(/\s/g,'') === "DA" ? "bg-green-300" : row[activity].replace(/\s/g,'') === "SD" ? "bg-blue-300" : row[activity].replace(/\s/g,'') === "NP" ? "bg-purple-300" : "";
             const ponderado = row['Ponderado'];
 
             if (gradeValue) {
@@ -243,7 +244,10 @@ export default function StudentModal({
           (row) =>
             !Object.values(row)
               .filter((_, index) => /^A\d+$/.test(Object.keys(row)[index]))
-              .includes("SD")
+              .includes("SD") &&
+            !Object.values(row)
+              .filter((_, index) => /^A\d+$/.test(Object.keys(row)[index]))
+              .includes("NP")
         )
         .map((row) => row["Nombre de la materia"])
     ),
@@ -265,6 +269,7 @@ export default function StudentModal({
 
     const neMaterias = findMateriasWithLastColumnNE(filteredData[student.matricula]);
     const scMaterias = findMateriasWithLastColumnSC(filteredData[student.matricula]);
+    const npMaterias = findMateriasWithNP(filteredData[student.matricula]);
     const lowPonderacionMaterias = findMateriasWithLowPonderacion(filteredData[student.matricula]);
     const highPonderacionMaterias = findMateriasWithHighPonderacion(filteredData[student.matricula]);
 
@@ -275,6 +280,10 @@ export default function StudentModal({
       : "";
 
     const scMessage = scMaterias.length > 0 ? `Me aparece que traes SC en ${scMaterias.length > 1 ? "las materias":"la materia"}: ${scMaterias.join(", ")}, por favor acércate con el maestro para verificar la situación y saber cuándo actualizará la calificación y podemos tener el promedio real de la materia.` : "";
+
+    const npMessage = npMaterias.length > 0 
+      ? `Me aparece que no presentaste examen final en ${npMaterias.length > 1 ? "las materias":"la materia"}: ${npMaterias.join(", ")}. El ponderado final aparece como "NP" (No presentó examen final). Por favor acércate con los maestros correspondientes para verificar esta situación.` 
+      : "";
   
     const ponderacionMessage = lowPonderacionMaterias.length > 0 
       ? `Me aparece que ${lowPonderacionMaterias.length > 1 ?"las materias":"la materia"} de: ${lowPonderacionMaterias.join(", ")} se encuentran por debajo del promedio mínimo de 70, recuerda que es muy importante aumentar la calificación en las próximas entregas para que el promedio sea aprobatorio.` 
@@ -295,6 +304,7 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
       .replaceAll("{{alumno}}", nombre)
       .replaceAll("{{matricula}}", matricula)
       .replaceAll("{{ne}}", neMessage)
+      .replaceAll("{{np}}", npMessage)
       .replaceAll("{{ponderacion}}", ponderacionMessage)
       .replaceAll("{{sc}}", scMessage)
       .replaceAll("{{faltas}}", faltasMessage)
@@ -333,6 +343,23 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
         .pop();
       
       if (lastAColumn && row[lastAColumn] === "SC") {
+        materias.add(row["Nombre de la materia"] || "Materia desconocida");
+      }
+    });
+
+    return Array.from(materias);
+  };
+
+  const findMateriasWithNP = (rows) => {
+    const materias = new Set();
+
+    rows.forEach(row => {
+      // Check for NP in any activity column
+      const hasNP = Object.keys(row)
+        .filter(column => /^A\d+$/.test(column))
+        .some(column => row[column] === "NP");
+      
+      if (hasNP) {
         materias.add(row["Nombre de la materia"] || "Materia desconocida");
       }
     });
@@ -571,6 +598,7 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                     {(filteredData[student.matricula] || []).map((row, idx) => {
                       const hasDA = Object.values(row).some((value) => value === "DA");
                       const hasSD = Object.values(row).some((value) => value === "SD");
+                      const hasNP = Object.values(row).some((value) => value === "NP");
                       const ponderado = parseFloat(row["Ponderado"]) || 0;
             
                       return (
@@ -582,7 +610,7 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                             <td
                               key={valIdx}
                               className={`border px-2 py-1 text-sm text-gray-700 dark:text-gray-200 text-nowrap ${
-                                row[col] === "DA" ? "bg-green-300" : row[col] === "NE" ?  "bg-red-300" : row[col] === "SC" ? "bg-yellow-300" : row[col] === "SD" ? "bg-blue-300" : ""
+                                row[col] === "DA" ? "bg-green-300" : row[col] === "NE" ?  "bg-red-300" : row[col] === "SC" ? "bg-yellow-300" : row[col] === "SD" ? "bg-blue-300" : row[col] === "NP" ? "bg-purple-300" : ""
                               }`}
                             >
                               {row[col] || ""}
@@ -596,7 +624,7 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                               {"El estudiante no puede realizar examen extraordinario (Ponderado < 70 y DA)"}
                             </td>
                           )}
-                          {ponderado < 50 && !hasSD && (
+                          {ponderado < 50 && !hasSD && !hasNP && (
                             <td
                               className="border px-2 py-1 text-sm text-red-500 font-bold text-nowrap"
                               colSpan={columns.length}
@@ -610,6 +638,14 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                               colSpan={columns.length}
                             >
                               {"El estudiante no puede realizar examen extraordinario (SD)"}
+                            </td>
+                          )}
+                          {hasNP && (
+                            <td
+                              className="border px-2 py-1 text-sm text-red-500 font-bold text-nowrap"
+                              colSpan={columns.length}
+                            >
+                              {"(NP - No presentó examen final)"}
                             </td>
                           )}
                         </tr>
@@ -958,12 +994,41 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                   </thead>
                   <tbody>
                     {(student.criticalSubjects || []).map((subject, index) => {
+                      // Verificar si hay NP primero
+                      const hasNP = subject["Ponderado"] === "NP";
+                      
                       // Cálculo de status para cada materia
-                      const ponderado = parseFloat(subject["Ponderado"]) || 0;
+                      const ponderado = hasNP ? 0 : parseFloat(subject["Ponderado"]) || 0;
                       let statusText = "Peligro";
                       let statusColor = "bg-yellow-500";
                       
-                      // Cálculo de porcentajes
+                      // Verificar NP primero (prioridad más alta)
+                      if (hasNP) {
+                        statusText = "NP";
+                        statusColor = "bg-purple-500";
+                      } else {
+                        // Cálculo de porcentajes para otros casos
+                        const faltasAlumno = parseInt(subject["Faltas del alumno"]) || 0;
+                        const limiteFaltas = parseInt(subject["Límite de faltas"]) || 1;
+                        const porcentajeFaltas = ((faltasAlumno / limiteFaltas) * 100).toFixed(1);
+                        
+                        const neAlumno = parseInt(subject["NE alumno"]) || 0;
+                        const limiteNE = parseInt(subject["Límite de NE"]) || 1;
+                        const porcentajeNE = ((neAlumno / limiteNE) * 100).toFixed(1);
+                        
+                        const faltasValue = parseFloat(porcentajeFaltas);
+                        const neValue = parseFloat(porcentajeNE);
+                        
+                        if ((faltasValue > 100 || neValue > 100) || ponderado < 50) {
+                          statusText = "Recursar";
+                          statusColor = "bg-red-500";
+                        } else if ((faltasValue >= 80 || neValue >= 80) || (ponderado < 70)) {
+                          statusText = "Peligro";
+                          statusColor = "bg-yellow-500";
+                        }
+                      }
+                      
+                      // Recalcular porcentajes para la visualización (aunque sea NP)
                       const faltasAlumno = parseInt(subject["Faltas del alumno"]) || 0;
                       const limiteFaltas = parseInt(subject["Límite de faltas"]) || 1;
                       const porcentajeFaltas = ((faltasAlumno / limiteFaltas) * 100).toFixed(1);
@@ -971,17 +1036,6 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                       const neAlumno = parseInt(subject["NE alumno"]) || 0;
                       const limiteNE = parseInt(subject["Límite de NE"]) || 1;
                       const porcentajeNE = ((neAlumno / limiteNE) * 100).toFixed(1);
-                      
-                      const faltasValue = parseFloat(porcentajeFaltas);
-                      const neValue = parseFloat(porcentajeNE);
-                      
-                      if ((faltasValue > 100 || neValue > 100) || ponderado < 50) {
-                        statusText = "Recursar";
-                        statusColor = "bg-red-500";
-                      } else if ((faltasValue >= 80 || neValue >= 80) || (ponderado < 70)) {
-                        statusText = "Peligro";
-                        statusColor = "bg-yellow-500";
-                      }
                       return (
                         <tr key={index} className="border-b dark:border-gray-600">
                           <td className="px-4 py-2">{subject["Nombre de la materia"]}</td>
@@ -990,7 +1044,7 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                               {statusText}
                             </span>
                           </td>
-                          <td className="px-4 py-2">{ponderado}</td>
+                          <td className="px-4 py-2">{hasNP ? "NP" : ponderado}</td>
                           <td className="px-4 py-2">
                             <div className="flex items-center">
                               <div className="mr-2">{faltasAlumno}/{limiteFaltas}</div>

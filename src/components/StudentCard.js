@@ -32,6 +32,7 @@ export default function StudentCard({
   const [scCount, setScCount] = useState(0);
   const [daCount, setDaCount] = useState(0);
   const [sdCount, setSdCount] = useState(0);
+  const [npCount, setNpCount] = useState(0);
   const [todasLasMaterias, setTodasLasMaterias] = useState([]);
   const [isBecaFront, setIsBecaFront] = useState(true);
 
@@ -85,7 +86,8 @@ export default function StudentCard({
     let ne = 0,
       sc = 0,
       da = 0,
-      sd = 0;
+      sd = 0,
+      np = 0;
 
     studentData.forEach((row) => {
       Object.keys(row).forEach((column) => {
@@ -93,11 +95,15 @@ export default function StudentCard({
           if (row[column] === "NE") ne++;
           if (row[column] === "SC") sc++;
           if (row[column] === "DA") da++;
+          if (row[column] === "NP") np++;
         }
       });
 
       if (row.Ponderado === "SD") {
         sd++;
+      }
+      if (row.Ponderado === "NP") {
+        np++;
       }
     });
 
@@ -105,6 +111,7 @@ export default function StudentCard({
     setScCount(sc);
     setDaCount(da);
     setSdCount(sd);
+    setNpCount(np);
   };
 
   const calculateTodasLasMaterias = () => {
@@ -333,6 +340,17 @@ export default function StudentCard({
               SD
               <span className='absolute -bottom-2 right-0 bg-white text-xs rounded-full w-5 h-5 flex items-center justify-center border border-gray-300 dark:border-gray-600'>
                 {sdCount}
+              </span>
+            </div>
+            <div
+              className={`relative w-10 h-10 rounded-full ${getCircleBackgroundColor(
+                npCount,
+                "bg-purple-300"
+              )} flex items-center justify-center text-gray-700 font-bold`}
+            >
+              NP
+              <span className='absolute -bottom-2 right-0 bg-white text-xs rounded-full w-5 h-5 flex items-center justify-center border border-gray-300 dark:border-gray-600'>
+                {npCount}
               </span>
             </div>
           </div>
