@@ -11,14 +11,57 @@ export default function ProyeccionesPage() {
 
   // función para actualizar estado manualmente
   const handleStatusChange = (index, newStatus) => {
-    setParsedData(prev => prev.map((item, i) => i === index
-      ? {
-          ...item,
-          status: newStatus,
-          numericGrade: newStatus === 'passed' ? (item.numericGrade ?? 0) : null
+    console.log('handleStatusChange index, newStatus:', index, newStatus);
+    setParsedData(prev => {
+      // actualizar solo el elemento modificado
+      const updated = prev.map((item, i) => i === index
+        ? { ...item, status: newStatus, numericGrade: newStatus === 'passed' ? (item.numericGrade ?? 0) : null }
+        : item
+      );
+      console.log('updated after change:', updated);
+      // si se marca no pasado, bloquear seriadas
+      if (newStatus !== 'passed') {
+        const changed = updated[index];
+        console.log('changed item:', changed);
+        // buscar sujeto en Subjects
+        const changedSubj = SUBJECTS.subjects.find(s => {
+          const lower = changed.name.toLowerCase();
+          const es = s.name.es.toLowerCase();
+          const en = s.name.en?.toLowerCase() || '';
+          return lower.includes(es) || (en && lower.includes(en));
+        });
+        console.log('matched changedSubj:', changedSubj);
+        if (changedSubj) {
+          // construir lista de bloqueadas recursivas
+          const blocked = new Set([changedSubj.code]);
+          let addedFlag = true;
+          while (addedFlag) {
+            addedFlag = false;
+            SUBJECTS.subjects.forEach(s => {
+              if (!blocked.has(s.code) && s.prerequisites.some(pr => blocked.has(pr))) {
+                blocked.add(s.code);
+                addedFlag = true;
+              }
+            });
+          }
+          console.log('blocked codes:', Array.from(blocked));
+          // aplicar bloqueo
+          return updated.map(item => {
+            const subj = SUBJECTS.subjects.find(s => {
+              const lower = item.name.toLowerCase();
+              const es = s.name.es.toLowerCase();
+              const en = s.name.en?.toLowerCase() || '';
+              return lower.includes(es) || (en && lower.includes(en));
+            });
+            if (subj && blocked.has(subj.code) && subj.code !== changedSubj.code) {
+              return { ...item, status: 'not_started', numericGrade: null };
+            }
+            return item;
+          });
         }
-      : item
-    ));
+      }
+      return updated;
+    });
   };
 
   // procesa archivo de kardex y materias cursadas
