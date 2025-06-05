@@ -3,10 +3,9 @@ export const SUBJECTS = {
     {
       "code": "MA13001",
       "semester": 1,
-      "languages": ["es", "en"],
+      "languages": ["es"],
       "name": {
-        "es": "Matemáticas I: lenguaje de la ciencia",
-        "en": "Mathematics I: language of science"
+        "es": "Matemáticas I: lenguaje de la ciencia"
       },
       "hours": 5,
       "credits": 10,
@@ -40,7 +39,7 @@ export const SUBJECTS = {
       "semester": 1,
       "languages": ["es"],
       "name": {
-        "es": "Optativa de lengua adicional al español I"
+        "es": "Lengua adicional al Español I"
       },
       "hours": 5,
       "credits": 10,
@@ -63,7 +62,7 @@ export const SUBJECTS = {
       "semester": 1,
       "languages": ["es", "en"],
       "name": {
-        "es": "Tecnologías de la información I",
+        "es": "Tecnologías de información I",
         "en": "Information technologies"
       },
       "hours": 3,
@@ -97,10 +96,9 @@ export const SUBJECTS = {
     {
       "code": "HS13001",
       "semester": 2,
-      "languages": ["es", "en"],
+      "languages": ["es"],
       "name": {
-        "es": "Historia de México",
-        "en": "History of Mexico"
+        "es": "Historia de México"
       },
       "hours": 3,
       "credits": 6,
@@ -122,7 +120,7 @@ export const SUBJECTS = {
       "semester": 2,
       "languages": ["es"],
       "name": {
-        "es": "Optativa de lengua adicional al español II"
+        "es": "Lengua adicional al Español II"
       },
       "hours": 5,
       "credits": 10,
@@ -144,7 +142,7 @@ export const SUBJECTS = {
       "semester": 2,
       "languages": ["es", "en"],
       "name": {
-        "es": "Tecnologías de la información II",
+        "es": "Tecnologías de información II",
         "en": "Information technologies II"
       },
       "hours": 3,
@@ -160,7 +158,7 @@ export const SUBJECTS = {
       },
       "hours": 3,
       "credits": 6,
-      "prerequisites": ["HP13001"]
+      "prerequisites": []
     },
 
     {
@@ -178,14 +176,13 @@ export const SUBJECTS = {
     {
       "code": "HS13002",
       "semester": 3,
-      "languages": ["es", "en"],
+      "languages": ["es"],
       "name": {
-        "es": "México contemporáneo",
-        "en": "Contemporary Mexico"
+        "es": "México contemporáneo"
       },
       "hours": 3,
       "credits": 6,
-      "prerequisites": []
+      "prerequisites": ["HS13001"]
     },
     {
       "code": "LI13001",
@@ -204,7 +201,7 @@ export const SUBJECTS = {
       "semester": 3,
       "languages": ["es"],
       "name": {
-        "es": "Optativa de lengua adicional al español III"
+        "es": "Lengua adicional al Español III"
       },
       "hours": 5,
       "credits": 10,
@@ -241,7 +238,7 @@ export const SUBJECTS = {
       },
       "hours": 5,
       "credits": 10,
-      "prerequisites": ["HP13002"]
+      "prerequisites": []
     },
 
     {
@@ -266,7 +263,7 @@ export const SUBJECTS = {
       },
       "hours": 3,
       "credits": 6,
-      "prerequisites": []
+      "prerequisites": ["SO13001"]
     },
     {
       "code": "LI13002",
@@ -284,7 +281,7 @@ export const SUBJECTS = {
       "semester": 4,
       "languages": ["es"],
       "name": {
-        "es": "Optativa de lengua adicional al español IV"
+        "es": "Lengua adicional al Español IV"
       },
       "hours": 5,
       "credits": 10,
@@ -300,7 +297,7 @@ export const SUBJECTS = {
       },
       "hours": 5,
       "credits": 10,
-      "prerequisites": ["QU13002"]
+      "prerequisites": ["MA13002"]
     },
     {
       "code": "BI13001",
@@ -323,7 +320,7 @@ export const SUBJECTS = {
       },
       "hours": 5,
       "credits": 10,
-      "prerequisites": ["HP13004"]
+      "prerequisites": []
     },
 
     {
@@ -354,7 +351,7 @@ export const SUBJECTS = {
       "semester": 5,
       "languages": ["es"],
       "name": {
-        "es": "Cálculo diferencial"
+        "es": "Optativa módulo de formación I"
       },
       "hours": 3,
       "credits": 6,
@@ -365,7 +362,7 @@ export const SUBJECTS = {
       "semester": 5,
       "languages": ["es"],
       "name": {
-        "es": "Optativa de lengua adicional al español V"
+        "es": "Lengua adicional al Español V"
       },
       "hours": 5,
       "credits": 10,
@@ -404,7 +401,7 @@ export const SUBJECTS = {
       },
       "hours": 5,
       "credits": 10,
-      "prerequisites": ["HP13005"]
+      "prerequisites": []
     },
 
     {
@@ -429,14 +426,14 @@ export const SUBJECTS = {
       },
       "hours": 3,
       "credits": 6,
-      "prerequisites": []
+      "prerequisites": ["HS13003"]
     },
     {
       "code": "MA13005",
       "semester": 6,
       "languages": ["es"],
       "name": {
-        "es": "Cálculo integral"
+        "es": "Optativa módulo de formación III"
       },
       "hours": 5,
       "credits": 10,
@@ -447,7 +444,7 @@ export const SUBJECTS = {
       "semester": 6,
       "languages": ["es"],
       "name": {
-        "es": "Optativa módulo de formación I"
+        "es": "Optativa módulo de formación II"
       },
       "hours": 5,
       "credits": 10,
@@ -462,30 +459,29 @@ export const SUBJECTS = {
       },
       "hours": 5,
       "credits": 10,
-      "prerequisites": []
+      "prerequisites": ["HP13003"]
     },
     {
       "code": "SO13004",
       "semester": 6,
-      "languages": ["es", "en"],
+      "languages": ["es"],
       "name": {
-        "es": "México en el siglo XXI",
-        "en": "Mexico in the 21st century"
+        "es": "México en el siglo XXI"
       },
       "hours": 3,
       "credits": 6,
-      "prerequisites": []
+      "prerequisites": ["HS13002"]
     },
     {
       "code": "HP13008",
       "semester": 6,
       "languages": ["es"],
       "name": {
-        "es": "Habilidades y valores VI: integración y toma de decisiones"
+        "es": "Habilidades y valores VI: Integración y toma de decisiones"
       },
       "hours": 5,
       "credits": 10,
-      "prerequisites": ["HP13006"]
+      "prerequisites": []
     }
   ]
 };

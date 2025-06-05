@@ -52,7 +52,7 @@ export default function ProyeccionesPage() {
           : (!isNaN(raw))      ? 'passed'
           : 'unknown';
         return {
-          name: row['Nombre materia'],
+          name: row['Nombre materia']?.trim(),
           grade: raw,
           status,
           numericGrade: !isNaN(raw) ? Number(raw) : null
@@ -102,11 +102,22 @@ export default function ProyeccionesPage() {
     reader.readAsBinaryString(file);
   };
 
-  // IDs de materias aprobadas
+  // orden para status de calificaciones
+  const statusOrder = { in_progress: 0, not_started: 1, passed: 2, unknown: 3 };
+  // IDs de materias aprobadas (matching por inclusión de texto)
   const passedCodes = parsedData
     .filter(item => item.status === 'passed')
     .map(item => {
-      const subj = SUBJECTS.subjects.find(s => s.name.es === item.name);
+      const lowerName = item.name.toLowerCase();
+      // ordenar por longitud de nombre para coincidir primero con nombres más largos
+      const subj = SUBJECTS.subjects
+        .slice()
+        .sort((a, b) => b.name.es.length - a.name.es.length)
+        .find(s => {
+          const es = s.name.es.toLowerCase();
+          const en = s.name.en?.toLowerCase() || '';
+          return lowerName.includes(es) || (en && lowerName.includes(en));
+        });
       return subj?.code;
     })
     .filter(Boolean);
@@ -124,6 +135,9 @@ export default function ProyeccionesPage() {
   // Semestres de inicio según mes actual
   const month = new Date().getMonth() + 1;
   const allowedSemesters = month <= 5 ? [2, 4, 6] : [1, 3, 5];
+
+  // orden de disponibilidad: Disponible, Bloqueada, Aprobada
+  const availOrder = (s) => s.canTake && !s.done ? 0 : (!s.canTake && !s.done ? 1 : 2);
 
   return (
     <div className="p-4">
@@ -144,7 +158,7 @@ export default function ProyeccionesPage() {
         <p className="mb-4">Alumno: <strong>{studentInfo.name}</strong> ({studentInfo.matricula})</p>
       )}
       {/* Subir archivo de Monitoreo para calificaciones finales */}
-      <div className="mb-4">
+      {/* <div className="mb-4">
         <label htmlFor="gradesFile" className="block font-medium mb-1">Subir Monitoreo</label>
         <input
           id="gradesFile"
@@ -153,7 +167,7 @@ export default function ProyeccionesPage() {
           onChange={handleGradesFileChange}
           className="border p-1 rounded"
         />
-      </div>
+      </div> */}
       {parsedData.length > 0 && (
         <table className="mt-4 w-full table-auto border-collapse">
           <thead>
@@ -165,28 +179,33 @@ export default function ProyeccionesPage() {
             </tr>
           </thead>
           <tbody>
-            {parsedData.map((item, idx) => (
-              <tr key={idx} className="hover:bg-gray-100">
-                <td className="border px-2 py-1">{item.name}</td>
-                <td className="border px-2 py-1">{item.grade}</td>
-                {/* reemplazamos texto estático por selector */}
-                <td className="border px-2 py-1">
-                  <select
-                    className="capitalize"
-                    value={item.status}
-                    onChange={e => handleStatusChange(idx, e.target.value)}
-                  >
-                    <option value="not_started">Not started</option>
-                    <option value="in_progress">In progress</option>
-                    <option value="passed">Passed</option>
-                  </select>
-                </td>
-                <td className="border px-2 py-1">{item.numericGrade ?? '-'}</td>
-              </tr>
-            ))}
+            {parsedData
+              // conservar índice original antes de ordenar
+              .map((item, originalIndex) => ({ item, originalIndex }))
+              .sort((a, b) => statusOrder[a.item.status] - statusOrder[b.item.status])
+              .map(({ item, originalIndex }) => (
+                <tr key={originalIndex} className="hover:bg-gray-100">
+                  <td className="border px-2 py-1">{item.name}</td>
+                  <td className="border px-2 py-1">{item.grade}</td>
+                  <td className="border px-2 py-1">
+                    <select
+                      className="capitalize"
+                      value={item.status}
+                      onChange={e => handleStatusChange(originalIndex, e.target.value)}
+                    >
+                      <option value="not_started">Not started</option>
+                      <option value="in_progress">In progress</option>
+                      <option value="passed">Passed</option>
+                    </select>
+                  </td>
+                  <td className="border px-2 py-1">{item.numericGrade ?? '-'}</td>
+                </tr>
+              ))}
           </tbody>
         </table>
       )}
+
+      {/* segunda tabla: disponibilidad */}
       {parsedData.length > 0 && (
         <div className="mt-8">
           <h2 className="text-xl font-semibold mb-2">Disponibilidad de Materias</h2>
@@ -200,7 +219,13 @@ export default function ProyeccionesPage() {
               </tr>
             </thead>
             <tbody>
-              {enrollmentList.map((s, idx) => (
+              {[...enrollmentList]
+                .sort((a,b) => {
+                  const oa = availOrder(a), ob = availOrder(b);
+                  if (oa !== ob) return oa - ob;
+                  return a.semester - b.semester;
+                })
+                .map((s, idx) => (
                 <tr key={idx} className="hover:bg-gray-100">
                   <td className="border px-2 py-1">{s.code}</td>
                   <td className="border px-2 py-1">{s.name.es}</td>
@@ -210,8 +235,8 @@ export default function ProyeccionesPage() {
                   </td>
                 </tr>
               ))}
-            </tbody>
-          </table>
+           </tbody>
+         </table>
         </div>
       )}
       {parsedData.length > 0 && (
