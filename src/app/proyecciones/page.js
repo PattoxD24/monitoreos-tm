@@ -183,7 +183,8 @@ export default function ProyeccionesPage() {
   const [typeMap, setTypeMap] = useState(() =>
     enrollmentList.reduce((m, s) => ({
       ...m,
-      [s.code]: allowedSemesters.includes(s.semester) ? 'regular' : 'flex'
+      // materias aprobadas no tienen tipo
+      [s.code]: s.done ? '' : (allowedSemesters.includes(s.semester) ? 'regular' : 'flex')
     }), {})
   );
   // lista aplanada para navegación
@@ -191,29 +192,51 @@ export default function ProyeccionesPage() {
   // índice de tarjeta seleccionada
   const [selectedIndex, setSelectedIndex] = useState(0);
 
+  // grilla por semestre para navegación con flechas verticales
+  const semGrid = [1,2,3,4,5,6].map(sem =>
+    enrollmentList.filter(s => s.semester === sem)
+  );
+
   // manejar flechas y teclas V, F, R
   useEffect(() => {
     const handler = e => {
+      // horizontal
+      if (['ArrowUp','ArrowDown'].includes(e.key)) {
+        e.preventDefault();
+        const dir = e.key === "ArrowDown" ? 1 : -1;
+        setSelectedIndex(idx => (idx + dir + flatList.length) % flatList.length);
+      }
+      // vertical
       if (['ArrowRight','ArrowLeft'].includes(e.key)) {
         e.preventDefault();
-        const dir = e.key === 'ArrowRight' ? 1 : -1;
-        setSelectedIndex(idx => (idx + dir + flatList.length) % flatList.length);
+        const current = flatList[selectedIndex];
+        if (!current) return;
+        const sem = current.semester;
+        const row = semGrid[sem-1].findIndex(s => s.code === current.code);
+        const nextSem = e.key === "ArrowLeft" ? sem - 1 : sem + 1;
+        if (nextSem >= 1 && nextSem <= 6) {
+          const targetArr = semGrid[nextSem-1];
+          let target = targetArr[row] || targetArr[targetArr.length - 1];
+          const newIdx = flatList.findIndex(s => s.code === target.code);
+          if (newIdx >= 0) setSelectedIndex(newIdx);
+        }
       }
       if (['f','F','r','R','v','V'].includes(e.key)) {
         e.preventDefault();
-        const code = flatList[selectedIndex]?.code;
-        if (code) {
-          let newType = '';
-          if (e.key.toLowerCase() === 'f') newType = 'flex';
-          if (e.key.toLowerCase() === 'r') newType = 'regular';
-          if (e.key.toLowerCase() === 'v') newType = 'verano';
-          setTypeMap(prev => ({ ...prev, [code]: newType }));
-        }
+        const subj = flatList[selectedIndex];
+        // no cambiar tipo de materias aprobadas
+        if (!subj || subj.done) return;
+        const code = subj.code;
+        let newType = '';
+        if (e.key.toLowerCase() === 'f') newType = 'flex';
+        if (e.key.toLowerCase() === 'r') newType = 'regular';
+        if (e.key.toLowerCase() === 'v') newType = 'verano';
+        setTypeMap(prev => ({ ...prev, [code]: newType }));
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [flatList, selectedIndex]);
+  }, [flatList, selectedIndex, semGrid]);
 
   // orden de disponibilidad: Disponible, Bloqueada, Aprobada
   const availOrder = (s) => s.canTake && !s.done ? 0 : (!s.canTake && !s.done ? 1 : 2);
