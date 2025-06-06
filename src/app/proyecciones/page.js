@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { SUBJECTS } from '@/Utils/Subjects';
 
@@ -179,6 +179,42 @@ export default function ProyeccionesPage() {
   const month = new Date().getMonth() + 1;
   const allowedSemesters = month <= 5 ? [2, 4, 6] : [1, 3, 5];
 
+  // estado para tipo de inscripción: regular, flex o verano
+  const [typeMap, setTypeMap] = useState(() =>
+    enrollmentList.reduce((m, s) => ({
+      ...m,
+      [s.code]: allowedSemesters.includes(s.semester) ? 'regular' : 'flex'
+    }), {})
+  );
+  // lista aplanada para navegación
+  const flatList = enrollmentList.slice().sort((a, b) => a.semester - b.semester);
+  // índice de tarjeta seleccionada
+  const [selectedIndex, setSelectedIndex] = useState(0);
+
+  // manejar flechas y teclas V, F, R
+  useEffect(() => {
+    const handler = e => {
+      if (['ArrowRight','ArrowLeft'].includes(e.key)) {
+        e.preventDefault();
+        const dir = e.key === 'ArrowRight' ? 1 : -1;
+        setSelectedIndex(idx => (idx + dir + flatList.length) % flatList.length);
+      }
+      if (['f','F','r','R','v','V'].includes(e.key)) {
+        e.preventDefault();
+        const code = flatList[selectedIndex]?.code;
+        if (code) {
+          let newType = '';
+          if (e.key.toLowerCase() === 'f') newType = 'flex';
+          if (e.key.toLowerCase() === 'r') newType = 'regular';
+          if (e.key.toLowerCase() === 'v') newType = 'verano';
+          setTypeMap(prev => ({ ...prev, [code]: newType }));
+        }
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [flatList, selectedIndex]);
+
   // orden de disponibilidad: Disponible, Bloqueada, Aprobada
   const availOrder = (s) => s.canTake && !s.done ? 0 : (!s.canTake && !s.done ? 1 : 2);
 
@@ -249,7 +285,7 @@ export default function ProyeccionesPage() {
       )}
 
       {/* segunda tabla: disponibilidad */}
-      {parsedData.length > 0 && (
+      {/* {parsedData.length > 0 && (
         <div className="mt-8">
           <h2 className="text-xl font-semibold mb-2">Disponibilidad de Materias</h2>
           <table className="w-full table-auto border-collapse">
@@ -281,7 +317,7 @@ export default function ProyeccionesPage() {
            </tbody>
          </table>
         </div>
-      )}
+      )} */}
       {parsedData.length > 0 && (
         // Lista simple de materias disponibles
         (() => {
@@ -300,6 +336,40 @@ export default function ProyeccionesPage() {
             </div>
           );
         })()
+      )}
+      {parsedData.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-xl font-semibold mb-4">Malla Curricular</h2>
+          <div className="grid grid-cols-6 gap-4">
+            {[1,2,3,4,5,6].map(sem => (
+              <div key={sem}>
+                <h3 className="font-medium mb-2 text-center">Semestre {sem}</h3>
+                <div className="flex flex-col gap-2">
+                  {enrollmentList.filter(s => s.semester === sem).map(s => {
+                    const idx = flatList.findIndex(f => f.code === s.code);
+                    const isSelected = idx === selectedIndex;
+                    const type = typeMap[s.code];
+                    const baseColor = s.done ? 'bg-green-200' : s.canTake ? 'bg-yellow-200' : 'bg-red-200';
+                    return (
+                    <div
+                      key={s.code}
+                      onClick={() => setSelectedIndex(idx)}
+                      className={
+                        `border rounded p-2 text-sm flex flex-col justify-between w-full h-32 cursor-pointer ` +
+                        `${baseColor} ` +
+                        `${isSelected ? 'ring-4 ring-blue-500' : ''}`
+                      }
+                    >
+                     <p className="font-semibold">{s.name.es}</p>
+                     <p className="text-xs">{s.code} ({type})</p>
+                     <p className="text-xs">Horas: {s.hours} • Créditos: {s.credits}</p>
+                    </div>);
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );
