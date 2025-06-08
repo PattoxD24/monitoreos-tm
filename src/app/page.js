@@ -315,10 +315,12 @@ export default function Home() {
   const calculateStatusCounters = () => {
     let peligroCount = 0;
     let recursarCount = 0;
+    let sdCount = 0;
 
     Object.entries(filteredData).forEach(([studentId, subjects]) => {
       let hasRecursar = false;
       let hasPeligro = false;
+      let hasSD = false;
 
       subjects.forEach(subject => {
         const ponderado = parseFloat(subject.Ponderado) || 0;
@@ -335,22 +337,34 @@ export default function Home() {
         } else if (!hasRecursar && (porcentajeFaltas >= 80 || porcentajeNE >= 80 || ponderado < 70)) {
           hasPeligro = true;
         }
+
+        // detect SD in Ponderado
+        if (subject.Ponderado === "SD") {
+          hasSD = true;
+        }
+        // detect SD in any activity column
+        Object.keys(subject).forEach(col => {
+          if (/^A\d+$/.test(col) && subject[col] === "SD") {
+            hasSD = true;
+          }
+        });
       });
 
-      // Solo contamos al alumno una vez, y si tiene materias para recursar,
-      // solo se cuenta en recursarCount aunque tenga otras en peligro
       if (hasRecursar) {
         recursarCount++;
       } else if (hasPeligro) {
         peligroCount++;
       }
+      if (hasSD) {
+        sdCount++;
+      }
     });
 
-    return { peligroCount, recursarCount };
+    return { peligroCount, recursarCount, sdCount };
   };
 
   // Calculate status counters whenever filteredData changes
-  const { peligroCount, recursarCount } = calculateStatusCounters();
+  const { peligroCount, recursarCount, sdCount } = calculateStatusCounters();
 
   return (
     <div className="flex">
@@ -364,6 +378,16 @@ export default function Home() {
       {/* Status counters */}
       {Object.keys(filteredData).length > 0 && (
         <div className="fixed top-4 right-4 flex gap-4 z-40">
+          <div className="relative inline-flex items-center">
+            <Link href="/riesgo" className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full">
+              <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full">
+                <span className="text-2xl font-bold text-blue-800">C</span>
+              </div>
+              <div className="absolute -top-1 -right-1 flex items-center justify-center w-6 h-6 bg-blue-500 rounded-full">
+                <span className="text-xs font-bold text-white">{sdCount}</span>
+              </div>
+            </Link>
+          </div>
           <div className="relative inline-flex items-center">
             <Link href="/riesgo" className="flex items-center justify-center w-12 h-12 bg-green-100 rounded-full">
             <div className="flex items-center justify-center w-12 h-12 bg-yellow-100 rounded-full">
