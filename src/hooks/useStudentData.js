@@ -176,38 +176,6 @@ export default function useStudentData(defaultVisibleColumns) {
       const matriculas = new Set(data1.map((row) => row.MATRICULA));
       const filtered = data2.filter((row) => matriculas.has(row.Matrícula));
 
-      if (filtered.length === 0) {
-        throw new Error("No se encontraron coincidencias entre los archivos");
-      }
-
-      // mapeo original de studentData
-      const studentData = data1.map((row) => ({
-        matricula: row.MATRICULA,
-        fullName: row.ALUMNOS,
-        preferredName: row.ALUMNOS.split(" ")[parseInt(row.favName, 10) - 1]?.toUpperCase(),
-        beca: row.BECA || row.Beca || null,
-        equipoRepresentativo: row["EQUIPO REPRESENTATIVO"] || row["Equipo Representativo"] || null,
-      }));
-
-      // filtro para quedarme sólo con los alumnos que sí tienen materias en groupedData
-      const filteredStudentData = studentData.filter(s => groupedData[s.matricula]?.length > 0);
-
-      // Procesar ponderaciones de materias desde archivo 1
-      const ponderationInfo = {};
-      data1.forEach((row) => {
-        const materia = row["Nombre Materia"];
-        if (!materia) return;
-
-        const activities = Object.keys(row)
-          .filter((col) => /^A\d+$/.test(col))
-          .reduce((acc, col) => {
-            acc[col] = row[col] || 0;
-            return acc;
-          }, {});
-
-        ponderationInfo[materia] = activities;
-      });
-
       // Agrupar información de actividades por estudiante
       const groupedData = filtered.reduce((acc, row) => {
         const matricula = row.Matrícula;
@@ -216,20 +184,43 @@ export default function useStudentData(defaultVisibleColumns) {
         return acc;
       }, {});
 
-      // Limpiar espacios en blanco de las actividades A1-A50 manteniendo todas las columnas
+      // Limpiar espacios en blanco de las actividades A1-A50
       Object.keys(groupedData).forEach((matricula) => {
         groupedData[matricula].forEach((materia) => {
           // Recorrer las columnas A1 hasta A50
           for (let i = 1; i <= 50; i++) {
-            const activityKey = `A${i}`;
+            const key = `A${i}`;
             // Asegurarse de que la propiedad exista, si no existe, crearla como cadena vacía
-            if (!(activityKey in materia)) {
-              materia[activityKey] = '';
-            } else if (typeof materia[activityKey] === 'string' && materia[activityKey].trim() === '') {
-              materia[activityKey] = '';
-            }
+            if (!(key in materia)) materia[key] = '';
+            else if (typeof materia[key] === 'string' && materia[key].trim() === '') materia[key] = '';
           }
         });
+      });
+
+      // mapeo original de studentData
+      const studentData = data1.map((row) => ({
+        matricula: row.MATRICULA,
+        fullName: row.ALUMNOS,
+        preferredName: row.ALUMNOS.split(" ")[parseInt(row.favName, 10) - 1]?.toUpperCase(),
+        beca: row.BECA || row.Beca || null,
+        equipoRepresentativo: row["EQUIPO REPRESENTATIVO"] || row["Equipo Representativa"] || null,
+      }));
+
+      // filtro para quedarme sólo con los alumnos que sí tienen materias
+      const filteredStudentData = studentData.filter(s => groupedData[s.matricula]?.length > 0);
+
+      // Procesar ponderaciones de materias desde archivo 1
+      const ponderationInfo = {};
+      data1.forEach((row) => {
+        const materia = row["Nombre Materia"];
+        if (!materia) return;
+        const activities = Object.keys(row)
+          .filter((col) => /^A\d+$/.test(col))
+          .reduce((acc, col) => {
+            acc[col] = row[col] || 0;
+            return acc;
+          }, {});
+        ponderationInfo[materia] = activities;
       });
 
       // Identificar columnas visibles
