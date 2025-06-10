@@ -1,6 +1,6 @@
 // components/Sidebar.js
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import ColumnSelector from "./ColumnSelector";
 import ThemeToggle from "./ThemeToggle";
 import { FaAngleLeft, FaAngleRight, FaUpload, FaTrash } from "react-icons/fa";
@@ -30,6 +30,18 @@ export default function Sidebar({
   handleFile2Change
 }) {
   const [isCollapsed, setIsCollapsed] = useState(true);
+  const [darkMode, setDarkMode] = useState(false);
+
+  useEffect(() => {
+      const isDarkMode = localStorage.getItem("darkMode") === "true";
+      setDarkMode(isDarkMode);
+      
+      if (isDarkMode) {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+    }, []);
 
   const handleToggle = () => setIsCollapsed(!isCollapsed);
 

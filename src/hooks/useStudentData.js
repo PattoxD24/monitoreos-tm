@@ -25,9 +25,14 @@ export default function useStudentData(defaultVisibleColumns) {
     if (savedData) {
       try {
         const parsedData = JSON.parse(savedData);
-        
+
         if (parsedData.studentData?.length > 0 || Object.keys(parsedData.filteredData || {}).length > 0) {
-          setStudentData(parsedData.studentData || []);
+          // sólo incluyo alumnos que tengan materias
+          const validStudentData = (parsedData.studentData || []).filter(student =>
+            Object.keys(parsedData.filteredData || {}).includes(student.matricula)
+          );
+
+          setStudentData(validStudentData);
           setArchivedStudents(parsedData.archivedStudents || []);
           setFilteredData(parsedData.filteredData || {});
           setColumns(parsedData.columns || []);
@@ -175,6 +180,7 @@ export default function useStudentData(defaultVisibleColumns) {
         throw new Error("No se encontraron coincidencias entre los archivos");
       }
 
+      // mapeo original de studentData
       const studentData = data1.map((row) => ({
         matricula: row.MATRICULA,
         fullName: row.ALUMNOS,
@@ -182,6 +188,9 @@ export default function useStudentData(defaultVisibleColumns) {
         beca: row.BECA || row.Beca || null,
         equipoRepresentativo: row["EQUIPO REPRESENTATIVO"] || row["Equipo Representativo"] || null,
       }));
+
+      // filtro para quedarme sólo con los alumnos que sí tienen materias en groupedData
+      const filteredStudentData = studentData.filter(s => groupedData[s.matricula]?.length > 0);
 
       // Procesar ponderaciones de materias desde archivo 1
       const ponderationInfo = {};
@@ -230,7 +239,7 @@ export default function useStudentData(defaultVisibleColumns) {
         return acc;
       }, {});
 
-      setStudentData(studentData);
+      setStudentData(filteredStudentData);
       setColumns(uniqueColumns);
       setVisibleColumns(initialVisibleColumns);
       setFilteredData(groupedData);
