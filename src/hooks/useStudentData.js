@@ -33,6 +33,34 @@ export default function useStudentData(defaultVisibleColumns) {
           setColumns(parsedData.columns || []);
           setVisibleColumns(parsedData.visibleColumns || {});
           setPonderationData(parsedData.ponderationData || {});
+          // Compute predicted data for subjects loaded from storage
+          const savedFiltered = parsedData.filteredData || {};
+          const savedPonder = parsedData.ponderationData || {};
+          const predictedDataFromStorage = {};
+          Object.entries(savedFiltered).forEach(([matricula, subjects]) => {
+            predictedDataFromStorage[matricula] = subjects.map(subject => {
+              const materiaName = subject['Nombre de la materia'] || subject['Nombre Materia'];
+              const ponderations = savedPonder[materiaName] || {};
+              let completedSum = 0;
+              let futureSum = 0;
+              Object.entries(ponderations).forEach(([activityKey, weightValue]) => {
+                const weight = parseFloat(weightValue) || 0;
+                const rawVal = subject[activityKey];
+                if (rawVal === "NE" || rawVal === "SC" || rawVal === "DA") {
+                  // count as zero
+                } else if (rawVal != null && rawVal !== "" && !isNaN(parseFloat(rawVal))) {
+                  const gradeVal = parseFloat(rawVal);
+                  completedSum += gradeVal * (weight / 100);
+                } else {
+                  futureSum += 100 * (weight / 100);
+                }
+              });
+              const Prediccion = Math.round(completedSum + futureSum);
+              return { ...subject, Prediccion };
+            });
+          });
+          console.log("Predicted Data:", predictedDataFromStorage);
+          setFilteredData(predictedDataFromStorage);
           setHasLoadedData(true);
           isDataLoaded = true;
           console.log("Datos cargados desde localStorage");
@@ -233,7 +261,48 @@ export default function useStudentData(defaultVisibleColumns) {
       setStudentData(studentData);
       setColumns(uniqueColumns);
       setVisibleColumns(initialVisibleColumns);
-      setFilteredData(groupedData);
+
+      // Compute predicted final grade per subject
+      const predictedData = {};
+      Object.entries(groupedData).forEach(([matricula, subjects]) => {
+        predictedData[matricula] = subjects.map(subject => {
+          const materiaName = subject['Nombre de la materia'] || subject['Nombre Materia'];
+          const ponderations = ponderationInfo[materiaName] || {};
+          let completedSum = 0;
+          let futureSum = 0;
+          if (matricula == "T03007311") {
+            console.log(`Processing student ${matricula} for subject ${materiaName}`);
+            console.log("Ponderations for subject:", materiaName, ponderations);
+          }
+          Object.entries(ponderations).forEach(([activityKey, weightValue]) => {
+            const weight = parseFloat(weightValue) || 0;
+            const rawVal = subject[activityKey];
+            if (rawVal === "NE" || rawVal === "SC" || rawVal === "DA") {
+              // count as zero, no change to sums
+            } else if (rawVal != null && rawVal !== "" && !isNaN(parseFloat(rawVal))) {
+              const gradeVal = parseFloat(rawVal);
+              completedSum += gradeVal * (weight / 100);
+              if (matricula == "T03007311") {
+                console.log(`Activity ${activityKey} with weight ${weightValue} contributes ${gradeVal * (weight / 100)} to completed sum`);
+                console.log(`Current completed sum for ${materiaName}: ${completedSum}`);
+              }
+            } else {
+              futureSum += 100 * (weight / 100);
+              if (matricula == "T03007311") {
+                console.log(`Activity ${activityKey} with weight ${weightValue} contributes ${100 * (weight / 100)} to future sum`);
+              }
+            }
+          });
+          if (matricula == "T03007311") {
+            console.log(`Completed sum for ${materiaName}: ${completedSum}, Future sum: ${futureSum}`);
+          }
+          const Prediccion = Math.round(completedSum + futureSum);
+          return { ...subject, Prediccion };
+        });
+      });
+      console.log("Predicted Data:", predictedData);
+      setFilteredData(predictedData);
+
       setPonderationData(ponderationInfo);
       if (studentData.length == 0) {
         setHasLoadedData(false);
