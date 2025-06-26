@@ -39,7 +39,8 @@ export const SUBJECTS = {
       "semester": 1,
       "languages": ["es"],
       "name": {
-        "es": "Lengua adicional al Español I"
+        "es": "Lengua adicional al Español I",
+        "additional": "Francés I, Inglés I, Italiano I, Portugués I, Alemán I, Chino I, Japonés I"
       },
       "hours": 5,
       "credits": 10,
@@ -120,7 +121,8 @@ export const SUBJECTS = {
       "semester": 2,
       "languages": ["es"],
       "name": {
-        "es": "Lengua adicional al Español II"
+        "es": "Lengua adicional al Español II",
+        "additional": "Francés II, Inglés II, Italiano II, Portugués II, Alemán II, Chino II, Japonés II"
       },
       "hours": 5,
       "credits": 10,
@@ -201,7 +203,7 @@ export const SUBJECTS = {
       "semester": 3,
       "languages": ["es"],
       "name": {
-        "es": "Lengua adicional al Español III"
+        "es": "Lengua adicional al Español III","additional": "Francés III, Inglés III, Italiano III, Portugués III, Alemán III, Chino III, Japonés III"
       },
       "hours": 5,
       "credits": 10,
@@ -281,7 +283,8 @@ export const SUBJECTS = {
       "semester": 4,
       "languages": ["es"],
       "name": {
-        "es": "Lengua adicional al Español IV"
+        "es": "Lengua adicional al Español IV",
+        "additional": "Francés IV, Inglés IV, Italiano IV, Portugués IV, Alemán IV, Chino IV, Japonés IV"
       },
       "hours": 5,
       "credits": 10,
@@ -362,7 +365,8 @@ export const SUBJECTS = {
       "semester": 5,
       "languages": ["es"],
       "name": {
-        "es": "Lengua adicional al Español V"
+        "es": "Lengua adicional al Español V",
+        "additional": "Francés V, Inglés V, Italiano V, Portugués V, Alemán V, Chino V, Japonés V"
       },
       "hours": 5,
       "credits": 10,
