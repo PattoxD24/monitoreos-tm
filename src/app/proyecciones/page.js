@@ -172,7 +172,13 @@ export default function ProyeccionesPage() {
     .map(s => {
       const done = passedCodes.includes(s.code);
       const canTake = s.prerequisites.every(pr => passedCodes.includes(pr));
-      return { ...s, done, canTake };
+      const isProgress = parsedData.some(item => {
+        const lowerName = item.name.toLowerCase();
+        const es = s.name.es.toLowerCase();
+        const en = s.name.en?.toLowerCase() || '';
+        return (lowerName.includes(es) || (en && lowerName.includes(en))) && item.status === 'in_progress';
+      });
+      return { ...s, done, canTake, isProgress };
     });
 
   // Semestres de inicio según mes actual
@@ -240,6 +246,18 @@ export default function ProyeccionesPage() {
 
   // orden de disponibilidad: Disponible, Bloqueada, Aprobada
   const availOrder = (s) => s.canTake && !s.done ? 0 : (!s.canTake && !s.done ? 1 : 2);
+
+  // mapeo de estatus por código de materia
+  const statusMap = parsedData.reduce((acc, item) => {
+    const subj = SUBJECTS.subjects.find(s => {
+      const lower = item.name.toLowerCase();
+      const es = s.name.es.toLowerCase();
+      const en = s.name.en?.toLowerCase() || '';
+      return lower.includes(es) || (en && lower.includes(en));
+    });
+    if (subj) acc[subj.code] = item.status;
+    return acc;
+  }, {});
 
   return (
     <div className="p-4">
@@ -344,15 +362,18 @@ export default function ProyeccionesPage() {
       {parsedData.length > 0 && (
         // Lista simple de materias disponibles
         (() => {
-          const available = enrollmentList.filter(s => s.canTake && !s.done);
+          const available = enrollmentList.filter(s => s.canTake && !s.done && !s.isProgress );
           if (available.length === 0) return null;
           return (
-            <div className="mt-6">
-              <h2 className="text-lg font-medium mb-1">Materias Disponibles</h2>
-              <ul className="list-disc list-inside">
+            <div className='mt-6'>
+              <h2 className='text-lg font-medium mb-1'>
+                Materias Disponibles: <b>({available.length})</b>
+              </h2>
+              <ul className='list-disc list-inside'>
                 {available.map((s, i) => (
                   <li key={i}>
-                    {s.code} - {s.name.es} (Sem {s.semester}) - {allowedSemesters.includes(s.semester) ? 'regular' : 'flex'}
+                    {s.code} - {s.name.es} (Sem {s.semester}) -{" "}
+                    {allowedSemesters.includes(s.semester) ? "regular" : "flex"}
                   </li>
                 ))}
               </ul>
@@ -372,7 +393,14 @@ export default function ProyeccionesPage() {
                     const idx = flatList.findIndex(f => f.code === s.code);
                     const isSelected = idx === selectedIndex;
                     const type = typeMap[s.code];
-                    const baseColor = s.done ? 'bg-green-200' : s.canTake ? 'bg-yellow-200' : 'bg-red-200';
+                    const status = statusMap[s.code];
+                    const baseColor = status === 'in_progress'
+                      ? 'bg-blue-200'
+                      : s.done
+                      ? 'bg-green-200'
+                      : s.canTake
+                      ? 'bg-yellow-200'
+                      : 'bg-red-200';
                     return (
                     <div
                       key={s.code}
