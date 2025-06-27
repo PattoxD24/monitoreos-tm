@@ -220,6 +220,27 @@ export default function Page() {
       return [{ s: { r: start, c: 1 }, e: { r: end, c: 1 } }]
     })
     wsReg['!merges'] = [...mergesAReg, ...mergesBReg]
+    // Estilos: pintar columnas B-K (Semestre a Estatus) y centrar A y B
+    const rangeReg = XLSX.utils.decode_range(wsReg['!ref']);
+    for (let R = rangeReg.s.r; R <= rangeReg.e.r; ++R) {
+      for (let C = 1; C <= rangeReg.e.c; ++C) {
+        const addr = XLSX.utils.encode_cell({ r: R, c: C });
+        const cell = wsReg[addr];
+        if (cell) {
+          cell.s = cell.s || {};
+          cell.s.fill = { patternType: 'solid', fgColor: { rgb: 'FFFFCC' } };
+        }
+      }
+      // centrar columnas A (0) y B (1)
+      [0, 1].forEach(c => {
+        const addr = XLSX.utils.encode_cell({ r: R, c });
+        const cell = wsReg[addr];
+        if (cell) {
+          cell.s = cell.s || {};
+          cell.s.alignment = { horizontal: 'center', vertical: 'center' };
+        }
+      });
+    }
     XLSX.utils.book_append_sheet(wb, wsReg, 'Regulares')
     // Construir datos para Irregulares similarmente
     const periodGroupsIrreg = {}
@@ -266,16 +287,29 @@ export default function Page() {
       return [{ s: { r: start, c: 1 }, e: { r: end, c: 1 } }]
     })
     wsIrreg['!merges'] = [...mergesAIr, ...mergesBIr]
+    // Estilos: pintar columnas B-K y centrar columnas A y B
+    const rangeIr = XLSX.utils.decode_range(wsIrreg['!ref']);
+    for (let R = rangeIr.s.r; R <= rangeIr.e.r; ++R) {
+      for (let C = 1; C <= rangeIr.e.c; ++C) {
+        const addr = XLSX.utils.encode_cell({ r: R, c: C });
+        const cell = wsIrreg[addr];
+        if (cell) {
+          cell.s = cell.s || {};
+          cell.s.fill = { patternType: 'solid', fgColor: { rgb: 'FFFFCC' } };
+        }
+      }
+      [0, 1].forEach(c => {
+        const addr = XLSX.utils.encode_cell({ r: R, c });
+        const cell = wsIrreg[addr];
+        if (cell) {
+          cell.s = cell.s || {};
+          cell.s.alignment = { horizontal: 'center', vertical: 'center' };
+        }
+      });
+    }
     XLSX.utils.book_append_sheet(wb, wsIrreg, 'Irregulares')
-    // Descargar archivo
-    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
-    const blob = new Blob([wbout], { type: 'application/octet-stream' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'reporte_estudiantes.xlsx'
-    a.click()
-    URL.revokeObjectURL(url)
+    // Descargar con estilos habilitados
+    XLSX.writeFile(wb, 'reporte_estudiantes.xlsx', { bookType: 'xlsx', cellStyles: true })
   }
 
   return (
