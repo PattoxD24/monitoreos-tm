@@ -1,6 +1,8 @@
 "use client"
 import React, { useState, useMemo } from 'react'
 import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
+import { saveAs } from 'file-saver';
 import { SUBJECTS } from '@/Utils/Subjects'
 
 export default function Page() {
@@ -126,8 +128,7 @@ export default function Page() {
   }
 
   // Exportar datos a Excel con dos hojas: Regulares e Irregulares
-  const handleExport = () => {
-    // Mapeo fijo de periodos a etiqueta y semestre
+  const handleExport = async () => {
     const periodMapping = {
       '2023 Ago - Dic': { label: 'AD - 2023', sem: '1ERO' },
       '2024 Ene - May': { label: 'EM - 2024', sem: '2DO' },
@@ -137,179 +138,103 @@ export default function Page() {
       '2025 Ene - May': { label: 'EM - 2025', sem: '4TO' },
       '2025 Ene- May': { label: 'EM - 2025', sem: '4TO' },
     };
-     // Helper para normalizar nombres
-     const normalize = str => str?.trim().toLowerCase();
-     // Agrupar registros por alumno
-     const groups = records.reduce((acc, item) => {
-      acc[item.alumno] = acc[item.alumno] ? [...acc[item.alumno], item] : [item]
-      return acc
-    }, {})
-    // Preparar filas con status
+    const periodColors = {
+      'AD - 2023': 'FFC6EFCE',
+      'EM - 2024': 'FFBDD7EE',
+      'VS - 2024': 'FF808080',
+      'AD - 2024': 'FFF4CCCC',
+      'EM - 2025': 'FFE2EFDA',
+    };
+    const normalize = str => str?.trim().toLowerCase();
+    // Agrupar registros por alumno
+    const groups = records.reduce((acc, it) => {
+      acc[it.alumno] = acc[it.alumno] ? [...acc[it.alumno], it] : [it];
+      return acc;
+    }, {});
     const rows = Object.entries(groups).flatMap(([alumno, items]) => {
-      const status = statusForAlumno(items)
-      return items.map(it => ({
-        alumno,
-        matricula: it.matricula,
-        periodo: it.periodo,
-        materia: it.materia,
-        calificacion: it.calificacion,
-        situacion: it.situacion,
-        claveMateria: it.claveMateria,
-        clavePlan: it.clavePlan,
-        status,
-      }))
-    })
-    // Filtrar por status
-    const regularRows = rows.filter(r => r.status === 'Regular')
-    const irregularRows = rows.filter(r => r.status === 'Irregular')
-    // Generar workbook con encabezados y datos usando array of arrays
-    const wb = XLSX.utils.book_new()
-    // Definir encabezado con columnas No., B Semestre, C Recuento, luego columnas solicitadas
-    const header = ['No.', 'Semestre', 'Count', 'Periodo', 'Matrícula', 'Alumno', 'Materia', 'Clave materia', 'Calificación', 'Clave plan de estudios', 'Estatus']
-    // Agrupar registros por alumno y asignar semestres
-    const periodGroupsReg = {}
-    regularRows.forEach(r => {
-      // usar etiqueta custom de periodo
-      const map = periodMapping[r.periodo] || { label: r.periodo, sem: '' };
-      const periodoEtiq = map.label;
-      const key = `${r.alumno}__${periodoEtiq}`;
-      if (!periodGroupsReg[key]) periodGroupsReg[key] = { rows: [], sem: '' }
-      periodGroupsReg[key].rows.push({ ...r, periodo: periodoEtiq })
-      // asignar sem de mapeo fijo
-      periodGroupsReg[key].sem = map.sem;
-    })
-    const dataReg = [header]
-    // Ordenar por alumno y luego periodo y numerar alumnos
-    const alumnosReg = [...new Set(regularRows.map(r => r.alumno))].sort((a, b) => a.localeCompare(b))
-    const comparePeriodoStr = (a, b) => {
-      const periodOrder = ["AD - 2023", "EM - 2024", "VS - 2024", "AD - 2024", "EM - 2025"];
-      const idxA = periodOrder.indexOf(a);
-      const idxB = periodOrder.indexOf(b);
-      return idxA - idxB;
-    }
-    alumnosReg.forEach((alumno, alumnoIdx) => {
-      const numAlumno = alumnoIdx + 1
-      const periodos = [...new Set(Object.values(periodGroupsReg)
-        .filter(g => g.rows[0].alumno === alumno)
-        .map(g => g.rows[0].periodo))].sort(comparePeriodoStr)
-      periodos.forEach(periodo => {
-        const group = periodGroupsReg[`${alumno}__${periodo}`]
-        group.rows.forEach((r, idx) => {
-          const estatus = Number(r.calificacion) > 69 ? 'Aprobada' : 'Reprobada'
-          const subj = SUBJECTS.subjects.find(s => normalize(s.name.es) === normalize(r.materia) || normalize(s.name.en) === normalize(r.materia) || (s.name.additional && s.name.additional.split(',').map(n => normalize(n)).includes(normalize(r.materia))));
-          const code = subj?.code || r.claveMateria;
-          dataReg.push([numAlumno, group.sem, idx + 1, r.periodo, r.matricula, r.alumno, r.materia, code, r.calificacion, r.clavePlan, estatus])
-        })
-      })
-    })
-    const wsReg = XLSX.utils.aoa_to_sheet([dataReg[0], ...dataReg.slice(1)])
-    // Merges en columna A por alumno y en columna B por alumno y periodo
-    const mergesAReg = alumnosReg.flatMap((alumno) => {
-      const idxs = dataReg.slice(1).map((row, i) => row[5] === alumno ? i : -1).filter(i => i >= 0)
-      if (idxs.length <= 1) return []
-      const start = Math.min(...idxs) + 1
-      const end = Math.max(...idxs) + 1
-      return [{ s: { r: start, c: 0 }, e: { r: end, c: 0 } }]
-    })
-    const mergesBReg = Object.entries(periodGroupsReg).flatMap(([key, group]) => {
-      if (group.rows.length <= 1) return []
-      const [alumno, periodo] = key.split('__')
-      const idxs = dataReg.slice(1).map((row, i) => row[5] === alumno && row[3] === periodo ? i : -1).filter(i => i >= 0)
-      const start = Math.min(...idxs) + 1
-      const end = Math.max(...idxs) + 1
-      return [{ s: { r: start, c: 1 }, e: { r: end, c: 1 } }]
-    })
-    wsReg['!merges'] = [...mergesAReg, ...mergesBReg]
-    // Estilos: pintar columnas B-K (Semestre a Estatus) y centrar A y B
-    const rangeReg = XLSX.utils.decode_range(wsReg['!ref']);
-    for (let R = rangeReg.s.r; R <= rangeReg.e.r; ++R) {
-      for (let C = 1; C <= rangeReg.e.c; ++C) {
-        const addr = XLSX.utils.encode_cell({ r: R, c: C });
-        const cell = wsReg[addr];
-        if (cell) {
-          cell.s = cell.s || {};
-          cell.s.fill = { patternType: 'solid', fgColor: { rgb: 'FFFFCC' } };
-        }
-      }
-      // centrar columnas A (0) y B (1)
-      [0, 1].forEach(c => {
-        const addr = XLSX.utils.encode_cell({ r: R, c });
-        const cell = wsReg[addr];
-        if (cell) {
-          cell.s = cell.s || {};
-          cell.s.alignment = { horizontal: 'center', vertical: 'center' };
+      const status = statusForAlumno(items);
+      return items.map(it => ({ ...it, alumno, status }));
+    });
+    const sheets = [
+      ['Regulares', rows.filter(r => r.status === 'Regular')],
+      ['Irregulares', rows.filter(r => r.status === 'Irregular')]
+    ];
+    const wb = new ExcelJS.Workbook();
+    for (const [sheetName, dataRows] of sheets) {
+      const ws = wb.addWorksheet(sheetName);
+      ws.addRow(['No.', 'Semestre', 'Count', 'Periodo', 'Matrícula', 'Alumno', 'Materia', 'Clave materia', 'Calificación', 'Clave plan de estudios', 'Estatus']);
+      let currentRow = ws.rowCount + 1;
+      // Agrupar por periodo dentro de alumno
+      const periodGroups = {};
+      dataRows.forEach(r => {
+        const map = periodMapping[r.periodo] || { label: r.periodo, sem: '' };
+        const key = `${r.alumno}__${map.label}`;
+        if (!periodGroups[key]) periodGroups[key] = { rows: [], sem: map.sem };
+        periodGroups[key].rows.push({ ...r, periodo: map.label });
+      });
+      const alumnoNames = Object.keys(groups).sort();
+      const periodoOrder = ['AD - 2023','EM - 2024','VS - 2024','AD - 2024','EM - 2025'];
+      alumnoNames.forEach((alumno, i) => {
+        // Marcar inicio de bloque de alumno
+        const alumnoStart = currentRow;
+        const idxAlumno = i + 1;
+        const list = Object.values(periodGroups)
+          .filter(g => g.rows[0].alumno === alumno)
+          .sort((a, b) => periodoOrder.indexOf(a.rows[0].periodo) - periodoOrder.indexOf(b.rows[0].periodo));
+        list.forEach(group => {
+          const start = currentRow;
+          group.rows.forEach((r, j) => {
+            const est = Number(r.calificacion) > 69 ? 'Aprobada' : 'Reprobada';
+            const subj = SUBJECTS.subjects.find(s =>
+              [s.name.es, s.name.en].map(n => normalize(n)).includes(normalize(r.materia))
+            ) || {};
+            ws.addRow([idxAlumno, group.sem, j+1, r.periodo, r.matricula, r.alumno, r.materia, subj.code || r.claveMateria, r.calificacion, r.clavePlan, est]);
+            const row = ws.getRow(currentRow);
+            const color = periodColors[group.rows[0].periodo] || 'FFFFCC';
+            row.eachCell((cell, col) => {
+              if(col >=2 && col<=11) cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:color} };
+              if(col===1) cell.alignment = { horizontal:'center', vertical:'middle' };
+            });
+            currentRow++;
+          });
+          const end = currentRow -1;
+          if(end>start) {
+            ws.mergeCells(start,1,end,1);
+            // Thin border around each period block
+            const lastCol = 11;
+            for(let r = start; r <= end; r++){
+              for(let c = 1; c <= lastCol; c++){
+                const cell = ws.getCell(r, c);
+                const border = cell.border || {};
+                if(r === start) border.top = { style: 'thin' };
+                if(r === end) border.bottom = { style: 'thin' };
+                if(c === 1) border.left = { style: 'thin' };
+                if(c === lastCol) border.right = { style: 'thin' };
+                cell.border = border;
+              }
+            }
+          }
+        });
+        // Thick border around entire alumno block
+        const alumnoEnd = currentRow - 1;
+        const lastCol = 11;
+        for(let r = alumnoStart; r <= alumnoEnd; r++){
+          for(let c = 1; c <= lastCol; c++){
+            const cell = ws.getCell(r, c);
+            const border = cell.border || {};
+            if(r === alumnoStart) border.top = { style: 'thick' };
+            if(r === alumnoEnd) border.bottom = { style: 'thick' };
+            if(c === 1) border.left = { style: 'thick' };
+            if(c === lastCol) border.right = { style: 'thick' };
+            cell.border = border;
+          }
         }
       });
     }
-    XLSX.utils.book_append_sheet(wb, wsReg, 'Regulares')
-    // Construir datos para Irregulares similarmente
-    const periodGroupsIrreg = {}
-    irregularRows.forEach(r => {
-      const map = periodMapping[r.periodo] || { label: r.periodo, sem: '' };
-      const periodoEtiq = map.label;
-      const key = `${r.alumno}__${periodoEtiq}`;
-      if (!periodGroupsIrreg[key]) periodGroupsIrreg[key] = { rows: [], sem: '' }
-      periodGroupsIrreg[key].rows.push({ ...r, periodo: periodoEtiq })
-      periodGroupsIrreg[key].sem = map.sem;
-    })
-    const dataIrreg = [header]
-    const alumnosIrreg = [...new Set(irregularRows.map(r => r.alumno))].sort((a, b) => a.localeCompare(b))
-    alumnosIrreg.forEach((alumno, alumnoIdx) => {
-      const numAlumno = alumnoIdx + 1
-      const periodos = [...new Set(Object.values(periodGroupsIrreg)
-        .filter(g => g.rows[0].alumno === alumno)
-        .map(g => g.rows[0].periodo))].sort(comparePeriodoStr)
-      periodos.forEach(periodo => {
-        const group = periodGroupsIrreg[`${alumno}__${periodo}`]
-        group.rows.forEach((r, idx) => {
-          const estatus = Number(r.calificacion) > 69 ? 'Aprobada' : 'Reprobada'
-          const subjIr = SUBJECTS.subjects.find(s => normalize(s.name.es) === normalize(r.materia) || normalize(s.name.en) === normalize(r.materia) || (s.name.additional && s.name.additional.split(',').map(n => normalize(n)).includes(normalize(r.materia))));
-          const codeIr = subjIr?.code || r.claveMateria;
-          dataIrreg.push([numAlumno, group.sem, idx + 1, r.periodo, r.matricula, r.alumno, r.materia, codeIr, r.calificacion, r.clavePlan, estatus])
-        })
-      })
-    })
-    const wsIrreg = XLSX.utils.aoa_to_sheet([dataIrreg[0], ...dataIrreg.slice(1)])
-    // Merges en columna A e B para Irregulares
-    const mergesAIr = alumnosIrreg.flatMap(alumno => {
-      const idxs = dataIrreg.slice(1).map((row, i) => row[5] === alumno ? i : -1).filter(i => i >= 0)
-      if (idxs.length <= 1) return []
-      const start = Math.min(...idxs) + 1
-      const end = Math.max(...idxs) + 1
-      return [{ s: { r: start, c: 0 }, e: { r: end, c: 0 } }]
-    })
-    const mergesBIr = Object.entries(periodGroupsIrreg).flatMap(([key, group]) => {
-      if (group.rows.length <= 1) return []
-      const [alumno, periodo] = key.split('__')
-      const idxs = dataIrreg.slice(1).map((row, i) => row[5] === alumno && row[3] === periodo ? i : -1).filter(i => i >= 0)
-      const start = Math.min(...idxs) + 1
-      const end = Math.max(...idxs) + 1
-      return [{ s: { r: start, c: 1 }, e: { r: end, c: 1 } }]
-    })
-    wsIrreg['!merges'] = [...mergesAIr, ...mergesBIr]
-    // Estilos: pintar columnas B-K y centrar columnas A y B
-    const rangeIr = XLSX.utils.decode_range(wsIrreg['!ref']);
-    for (let R = rangeIr.s.r; R <= rangeIr.e.r; ++R) {
-      for (let C = 1; C <= rangeIr.e.c; ++C) {
-        const addr = XLSX.utils.encode_cell({ r: R, c: C });
-        const cell = wsIrreg[addr];
-        if (cell) {
-          cell.s = cell.s || {};
-          cell.s.fill = { patternType: 'solid', fgColor: { rgb: 'FFFFCC' } };
-        }
-      }
-      [0, 1].forEach(c => {
-        const addr = XLSX.utils.encode_cell({ r: R, c });
-        const cell = wsIrreg[addr];
-        if (cell) {
-          cell.s = cell.s || {};
-          cell.s.alignment = { horizontal: 'center', vertical: 'center' };
-        }
-      });
-    }
-    XLSX.utils.book_append_sheet(wb, wsIrreg, 'Irregulares')
-    // Descargar con estilos habilitados
-    XLSX.writeFile(wb, 'reporte_estudiantes.xlsx', { bookType: 'xlsx', cellStyles: true })
+    // Generar y descargar archivo
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/octet-stream' });
+    saveAs(blob, 'reporte_estudiantes.xlsx');
   }
 
   return (
