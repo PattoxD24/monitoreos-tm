@@ -172,7 +172,8 @@ export default function ProyeccionesPage() {
     .map(s => {
       const done = passedCodes.includes(s.code);
       const canTake = s.prerequisites.every(pr => passedCodes.includes(pr));
-      const isProgress = parsedData.some(item => {
+      // console.log(parsedData)
+      const isProgress = !done && parsedData.some(item => {
         const lowerName = item.name.toLowerCase();
         const es = s.name.es.toLowerCase();
         const en = s.name.en?.toLowerCase() || '';
@@ -394,7 +395,7 @@ export default function ProyeccionesPage() {
                     const isSelected = idx === selectedIndex;
                     const type = typeMap[s.code];
                     const status = statusMap[s.code];
-                    const baseColor = status === 'in_progress'
+                    const baseColor = s.isProgress
                       ? 'bg-blue-200'
                       : s.done
                       ? 'bg-green-200'
