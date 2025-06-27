@@ -7,6 +7,8 @@ import { SUBJECTS } from '@/Utils/Subjects'
 
 export default function Page() {
   const [records, setRecords] = useState([])
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filterStatus, setFilterStatus] = useState('All')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [modalItems, setModalItems] = useState([])
   const [modalAlumno, setModalAlumno] = useState("")
@@ -87,7 +89,6 @@ export default function Page() {
         return subj?.code;
       })
      .filter(Boolean);
-    console.log(passedCodes);
     return SUBJECTS.subjects
       .slice()
       .sort((a, b) => a.semester - b.semester)
@@ -164,7 +165,9 @@ export default function Page() {
       const ws = wb.addWorksheet(sheetName);
       ws.addRow(['No.', 'Semestre', 'Count', 'Periodo', 'Matrícula', 'Alumno', 'Materia', 'Clave materia', 'Calificación', 'Clave plan de estudios', 'Estatus']);
       let currentRow = ws.rowCount + 1;
-      // Agrupar por periodo dentro de alumno
+      // Array to record start row of each alumno block for numbering
+      const alumnoBlocks = [];
+      // Agrupar dataRows en periodGroups para merges y filtrado
       const periodGroups = {};
       dataRows.forEach(r => {
         const map = periodMapping[r.periodo] || { label: r.periodo, sem: '' };
@@ -172,23 +175,24 @@ export default function Page() {
         if (!periodGroups[key]) periodGroups[key] = { rows: [], sem: map.sem };
         periodGroups[key].rows.push({ ...r, periodo: map.label });
       });
+      // Agrupar y render filas por alumno
       const alumnoNames = Object.keys(groups).sort();
       const periodoOrder = ['AD - 2023','EM - 2024','VS - 2024','AD - 2024','EM - 2025'];
-      alumnoNames.forEach((alumno, i) => {
-        // Marcar inicio de bloque de alumno
+      alumnoNames.forEach((alumno) => {
         const alumnoStart = currentRow;
-        const idxAlumno = i + 1;
         const list = Object.values(periodGroups)
           .filter(g => g.rows[0].alumno === alumno)
           .sort((a, b) => periodoOrder.indexOf(a.rows[0].periodo) - periodoOrder.indexOf(b.rows[0].periodo));
         list.forEach(group => {
           const start = currentRow;
           group.rows.forEach((r, j) => {
+            // Calcular estatus y sujeto antes de agregar fila
             const est = Number(r.calificacion) > 69 ? 'Aprobada' : 'Reprobada';
             const subj = SUBJECTS.subjects.find(s =>
               [s.name.es, s.name.en].map(n => normalize(n)).includes(normalize(r.materia))
             ) || {};
-            ws.addRow([idxAlumno, group.sem, j+1, r.periodo, r.matricula, r.alumno, r.materia, subj.code || r.claveMateria, r.calificacion, r.clavePlan, est]);
+            // leave cell A blank; will number after merges
+            ws.addRow([null, group.sem, j+1, r.periodo, r.matricula, r.alumno, r.materia, subj.code || r.claveMateria, r.calificacion, r.clavePlan, est]);
             const row = ws.getRow(currentRow);
             const color = periodColors[group.rows[0].periodo] || 'FFFFCC';
             row.eachCell((cell, col) => {
@@ -199,7 +203,8 @@ export default function Page() {
           });
           const end = currentRow -1;
           if(end>start) {
-            ws.mergeCells(start,1,end,1);
+            // Merge column B (Semestre) for period block
+            ws.mergeCells(start, 2, end, 2);
             // Thin border around each period block
             const lastCol = 11;
             for(let r = start; r <= end; r++){
@@ -229,7 +234,19 @@ export default function Page() {
             cell.border = border;
           }
         }
+        // Merge column A for full student block
+        if(alumnoEnd > alumnoStart) {
+          ws.mergeCells(alumnoStart, 1, alumnoEnd, 1);
+        }
+        // record block start for numbering
+        alumnoBlocks.push(alumnoStart);
       });
+      // After all alumno blocks, assign sequential numbers in column A
+      const uniqueAlumnoBlocks = [...new Set(alumnoBlocks)];
+      uniqueAlumnoBlocks.forEach((startRow, idx) => {
+        ws.getCell(startRow, 1).value = idx + 1;
+      });
+      ws.getColumn(1).alignment = { horizontal: 'center', vertical: 'middle' };
     }
     // Generar y descargar archivo
     const buffer = await wb.xlsx.writeBuffer();
@@ -237,8 +254,41 @@ export default function Page() {
     saveAs(blob, 'reporte_estudiantes.xlsx');
   }
 
+  // Filtrar alumnos por búsqueda y estado
+  const filteredAlumnos = useMemo(() => {
+    const groups = records.reduce((acc, it) => {
+      acc[it.alumno] = acc[it.alumno] ? [...acc[it.alumno], it] : [it]
+      return acc
+    }, {})
+    return Object.entries(groups)
+      .map(([alumno, items]) => ({ alumno, items, status: statusForAlumno(items) }))
+      .filter(({ alumno, status }) =>
+        alumno.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        (filterStatus === 'All' || status === filterStatus)
+      )
+  }, [records, searchTerm, filterStatus])
+
   return (
     <div className="p-6">
+      {/* Buscador y filtro */}
+      <div className="flex items-center mb-4 space-x-2">
+        <input
+          type="text"
+          placeholder="Buscar alumno"
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+          className="border p-2 rounded flex-1"
+        />
+        <select
+          value={filterStatus}
+          onChange={e => setFilterStatus(e.target.value)}
+          className="border p-2 rounded"
+        >
+          <option value="All">Todos</option>
+          <option value="Regular">Regulares</option>
+          <option value="Irregular">Irregulares</option>
+        </select>
+      </div>
       <input
         type="file"
         accept=".xlsx, .xls"
@@ -251,32 +301,24 @@ export default function Page() {
             >
               Exportar Excel
             </button>
-      {/* Agrupar alumnos por nombre */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {Object.entries(
-          records.reduce((acc, item) => {
-            acc[item.alumno] = acc[item.alumno] ? [...acc[item.alumno], item] : [item]
-            return acc
-          }, {})
-        ).map(([alumno, items], idx) => {
-          const status = statusForAlumno(items)
-          const cardBg = status === 'Regular' ? 'bg-green-100' : 'bg-yellow-100'
-          return (
-            <div
-              key={idx}
-              className={`${cardBg} p-4 rounded shadow cursor-pointer`}
-              onClick={() => openModal(alumno, items)}
-            >
-              {/* Información general */}
-              <p className='font-semibold'>Alumno: {alumno}</p>
-              <p>Matrícula: {items[0].matricula}</p>
-              <p className='mt-2 font-extrabold text-lg'>{status}</p>
-              {/* Haz clic para ver periodos */}
-            </div>
-          );
-        })}
-       </div>
-       {isModalOpen && (
+        {/* Agrupar alumnos por nombre */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredAlumnos.map(({ alumno, items, status }, idx) => {
+            const cardBg = status === 'Regular' ? 'bg-green-100' : 'bg-yellow-100';
+            return (
+              <div
+                key={idx}
+                className={`${cardBg} p-4 rounded shadow cursor-pointer`}
+                onClick={() => openModal(alumno, items)}
+              >
+                <p className='font-semibold'>Alumno: {alumno}</p>
+                <p>Matrícula: {items[0].matricula}</p>
+                <p className='mt-2 font-extrabold text-lg'>{status}</p>
+              </div>
+            );
+          })}
+        </div>
+         {isModalOpen && (
          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
            <div className="bg-white p-6 rounded shadow-lg w-5/6 h-5/6 overflow-auto">
              <h2 className="text-xl font-semibold mb-4">{modalAlumno} - Periodos</h2>
