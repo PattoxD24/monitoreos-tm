@@ -100,6 +100,10 @@ export default function StudentModal({
 
         const ponderations = ponderationData[materia] || {};
         const activityResults = Object.keys(ponderations)
+          .filter((activity) => {
+            const p = ponderations[activity];
+            return p !== undefined && p !== null && p.toString().trim() !== '';
+          })
           .map((activity) => {
             const ponderation = ponderations[activity];
             
@@ -213,7 +217,12 @@ export default function StudentModal({
   const handleMateriaChange = (e) => {
     const materia = e.target.value;
     setSelectedMateria(e.target.value);
-    setActivityColumns(Object.keys(ponderationData[materia] || {}));
+    setActivityColumns(
+      Object.keys(ponderationData[materia] || {}).filter((act) => {
+        const p = ponderationData[materia][act];
+        return p != null && p.toString().trim() !== '';
+      })
+    );
     setLastActivityColumn("");
     setManualGrades({});
     setEditableInputs({});
@@ -258,7 +267,12 @@ export default function StudentModal({
     if (materias.length > 0 && selectedMateria === "") {
       const defaultMateria = materias[0];
       setSelectedMateria(defaultMateria); // Select the first materia
-      setActivityColumns(Object.keys(ponderationData[defaultMateria] || {})); // Initialize activity columns
+      setActivityColumns(
+        Object.keys(ponderationData[defaultMateria] || {}).filter((act) => {
+          const p = ponderationData[defaultMateria][act];
+          return p != null && p.toString().trim() !== '';
+        })
+      ); // Initialize activity columns
     }
   }, [materias, selectedMateria, ponderationData]);
 
