@@ -2,6 +2,7 @@ import localFont from "next/font/local";
 import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
 import "./custom.css";
+import AccessGate from "@/components/AccessGate";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -23,10 +24,10 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className="light">
       <Analytics/>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased transition-colors duration-300 dark:bg-gray-900`}
-      >
-        {children}
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased transition-colors duration-300 dark:bg-gray-900`}>
+        <AccessGate>
+          {children}
+        </AccessGate>
       </body>
     </html>
   );
