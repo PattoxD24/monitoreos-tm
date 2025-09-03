@@ -37,7 +37,7 @@ const STATUS_OPTIONS = [
 export default function ReportModal({ visible, onClose, students, filteredData, calculateSortingCriteria }) {
   const [selectedColors, setSelectedColors] = useState(['todos']);
   const [selectedStatuses, setSelectedStatuses] = useState(['todos']);
-  const [faltasMode, setFaltasMode] = useState('todas'); // 'todas' | 'porMateria' | 'ninguna'
+  const [faltasMode, setFaltasMode] = useState('ninguna'); // 'todas' | 'porMateria' | 'ninguna'
   const [includeMatricula, setIncludeMatricula] = useState(true);
   const [includeFullName, setIncludeFullName] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
