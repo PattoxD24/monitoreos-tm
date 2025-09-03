@@ -25,6 +25,7 @@ export default function Sidebar({
   toggleColumnVisibility,
   onShowArchivedModal,
   onShowScriptsModal,
+  onShowReportModal,
   clearAllData,
   handleFile1Change,
   handleFile2Change
@@ -82,6 +83,13 @@ export default function Sidebar({
               className="w-full rounded bg-green-500 dark:bg-green-600 px-4 py-2 hover:bg-green-600 dark:hover:bg-green-700 mb-2 transition-colors"
             >
               Descargar ZIP
+            </button>
+
+            <button
+              onClick={onShowReportModal}
+              className="w-full rounded bg-indigo-500 dark:bg-indigo-600 px-4 py-2 hover:bg-indigo-600 dark:hover:bg-indigo-700 mb-2 transition-colors"
+            >
+              Reporte
             </button>
 
             <button 

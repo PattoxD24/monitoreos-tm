@@ -12,6 +12,7 @@ import Sidebar from "@/components/Sidebar";
 import SortAndFilterControls from "@/components/SortAndFilterControls"
 import ColumnModal from "@/components/ColumnModal";
 import ScriptsModal from "@/components/ScriptsModal";
+import ReportModal from "@/components/ReportModal";
 import dynamic from "next/dynamic";
 import SidebarNav from "@/components/SidebarNav";
 import Link from "next/link";
@@ -23,6 +24,7 @@ export default function Home() {
   const [showColumnModal, setShowColumnModal] = useState(false);
   const [showArchivedModal, setShowArchivedModal] = useState(false);
   const [showScriptsModal, setShowScriptsModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
   const [showWhatsappInput, setShowWhatsappInput] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortOrder, setSortOrder] = useState("original");
@@ -394,6 +396,7 @@ export default function Home() {
             setShowColumnSelector={setShowColumnSelector}
             setShowColumnModal={setShowColumnModal}  
             downloadZip={downloadZip}
+            onShowReportModal={() => setShowReportModal(true)}
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
             sortOrder={sortOrder}
@@ -420,6 +423,13 @@ export default function Home() {
         onClose={closeScriptsModal}
         scripts={scripts}
         setScripts={setScripts}
+      />
+      <ReportModal
+        visible={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        students={filteredStudents}
+        filteredData={filteredData}
+        calculateSortingCriteria={calculateSortingCriteria}
       />
       <main className={`flex-1 p-8 pb-20 min-h-screen sm:p-20 transition-all duration-300 bg-gray-50 dark:bg-gray-800 ${showColumnSelector ? 'ml-64' : 'ml-16'}`}>
         <div className="flex flex-col gap-8 items-center sm:items-start w-full">
