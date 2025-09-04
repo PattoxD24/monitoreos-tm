@@ -433,7 +433,7 @@ export default function Home() {
       />
       <main className={`flex-1 p-8 pb-20 min-h-screen sm:p-20 transition-all duration-300 bg-gray-50 dark:bg-gray-800 ${showColumnSelector ? 'ml-64' : 'ml-16'}`}>
         <div className="flex flex-col gap-8 items-center sm:items-start w-full">
-          <Image className="dark:invert" src="/next.svg" alt="Next.js logo" width={180} height={38} priority />
+          <Image className="dark:invert" src="/image.png" alt="Next.js logo" width={540} height={114} priority />
 
           <h1 className="text-2xl font-bold dark:text-white">Cargar Archivos de Monitoreos</h1>
 
