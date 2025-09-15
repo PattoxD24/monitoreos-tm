@@ -11,12 +11,15 @@ export default function SortAndFilterControls({
   uniqueTeachers = [],
   uniqueGroups = [],
   uniqueSubjects = [],
+  uniqueTutors = [],
   selectedTeacher,
   setSelectedTeacher,
   selectedGroup,
   setSelectedGroup,
   selectedSubject,
   setSelectedSubject,
+  selectedTutor,
+  setSelectedTutor,
 }) {
   const [teacherSearch, setTeacherSearch] = useState("");
   const [groupSearch, setGroupSearch] = useState("");
@@ -24,6 +27,8 @@ export default function SortAndFilterControls({
   const [showTeacherOptions, setShowTeacherOptions] = useState(false);
   const [showGroupOptions, setShowGroupOptions] = useState(false);
   const [showSubjectOptions, setShowSubjectOptions] = useState(false);
+  const [tutorSearch, setTutorSearch] = useState("");
+  const [showTutorOptions, setShowTutorOptions] = useState(false);
 
   const filteredTeachers = Array.isArray(uniqueTeachers) 
     ? uniqueTeachers.filter(teacher =>
@@ -43,11 +48,18 @@ export default function SortAndFilterControls({
       )
     : [];
 
+  const filteredTutors = Array.isArray(uniqueTutors)
+    ? uniqueTutors.filter(tutor =>
+        tutor?.toLowerCase().includes(tutorSearch.toLowerCase())
+      )
+    : [];
+
   const handleClickOutside = () => {
     setTimeout(() => {
       setShowTeacherOptions(false);
       setShowGroupOptions(false);
       setShowSubjectOptions(false);
+      setShowTutorOptions(false);
     }, 200);
   };
 
@@ -92,6 +104,49 @@ export default function SortAndFilterControls({
                 }}
               >
                 {subject}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Filtro de Tutor */}
+      <div className="relative">
+        <input
+          type="text"
+          value={tutorSearch}
+          onChange={(e) => {
+            setTutorSearch(e.target.value);
+            setShowTutorOptions(true);
+          }}
+          onFocus={() => setShowTutorOptions(true)}
+          onBlur={handleClickOutside}
+          placeholder="Buscar tutor..."
+          className="border rounded-lg p-2 text-gray-700"
+        />
+        {showTutorOptions && filteredTutors.length > 0 && (
+          <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-60 overflow-auto text-gray-700">
+            <div
+              className="p-2 hover:bg-gray-100 cursor-pointer text-gray-500"
+              onClick={() => {
+                setSelectedTutor("");
+                setTutorSearch("");
+                setShowTutorOptions(false);
+              }}
+            >
+              Mostrar todos
+            </div>
+            {filteredTutors.map((tutor, index) => (
+              <div
+                key={index}
+                className="p-2 hover:bg-gray-100 cursor-pointer"
+                onClick={() => {
+                  setSelectedTutor(tutor);
+                  setTutorSearch(tutor);
+                  setShowTutorOptions(false);
+                }}
+              >
+                {tutor}
               </div>
             ))}
           </div>

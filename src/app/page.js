@@ -34,10 +34,12 @@ export default function Home() {
   const [scripts, setScripts] = useState([]);
   const [whatsapp, setWhatsapp] = useState("");
   const [uniqueTeachers, setUniqueTeachers] = useState([]);
+  const [uniqueTutors, setUniqueTutors] = useState([]);
   const [uniqueGroups, setUniqueGroups] = useState([]);
   const [uniqueSubjects, setUniqueSubjects] = useState([]);
   const [selectedTeacher, setSelectedTeacher] = useState("");
   const [selectedGroup, setSelectedGroup] = useState("");
+  const [selectedTutor, setSelectedTutor] = useState("");
   const [selectedSubject, setSelectedSubject] = useState("");
   const defaultVisibleColumns = {
     Matrícula: true,
@@ -80,7 +82,8 @@ export default function Home() {
   }, [hasLoadedData, filteredData]);
 
   useEffect(() => {
-    const teachers = new Set();
+  const teachers = new Set();
+  const tutors = new Set();
     const groups = new Set();
     const materias = new Set();
 
@@ -89,6 +92,7 @@ export default function Home() {
         if (subject['Nombre del profesor']) {
           teachers.add(subject['Nombre del profesor']);
         }
+        // El tutor se obtiene del objeto del estudiante base, no de cada materia; se calculará después
         if (subject['# Grupo']) {
           groups.add(subject['# Grupo']);
         }
@@ -98,10 +102,14 @@ export default function Home() {
       });
     });
 
+    // Extraer tutores desde studentData
+    studentData.forEach(st => { if (st.tutor) tutors.add(st.tutor); });
+
     setUniqueTeachers(Array.from(teachers).sort());
+    setUniqueTutors(Array.from(tutors).sort());
     setUniqueGroups(Array.from(groups).sort());
     setUniqueSubjects(Array.from(materias).sort());
-  }, [filteredData]);
+  }, [filteredData, studentData]);
 
   const handleProcessFilesWithHide = async () => {
     await handleProcessFiles();
@@ -255,8 +263,9 @@ export default function Home() {
       studentSubjects.some(subject => subject['# Grupo'].toString() === selectedGroup.toString());
     const matchesSubject = !selectedSubject ||
       studentSubjects.some(subject => subject['Nombre de la materia'] === selectedSubject);
+    const matchesTutor = !selectedTutor || (student.tutor === selectedTutor);
 
-    return matchesSearch && matchesTeacher && matchesGroup && matchesSubject;
+    return matchesSearch && matchesTeacher && matchesGroup && matchesSubject && matchesTutor;
   });
 
   const handleDeleteStudent = (matricula) => {
@@ -474,6 +483,9 @@ export default function Home() {
             uniqueSubjects={uniqueSubjects}
             selectedSubject={selectedSubject}
             setSelectedSubject={setSelectedSubject}
+            uniqueTutors={uniqueTutors}
+            selectedTutor={selectedTutor}
+            setSelectedTutor={setSelectedTutor}
           />
           )}
           {/* Tarjetas de Estudiantes */}

@@ -283,6 +283,9 @@ export default function StudentCard({
         {student.preferredName}
       </p>
       <p className='text-sm text-gray-700'>{student.fullName}</p>
+      {student.tutor && (
+        <p className='text-xs text-gray-500 mt-1'><span className='font-semibold'>Tutor:</span> {student.tutor}</p>
+      )}
 
       {onDelete && (
         <>

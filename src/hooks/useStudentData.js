@@ -160,10 +160,13 @@ export default function useStudentData(defaultVisibleColumns) {
 
     try {
       setIsLoading(true);
-      const [data1, data2] = await Promise.all([
-        readExcel(fileToProcess1), 
+      // Leer archivo base con todas las hojas para mapear tutores (segunda hoja)
+      const [baseWorkbookInfo, data2] = await Promise.all([
+        readBaseExcel(fileToProcess1),
         readExcel(fileToProcess2)
       ]);
+
+      const { data: data1, tutorMap } = baseWorkbookInfo;
 
       // Validar formatos de archivos
       if (!data1[0]?.MATRICULA || !data1[0]?.ALUMNOS) {
@@ -198,13 +201,18 @@ export default function useStudentData(defaultVisibleColumns) {
       });
 
       // mapeo original de studentData
-      const studentData = data1.map((row) => ({
-        matricula: row.MATRICULA,
-        fullName: row.ALUMNOS,
-        preferredName: row.ALUMNOS.split(" ")[parseInt(row.favName, 10) - 1]?.toUpperCase(),
-        beca: row.BECA || row.Beca || null,
-        equipoRepresentativo: row["EQUIPO REPRESENTATIVO"] || row["Equipo Representativa"] || null,
-      }));
+      const studentData = data1.map((row) => {
+        const claveTutor = row['clave tutor'] || row['CLAVE TUTOR'] || row['Clave tutor'] || row['Clave Tutor'];
+        return {
+          matricula: row.MATRICULA,
+          fullName: row.ALUMNOS,
+          preferredName: row.ALUMNOS.split(" ")[parseInt(row.favName, 10) - 1]?.toUpperCase(),
+          beca: row.BECA || row.Beca || null,
+            equipoRepresentativo: row["EQUIPO REPRESENTATIVO"] || row["Equipo Representativa"] || null,
+          tutorClave: claveTutor || null,
+          tutor: (claveTutor && tutorMap[claveTutor]) ? tutorMap[claveTutor] : null,
+        };
+      });
 
       // filtro para quedarme sólo con los alumnos que sí tienen materias
       const filteredStudentData = studentData.filter(s => groupedData[s.matricula]?.length > 0);
@@ -255,6 +263,25 @@ export default function useStudentData(defaultVisibleColumns) {
     const workbook = XLSX.read(data, { type: "array" });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     return XLSX.utils.sheet_to_json(sheet);
+  };
+
+  // Lee el archivo base y extrae la segunda hoja para mapear clave tutor -> tutor
+  const readBaseExcel = async (file) => {
+    const data = await file.arrayBuffer();
+    const workbook = XLSX.read(data, { type: "array" });
+    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+    const data1 = XLSX.utils.sheet_to_json(firstSheet);
+    let tutorMap = {};
+    if (workbook.SheetNames.length > 1) {
+      const secondSheet = workbook.Sheets[workbook.SheetNames[1]];
+      const tutorRows = XLSX.utils.sheet_to_json(secondSheet);
+      tutorRows.forEach(r => {
+        const clave = r['clave tutor'] || r['CLAVE TUTOR'] || r['Clave tutor'] || r['Clave Tutor'];
+        const tutor = r['tutor'] || r['TUTOR'] || r['Tutor'];
+        if (clave) tutorMap[clave] = tutor;
+      });
+    }
+    return { data: data1, tutorMap };
   };
 
   return {

@@ -534,6 +534,9 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
           <div>
             <h2 className="text-2xl font-bold text-gray-800 dark:text-white">{student.fullName}</h2>
             <p className="text-sm text-gray-600 dark:text-gray-400">Matrícula: {student.matricula}</p>
+            {student.tutor && (
+              <p className="text-sm text-gray-600 dark:text-gray-400">Tutor: {student.tutor}</p>
+            )}
           </div>
           <button
             onClick={closeModal}
