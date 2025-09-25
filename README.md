@@ -3,7 +3,7 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 ## Getting Started
 
 First, run the development server:
-![image](https://github.com/PattoxD24/monitoreos-tm/public/image.png)
+![image](https://github.com/PattoxD24/blob/monitoreos-tm/main/public/image.png)
 
 ```bash
 npm run dev
