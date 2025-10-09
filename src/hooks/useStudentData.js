@@ -15,6 +15,7 @@ export default function useStudentData(defaultVisibleColumns) {
   const [ponderationData, setPonderationData] = useState({});
   const [hasLoadedData, setHasLoadedData] = useState(false);
   const [notification, setNotification] = useState({ show: false, message: '' });
+  const [scheduleRows, setScheduleRows] = useState([]); // Filas de la hoja "Horario" del archivo base
 
   // Cargar datos del localStorage al iniciar - primera prioridad
   useEffect(() => {
@@ -38,6 +39,7 @@ export default function useStudentData(defaultVisibleColumns) {
           setColumns(parsedData.columns || []);
           setVisibleColumns(parsedData.visibleColumns || {});
           setPonderationData(parsedData.ponderationData || {});
+          setScheduleRows(parsedData.scheduleRows || []);
           setHasLoadedData(true);
           isDataLoaded = true;
           console.log("Datos cargados desde localStorage");
@@ -70,7 +72,8 @@ export default function useStudentData(defaultVisibleColumns) {
         filteredData,
         columns,
         visibleColumns,
-        ponderationData
+        ponderationData,
+        scheduleRows
       };
       
       try {
@@ -80,7 +83,7 @@ export default function useStudentData(defaultVisibleColumns) {
         // Opcional: Mostrar una notificación al usuario
       }
     }
-  }, [studentData, archivedStudents, filteredData, columns, visibleColumns, ponderationData]);
+  }, [studentData, archivedStudents, filteredData, columns, visibleColumns, ponderationData, scheduleRows]);
 
   const clearAllData = () => {
     localStorage.removeItem('studentAppData');
@@ -89,7 +92,8 @@ export default function useStudentData(defaultVisibleColumns) {
     setFilteredData({});
     setColumns([]);
     setVisibleColumns({});
-    setPonderationData({});
+  setPonderationData({});
+  setScheduleRows([]);
     setFile1(null);
     setFile2(null);
     setHasLoadedData(false);
@@ -166,7 +170,7 @@ export default function useStudentData(defaultVisibleColumns) {
         readExcel(fileToProcess2)
       ]);
 
-      const { data: data1, tutorMap } = baseWorkbookInfo;
+      const { data: data1, tutorMap, scheduleRows: horarioRows } = baseWorkbookInfo;
 
       // Validar formatos de archivos
       if (!data1[0]?.MATRICULA || !data1[0]?.ALUMNOS) {
@@ -242,7 +246,8 @@ export default function useStudentData(defaultVisibleColumns) {
       setColumns(uniqueColumns);
       setVisibleColumns(initialVisibleColumns);
       setFilteredData(groupedData);
-      setPonderationData(ponderationInfo);
+  setPonderationData(ponderationInfo);
+  setScheduleRows(horarioRows || []);
       if (studentData.length == 0) {
         setHasLoadedData(false);
       } else {
@@ -272,16 +277,28 @@ export default function useStudentData(defaultVisibleColumns) {
     const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
     const data1 = XLSX.utils.sheet_to_json(firstSheet);
     let tutorMap = {};
+    let scheduleRows = [];
     if (workbook.SheetNames.length > 1) {
-      const secondSheet = workbook.Sheets[workbook.SheetNames[1]];
-      const tutorRows = XLSX.utils.sheet_to_json(secondSheet);
-      tutorRows.forEach(r => {
-        const clave = r['clave tutor'] || r['CLAVE TUTOR'] || r['Clave tutor'] || r['Clave Tutor'];
-        const tutor = r['tutor'] || r['TUTOR'] || r['Tutor'];
-        if (clave) tutorMap[clave] = tutor;
+      // Buscar hoja tutor y hoja Horario por nombre
+      workbook.SheetNames.forEach(sheetName => {
+        const lower = sheetName.toLowerCase();
+        const sheet = workbook.Sheets[sheetName];
+        if (!sheet) return;
+        if (lower.includes('tutor') && Object.keys(tutorMap).length === 0) {
+          const tutorRows = XLSX.utils.sheet_to_json(sheet);
+          tutorRows.forEach(r => {
+            const clave = r['clave tutor'] || r['CLAVE TUTOR'] || r['Clave tutor'] || r['Clave Tutor'];
+            const tutor = r['tutor'] || r['TUTOR'] || r['Tutor'];
+            if (clave) tutorMap[clave] = tutor;
+          });
+        }
+        if (lower === 'horario') {
+          scheduleRows = XLSX.utils.sheet_to_json(sheet);
+          console.log("Leyendo hoja Horario", scheduleRows);
+        }
       });
     }
-    return { data: data1, tutorMap };
+    return { data: data1, tutorMap, scheduleRows };
   };
 
   return {
@@ -295,6 +312,7 @@ export default function useStudentData(defaultVisibleColumns) {
     selectedStudent,
     isLoading,
     ponderationData,
+    scheduleRows,
     setFile1,
     setFile2,
     setSelectedStudent,

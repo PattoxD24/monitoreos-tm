@@ -12,13 +12,24 @@ export default function SidebarNav({ onToggle, initialState = false }) {
   // Cargar estado del sidebar desde localStorage
   useEffect(() => {
     try {
-      const savedState = localStorage.getItem('sidebarCollapsed');
+      const savedStateCamel = localStorage.getItem('sidebarCollapsed');
+      const savedStateLower = localStorage.getItem('sidebarcollapsed');
+      const savedState = savedStateCamel ?? savedStateLower;
       if (savedState !== null) {
         const collapsed = savedState === 'true';
         setIsCollapsed(collapsed);
         if (onToggle) {
           onToggle(collapsed);
         }
+        // Normaliza ambas claves
+        localStorage.setItem('sidebarCollapsed', String(collapsed));
+        localStorage.setItem('sidebarcollapsed', String(collapsed));
+      } else {
+        // Si no existe, lo inicializamos en false y propagamos el estado
+        localStorage.setItem('sidebarCollapsed', 'false');
+        localStorage.setItem('sidebarcollapsed', 'false');
+        setIsCollapsed(false);
+        if (onToggle) onToggle(false);
       }
     } catch (e) {
       console.error('Error loading sidebar state:', e);
@@ -35,6 +46,7 @@ export default function SidebarNav({ onToggle, initialState = false }) {
     // Guardar preferencia en localStorage
     try {
       localStorage.setItem('sidebarCollapsed', String(newState));
+      localStorage.setItem('sidebarcollapsed', String(newState)); // compat
     } catch (e) {
       console.error('Error saving sidebar state:', e);
     }
@@ -43,6 +55,7 @@ export default function SidebarNav({ onToggle, initialState = false }) {
   const navLinks = [
     { href: "/", label: "Inicio", icon: <FaHome /> },
     { href: "/riesgo", label: "Alumnos en Riesgo", icon: <FaExclamationTriangle /> },
+    { href: "/horario", label: "Horario", icon: <FaExclamationCircle /> },
 
   ];
 

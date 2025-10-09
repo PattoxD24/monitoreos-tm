@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import ColumnSelector from "./ColumnSelector";
 import ThemeToggle from "./ThemeToggle";
 import { FaAngleLeft, FaAngleRight, FaUpload, FaTrash } from "react-icons/fa";
+import Link from "next/link";
 
 export default function Sidebar({
   showColumnSelector,
@@ -71,6 +72,13 @@ export default function Sidebar({
 
         {!isCollapsed && (
           <>
+            <Link href="/horario">
+              <button
+                className="w-full rounded bg-gray-700 dark:bg-gray-600 px-4 py-2 hover:bg-gray-600 dark:hover:bg-gray-500 mb-2 transition-colors"
+              >
+                Horario
+              </button>
+            </Link>
             <button
               onClick={() => setShowColumnModal(true)}
               className="w-full rounded bg-blue-500 dark:bg-blue-600 px-4 py-2 hover:bg-blue-600 dark:hover:bg-blue-700 mb-2 transition-colors"
