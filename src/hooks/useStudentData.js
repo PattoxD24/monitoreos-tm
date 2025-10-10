@@ -206,6 +206,10 @@ export default function useStudentData(defaultVisibleColumns) {
 
       // mapeo original de studentData
       const studentData = data1.map((row) => {
+        if (!row?.MATRICULA || !row?.ALUMNOS) {
+          console.warn("Fila de datos incompleta, se omite:", row);
+          return {}; // No null/undefined; se filtrará después
+        }
         const claveTutor = row['clave tutor'] || row['CLAVE TUTOR'] || row['Clave tutor'] || row['Clave Tutor'];
         return {
           matricula: row.MATRICULA,
@@ -219,6 +223,7 @@ export default function useStudentData(defaultVisibleColumns) {
       });
 
       // filtro para quedarme sólo con los alumnos que sí tienen materias
+      console.log(studentData)
       const filteredStudentData = studentData.filter(s => groupedData[s.matricula]?.length > 0);
 
       // Procesar ponderaciones de materias desde archivo 1
@@ -284,8 +289,9 @@ export default function useStudentData(defaultVisibleColumns) {
         const lower = sheetName.toLowerCase();
         const sheet = workbook.Sheets[sheetName];
         if (!sheet) return;
-        if (lower.includes('tutor') && Object.keys(tutorMap).length === 0) {
+        if (lower === 'nomenclatura' && Object.keys(tutorMap).length === 0) {
           const tutorRows = XLSX.utils.sheet_to_json(sheet);
+          console.log("Leyendo hoja Tutor", tutorRows);
           tutorRows.forEach(r => {
             const clave = r['clave tutor'] || r['CLAVE TUTOR'] || r['Clave tutor'] || r['Clave Tutor'];
             const tutor = r['tutor'] || r['TUTOR'] || r['Tutor'];
