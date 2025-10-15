@@ -217,6 +217,23 @@ export default function WeeklySchedule({ embedded = false }) {
   }, [minHour, maxHour]);
   const totalHeightPx = (maxHour - minHour) * HOUR_HEIGHT;
 
+  // Línea de tiempo actual (hora actual)
+  const [nowTime, setNowTime] = useState(() => {
+    const d = new Date();
+    return d.getHours() + d.getMinutes() / 60;
+  });
+
+  useEffect(() => {
+    // Actualiza cada minuto para mantener la línea en tiempo real
+    const update = () => {
+      const d = new Date();
+      setNowTime(d.getHours() + d.getMinutes() / 60);
+    };
+    update();
+    const id = setInterval(update, 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
+
   const formatTime = (dec) => {
     const h = Math.floor(dec);
     const m = Math.round((dec - h) * 60);
@@ -592,13 +609,21 @@ export default function WeeklySchedule({ embedded = false }) {
                                     repeating-linear-gradient(to bottom, rgba(255,255,255,0.05) 0, rgba(255,255,255,0.05) 1px, transparent 1px, transparent ${HOUR_HEIGHT/2}px)`
                 }}
               />
+              {/* Línea roja de la hora actual */}
+              {nowTime >= minHour && nowTime <= maxHour && (
+                <div
+                  className="absolute left-0 right-0 h-0 border-t border-red-500 z-20 pointer-events-none"
+                  style={{ top: (nowTime - minHour) * HOUR_HEIGHT }}
+                  aria-hidden="true"
+                />
+              )}
               {/* Contenedor por día */}
               <div className="flex h-full relative">
                 {DAY_KEYS.map((day, dayIdx) => (
                   <div key={day.label} className="relative flex-1 border-l first:border-l-0 border-gray-300 dark:border-gray-700">
                     {filteredEventsByDay[day.label].map(ev => {
-                      const startPx = (ev.start - minHour) * 60;
-                      const heightPx = (ev.end - ev.start) * 60;
+                      const startPx = (ev.start - minHour) * HOUR_HEIGHT;
+                      const heightPx = (ev.end - ev.start) * HOUR_HEIGHT;
                       const tooltip = `${ev.materia}\nProfesor: ${ev.profesor || 'N/D'}\nHorario: ${formatTime(ev.start)} - ${formatTime(ev.end)}\n${ev.edificio || ''} ${ev.salon || ''}`;
                       return (
                         <div
