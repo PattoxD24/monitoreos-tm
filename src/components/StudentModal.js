@@ -917,7 +917,7 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                                     {parseFloat(activity.ponderation).toFixed(0)}
                                   </td>
                                 ))}
-                                <td className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200 text-center">100</td>
+                                <td className="border px-2 py-1 text-sm text-gray-700 dark:text-gray-200 text-center">{activities.reduce((sum, activity) => sum + parseFloat(activity.ponderation || 0), 0).toFixed(0)}</td> {/* suma actividades ponderación */}
                               </tr>
                               {/* Fila de Resultados */}
                               <tr>

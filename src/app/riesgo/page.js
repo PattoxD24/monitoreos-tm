@@ -6,6 +6,7 @@ import Loading from "@/components/Loading";
 import StudentModal from "@/components/StudentModal";
 import SidebarNav from "@/components/SidebarNav";
 import StatusFilter from "@/components/StatusFilter";
+import { computeSubjectStatus } from "@/Utils/predictions";
 
 export default function RiesgoPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -50,83 +51,50 @@ export default function RiesgoPage() {
       
       studentRows.forEach(row => {
         const nombreMateria = row["Nombre de la materia"];
-        const ponderado = row["Ponderado"];
-        const ponderadoNumerico = parseFloat(ponderado) || 0;
-        
-        // Calcular porcentaje de faltas
+        const ponderacionesMateria = ponderationData?.[nombreMateria] || {};
+        const status = computeSubjectStatus(row, ponderacionesMateria);
+
+        // Filtro por tipo de indicador original (mantener opciones de UI)
         const faltasAlumno = parseFloat(row["Faltas del alumno"]) || 0;
         const limiteFaltas = parseFloat(row["Límite de faltas"]) || 1;
         const porcentajeFaltas = (faltasAlumno / limiteFaltas) * 100;
-        
-        // Calcular porcentaje de NE
         const neAlumno = parseFloat(row["NE alumno"]) || 0;
         const limiteNE = parseFloat(row["Límite de NE"]) || 1;
         const porcentajeNE = (neAlumno / limiteNE) * 100;
-        
-        // Verificar si hay NP
-        const tieneNP = ponderado === "NP";
-        
-        // Verificar condiciones de riesgo basadas en el filtro actual
-        let enRiesgo = false;
-        
-        switch(filterType) {
-          case "faltas":
-            enRiesgo = porcentajeFaltas >= 80;
+        const ponderado = row["Ponderado"];
+        const ponderadoNumerico = parseFloat(ponderado) || 0;
+
+        let includeByFilter = false;
+        switch (filterType) {
+          case 'faltas':
+            includeByFilter = porcentajeFaltas >= 80;
             break;
-          case "ne":
-            enRiesgo = porcentajeNE >= 80;
+          case 'ne':
+            includeByFilter = porcentajeNE >= 80;
             break;
-          case "ponderado":
-            enRiesgo = ponderadoNumerico < 70 || tieneNP;
+          case 'ponderado':
+            includeByFilter = (ponderado === 'NP') || ponderadoNumerico < 70;
             break;
-          default: // "todos"
-            enRiesgo = (porcentajeFaltas >= 80) || (porcentajeNE >= 80) || (ponderadoNumerico < 70) || tieneNP;
+          default:
+            includeByFilter = true;
         }
-        
-        if (enRiesgo) {
-          let statusClass = "";
-          let statusText = "";
-          
-          // Verificar NP primero (prioridad más alta)
-          if (tieneNP) {
-            statusClass = "bg-purple-100 border-purple-500 text-purple-700";
-            statusText = "NP";
-          }
-          // Luego verificar faltas y NE
-          else if (porcentajeFaltas > 100 || porcentajeNE > 100) {
-            statusClass = "bg-red-100 border-red-500 text-red-700";
-            statusText = "Recursar";
-          } 
-          // Determinar el máximo ponderado que puede alcanzar el estudiante
-          else {
-            const maxPosiblePonderado = ponderationData && 
-              ponderationData[matricula] && 
-              ponderationData[matricula][nombreMateria] ? 
-              ponderationData[matricula][nombreMateria].maxPosible || ponderadoNumerico : 
-              ponderadoNumerico;
-              
-            // Verificar ponderado
-            if (ponderadoNumerico < 50 && maxPosiblePonderado < 50) {
-              statusClass = "bg-red-100 border-red-500 text-red-700";
-              statusText = "Recursar";
-            } 
-            else if (ponderadoNumerico < 70 && maxPosiblePonderado < 70) {
-              statusClass = "bg-yellow-100 border-yellow-500 text-yellow-700";
-              statusText = "Peligro";
-            } 
-            else if ((porcentajeFaltas >= 80 || porcentajeNE >= 80) || (ponderadoNumerico < 70 && maxPosiblePonderado > 70)) {
-              statusClass = "bg-yellow-100 border-yellow-500 text-yellow-700";
-              statusText = "Peligro";
-            }
-          }
-          
-          // Solo agregar si coincide con el filtro de status
-          if (statusFilter === "todos" || statusText.toLowerCase() === statusFilter.toLowerCase()) {
+
+        if (includeByFilter && (status.statusText === 'NP' || status.statusText === 'Recursar' || status.statusText === 'Extraordinario' || status.statusText === 'Peligro')) {
+          const statusClass =
+            status.statusText === 'NP'
+              ? 'bg-purple-100 border-purple-500 text-purple-700'
+              : status.statusText === 'Recursar'
+              ? 'bg-red-100 border-red-500 text-red-700'
+              : status.statusText === 'Extraordinario'
+              ? 'bg-orange-100 border-orange-500 text-orange-700'
+              : 'bg-yellow-100 border-yellow-500 text-yellow-700';
+
+          if (statusFilter === 'todos' || status.statusText.toLowerCase() === statusFilter.toLowerCase()) {
             materiasEnRiesgo.push({
               nombreMateria,
               ponderado,
               ponderadoNumerico,
-              tieneNP,
+              tieneNP: status.statusText === 'NP',
               faltasAlumno,
               limiteFaltas,
               porcentajeFaltas,
@@ -134,7 +102,9 @@ export default function RiesgoPage() {
               limiteNE,
               porcentajeNE,
               statusClass,
-              statusText
+              statusText: status.statusText,
+              maxPrediction: status.maxPrediction,
+              reason: status.reason,
             });
           }
         }
@@ -186,6 +156,7 @@ export default function RiesgoPage() {
     let peligroCount = 0;
     let recursarCount = 0;
     let npCount = 0;
+    let extraordinarioCount = 0;
 
     Object.keys(filteredData).forEach(matricula => {
       const studentRows = filteredData[matricula] || [];
@@ -194,26 +165,14 @@ export default function RiesgoPage() {
       let hasNP = false;
 
       studentRows.forEach(row => {
-        const ponderado = row["Ponderado"];
-        const ponderadoNumerico = parseFloat(ponderado) || 0;
-        const faltasAlumno = parseFloat(row["Faltas del alumno"]) || 0;
-        const limiteFaltas = parseFloat(row["Límite de faltas"]) || 1;
-        const porcentajeFaltas = (faltasAlumno / limiteFaltas) * 100;
-        
-        const neAlumno = parseFloat(row["NE alumno"]) || 0;
-        const limiteNE = parseFloat(row["Límite de NE"]) || 1;
-        const porcentajeNE = (neAlumno / limiteNE) * 100;
+        const nombreMateria = row['Nombre de la materia'];
+        const ponderacionesMateria = ponderationData?.[nombreMateria] || {};
+        const status = computeSubjectStatus(row, ponderacionesMateria);
 
-        // Verificar NP primero (prioridad más alta)
-        if (ponderado === "NP") {
-          hasNP = true;
-        }
-        // Luego verificar otras condiciones
-        else if (porcentajeFaltas > 100 || porcentajeNE > 100 || ponderadoNumerico < 50) {
-          hasRecursar = true;
-        } else if (porcentajeFaltas >= 80 || porcentajeNE >= 80 || ponderadoNumerico < 70) {
-          hasPeligro = true;
-        }
+        if (status.statusText === 'NP') hasNP = true;
+        else if (status.statusText === 'Recursar') hasRecursar = true;
+        else if (status.statusText === 'Extraordinario') extraordinarioCount++;
+        else if (status.statusText === 'Peligro') hasPeligro = true;
       });
 
       // Contar según prioridad: NP > Recursar > Peligro
@@ -222,8 +181,8 @@ export default function RiesgoPage() {
       else if (hasPeligro) peligroCount++;
     });
 
-    return { peligroCount, recursarCount, npCount };
-  }, [filteredData]);
+    return { peligroCount, recursarCount, npCount, extraordinarioCount };
+  }, [filteredData, ponderationData]);
 
   // Para manejar el estado del sidebar
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
@@ -231,7 +190,7 @@ export default function RiesgoPage() {
     setSidebarCollapsed(isCollapsed);
   };
 
-  const { peligroCount, recursarCount, npCount } = getStatusCounts();
+  const { peligroCount, recursarCount, npCount, extraordinarioCount } = getStatusCounts();
 
   return (
     <div className="min-h-screen flex bg-gray-50 dark:bg-gray-800">
@@ -310,6 +269,18 @@ export default function RiesgoPage() {
             </button>
             <button 
               className={`px-4 py-2 rounded-md transition-colors relative ${
+                statusFilter === 'extraordinario' ? 'bg-orange-500 text-white' : 
+                'bg-orange-100 text-orange-800 hover:bg-orange-200'
+              }`}
+              onClick={() => setStatusFilter('extraordinario')}
+            >
+              Extraordinario
+              <span className="ml-2 inline-flex items-center justify-center bg-orange-200 text-orange-800 text-xs font-bold rounded-full h-5 w-5">
+                {extraordinarioCount}
+              </span>
+            </button>
+            <button 
+              className={`px-4 py-2 rounded-md transition-colors relative ${
                 statusFilter === 'peligro' ? 'bg-yellow-500 text-white' : 
                 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
               }`}
@@ -362,6 +333,7 @@ export default function RiesgoPage() {
                         <th className="py-2 px-4 border-b dark:border-gray-600 text-left text-gray-800 dark:text-gray-200">Materia</th>
                         <th className="py-2 px-4 border-b dark:border-gray-600 text-center text-gray-800 dark:text-gray-200">Status</th>
                         <th className="py-2 px-4 border-b dark:border-gray-600 text-center text-gray-800 dark:text-gray-200">Ponderado</th>
+                        <th className="py-2 px-4 border-b dark:border-gray-600 text-center text-gray-800 dark:text-gray-200">Pred. Máx</th>
                         <th className="py-2 px-4 border-b dark:border-gray-600 text-center text-gray-800 dark:text-gray-200">Faltas</th>
                         <th className="py-2 px-4 border-b dark:border-gray-600 text-center text-gray-800 dark:text-gray-200">NE</th>
                       </tr>
@@ -383,10 +355,11 @@ export default function RiesgoPage() {
                           </td>
                           <td className="py-2 px-4 border-b dark:border-gray-600 text-center text-gray-800 dark:text-gray-200">
                             {materia.tieneNP ? "NP" : materia.ponderadoNumerico}
-                            {!materia.tieneNP && ponderationData?.[student.matricula]?.[materia.nombreMateria]?.maxPosible && (
-                              <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
-                                (Máx: {ponderationData[student.matricula][materia.nombreMateria].maxPosible})
-                              </span>
+                          </td>
+                          <td className="py-2 px-4 border-b dark:border-gray-600 text-center text-gray-800 dark:text-gray-200">
+                            {materia.maxPrediction !== undefined ? Math.round(materia.maxPrediction) : '-'}
+                            {materia.reason && (
+                              <div className="text-[10px] text-gray-500 mt-1">{materia.reason}</div>
                             )}
                           </td>
                           <td className="py-2 px-4 border-b dark:border-gray-600 text-center text-gray-800 dark:text-gray-200">
