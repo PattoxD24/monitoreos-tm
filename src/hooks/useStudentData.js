@@ -174,7 +174,7 @@ export default function useStudentData(defaultVisibleColumns) {
         readExcel(fileToProcess2)
       ]);
 
-      const { data: data1, tutorMap, scheduleRows: horarioRows, nomenclatureMap: nomenMap } = baseWorkbookInfo;
+      const { data: data1, tutorMap, scheduleRows: horarioRows, nomenclatureMap: nomenMap, ponderationMap } = baseWorkbookInfo;
 
       // Validar formatos de archivos
       if (!data1[0]?.MATRICULA || !data1[0]?.ALUMNOS) {
@@ -230,19 +230,8 @@ export default function useStudentData(defaultVisibleColumns) {
       console.log(studentData)
       const filteredStudentData = studentData.filter(s => groupedData[s.matricula]?.length > 0);
 
-      // Procesar ponderaciones de materias desde archivo 1
-      const ponderationInfo = {};
-      data1.forEach((row) => {
-        const materia = row["Nombre Materia"];
-        if (!materia) return;
-        const activities = Object.keys(row)
-          .filter((col) => /^A\d+$/.test(col))
-          .reduce((acc, col) => {
-            acc[col] = row[col] || 0;
-            return acc;
-          }, {});
-        ponderationInfo[materia] = activities;
-      });
+      // Usar las ponderaciones obtenidas desde la hoja "Ponderaciones"
+      const ponderationInfo = ponderationMap || {};
 
       // Identificar columnas visibles
       const uniqueColumns = Object.keys(filtered[0] || {}).filter((col) => !/^A\d+$/.test(col));
@@ -284,6 +273,7 @@ export default function useStudentData(defaultVisibleColumns) {
   // - Tutor: mapa clave tutor -> nombre tutor (detectado por columnas)
   // - Horario: filas de la hoja "Horario"
   // - Nomenclatura: mapa codigo nomenclatura -> Nombre de actividad
+  // - Ponderaciones: mapa materia -> { A1..A50: ponderación }
   const readBaseExcel = async (file) => {
     const data = await file.arrayBuffer();
     const workbook = XLSX.read(data, { type: "array" });
@@ -292,6 +282,7 @@ export default function useStudentData(defaultVisibleColumns) {
     let tutorMap = {};
     let scheduleRows = [];
     let nomenclatureMap = {};
+    let ponderationMap = {};
     if (workbook.SheetNames.length > 1) {
       // Buscar hoja tutor y hoja Horario por nombre
       workbook.SheetNames.forEach(sheetName => {
@@ -335,9 +326,28 @@ export default function useStudentData(defaultVisibleColumns) {
           scheduleRows = XLSX.utils.sheet_to_json(sheet);
           console.log("Leyendo hoja Horario", scheduleRows);
         }
+        if (lower === 'ponderaciones') {
+          const rows = XLSX.utils.sheet_to_json(sheet);
+          // Se espera una columna con el nombre de la materia y columnas A1..A50
+          // Intentar detectar el header de materia
+          const headers = Object.keys(rows[0] || {});
+          const materiaKey = headers.find(h => h.toLowerCase().includes('materia')) || 'Nombre Materia';
+          rows.forEach(r => {
+            const materia = r[materiaKey];
+            if (!materia) return;
+            const activities = {};
+            for (let i = 1; i <= 50; i++) {
+              const key = `A${i}`;
+              if (Object.prototype.hasOwnProperty.call(r, key)) {
+                activities[key] = r[key];
+              }
+            }
+            ponderationMap[materia] = activities;
+          });
+        }
       });
     }
-    return { data: data1, tutorMap, scheduleRows, nomenclatureMap };
+    return { data: data1, tutorMap, scheduleRows, nomenclatureMap, ponderationMap };
   };
 
   return {
