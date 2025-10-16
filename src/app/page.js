@@ -17,6 +17,7 @@ import dynamic from "next/dynamic";
 import SidebarNav from "@/components/SidebarNav";
 import Link from "next/link";
 import { computeSubjectStatus } from "@/Utils/predictions";
+import { MdTrendingDown, MdWarningAmber, MdCancel } from "react-icons/md";
 
 const FileUploader = dynamic(() => import("@/components/FileUploader"),{ ssr: false });
 
@@ -325,35 +326,41 @@ export default function Home() {
 
   // Calculate the status counters for students (using prediction logic)
   const calculateStatusCounters = () => {
-    let peligroCount = 0;
+    let bajoPromedioCount = 0;
+    let peligroCount = 0; // peligro de recursar
     let recursarCount = 0;
 
     Object.entries(filteredData).forEach(([studentId, subjects]) => {
       let hasRecursar = false;
-      let hasPeligro = false;
+      let hasPeligro = false; // peligro de recursar
+      let hasBajoPromedio = false;
+      let hasFaltas = false;
+      let hasNE = false;
 
       subjects.forEach(subject => {
         const nombreMateria = subject['Nombre de la materia'];
         const ponderacionesMateria = ponderationData?.[nombreMateria] || {};
         const status = computeSubjectStatus(subject, ponderacionesMateria);
 
-        if (status.statusText === 'Recursar') {
-          hasRecursar = true;
-        } else if (status.statusText === 'Peligro') {
-          hasPeligro = true;
-        }
-        // Nota: NP y Extraordinario no cuentan en estos indicadores globales
+        if (status.statusText === 'Recursar') hasRecursar = true;
+        else if (status.statusText === 'Peligro') hasPeligro = true;
+        else if (status.statusText === 'Faltas') hasFaltas = true;
+        else if (status.statusText === 'NE') hasNE = true;
+        else if (status.statusText === 'Bajo promedio') hasBajoPromedio = true;
       });
 
       if (hasRecursar) recursarCount++;
       else if (hasPeligro) peligroCount++;
+      else if (hasFaltas) {/* reserved, not shown */}
+      else if (hasNE) {/* reserved, not shown */}
+      else if (hasBajoPromedio) bajoPromedioCount++;
     });
 
-    return { peligroCount, recursarCount };
+    return { bajoPromedioCount, peligroCount, recursarCount };
   };
 
   // Calculate status counters whenever filteredData changes
-  const { peligroCount, recursarCount } = calculateStatusCounters();
+  const { bajoPromedioCount, peligroCount, recursarCount } = calculateStatusCounters();
 
   return (
     <div className="flex">
@@ -364,32 +371,29 @@ export default function Home() {
         </div>
       )}
 
-      {/* Status counters */}
+      {/* Status counters: Bajo promedio, Peligro, Recursar */}
       {Object.keys(filteredData).length > 0 && (
-        <div className="fixed top-4 right-4 flex gap-4 z-40">
-          {peligroCount > 0 && (
-            <div className="relative inline-flex items-center">
-              <Link href="/riesgo" className="flex items-center justify-center w-12 h-12 bg-green-100 rounded-full">
-              <div className="flex items-center justify-center w-12 h-12 bg-yellow-100 rounded-full">
-                <span className="text-2xl font-bold text-yellow-800">P</span>
-              </div>
-              <div className="absolute -top-1 -right-1 flex items-center justify-center w-6 h-6 bg-yellow-500 rounded-full">
-                <span href="/riesgo" className="text-xs font-bold text-white">{peligroCount}</span>
-                </div>
-              </Link>
-            </div>
+        <div className="fixed top-4 right-4 flex gap-3 z-40">
+          {/* Bajo promedio */}
+          {bajoPromedioCount > 0 && (
+            <Link href="/riesgo" className="relative inline-flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full shadow-sm" title="Bajo promedio">
+              <MdTrendingDown className="text-blue-700" size={24} />
+              <span className="absolute -top-1 -right-1 flex items-center justify-center w-6 h-6 bg-blue-500 text-white text-xs font-bold rounded-full">{bajoPromedioCount}</span>
+            </Link>
           )}
+          {/* Peligro de recursar */}
+          {peligroCount > 0 && (
+            <Link href="/riesgo" className="relative inline-flex items-center justify-center w-12 h-12 bg-yellow-100 rounded-full shadow-sm" title="Peligro de recursar">
+              <MdWarningAmber className="text-yellow-700" size={24} />
+              <span className="absolute -top-1 -right-1 flex items-center justify-center w-6 h-6 bg-yellow-500 text-white text-xs font-bold rounded-full">{peligroCount}</span>
+            </Link>
+          )}
+          {/* Recursar */}
           {recursarCount > 0 && (
-            <div className="relative inline-flex items-center">
-              <Link href="/riesgo" className="flex items-center justify-center w-12 h-12 bg-red-100 rounded-full">
-                <div className="flex items-center justify-center w-12 h-12 bg-red-100 rounded-full">
-                  <span className="text-2xl font-bold text-red-800">R</span>
-                </div>
-                <div className="absolute -top-1 -right-1 flex items-center justify-center w-6 h-6 bg-red-500 rounded-full">
-                  <span href="/riesgo" className="text-xs font-bold text-white">{recursarCount}</span>
-                </div>
-              </Link>
-            </div>
+            <Link href="/riesgo" className="relative inline-flex items-center justify-center w-12 h-12 bg-red-100 rounded-full shadow-sm" title="Recursar">
+              <MdCancel className="text-red-700" size={24} />
+              <span className="absolute -top-1 -right-1 flex items-center justify-center w-6 h-6 bg-red-600 text-white text-xs font-bold rounded-full">{recursarCount}</span>
+            </Link>
           )}
         </div>
       )}

@@ -96,6 +96,20 @@ export function computeSubjectStatus(row, ponderations) {
   if (maxPrediction < 70) {
     return { statusText: 'Recursar', reason: 'Predicción máxima < 70', maxPrediction };
   }
+  
+  // New Peligro de recursar: ponderado actual < 60 y predicción máxima < 80
+  if (ponderadoNumerico < 60 && maxPrediction < 80) {
+    return { statusText: 'Peligro', reason: 'Ponderado < 60 y Pred. Máx < 80', maxPrediction };
+  }
+
+  // Separate statuses for high Faltas and NE (>= 80%)
+  if (porcentajeFaltas >= 80) {
+    return { statusText: 'Faltas', reason: 'Faltas ≥ 80%', maxPrediction };
+  }
+
+  if (porcentajeNE >= 80) {
+    return { statusText: 'NE', reason: 'NE ≥ 80%', maxPrediction };
+  }
 
   // Window for extraordinario: between 50 and 69.9, only if has derecho (no SD, no DA)
   if (maxPrediction >= 50 && maxPrediction < 70) {
@@ -105,9 +119,9 @@ export function computeSubjectStatus(row, ponderations) {
     return { statusText: 'Extraordinario', reason: 'Predicción máxima permite extraordinario', maxPrediction };
   }
 
-  // Otherwise, not recursar; mark peligro if indicators are high
-  if (porcentajeFaltas >= 80 || porcentajeNE >= 80 || ponderadoNumerico < 70) {
-    return { statusText: 'Peligro', reason: 'Indicadores altos (faltas/NE/ponderado)', maxPrediction };
+  // Bajo promedio (antes "Peligro" leve): indicadores altos pero no entra a reglas superiores
+  if (ponderadoNumerico < 70) {
+    return { statusText: 'Bajo promedio', reason: 'Ponderado < 70', maxPrediction };
   }
 
   return { statusText: 'OK', reason: 'Sin riesgo', maxPrediction };

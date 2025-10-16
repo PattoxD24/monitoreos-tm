@@ -13,7 +13,7 @@ export default function RiesgoPage() {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [riesgoStudents, setRiesgoStudents] = useState([]);
   const [filterType, setFilterType] = useState("todos"); // todos, faltas, ne, ponderado
-  const [statusFilter, setStatusFilter] = useState("todos"); // todos, recursar, extraordinario, peligro
+  const [statusFilter, setStatusFilter] = useState("todos"); // todos, recursar, extraordinario, peligro, bajo promedio, faltas, ne
 
   const defaultVisibleColumns = {
     Matrícula: true,
@@ -79,7 +79,7 @@ export default function RiesgoPage() {
             includeByFilter = true;
         }
 
-        if (includeByFilter && (status.statusText === 'NP' || status.statusText === 'Recursar' || status.statusText === 'Extraordinario' || status.statusText === 'Peligro')) {
+        if (includeByFilter && (status.statusText === 'NP' || status.statusText === 'Recursar' || status.statusText === 'Extraordinario' || status.statusText === 'Peligro' || status.statusText === 'Bajo promedio' || status.statusText === 'Faltas' || status.statusText === 'NE')) {
           const statusClass =
             status.statusText === 'NP'
               ? 'bg-purple-100 border-purple-500 text-purple-700'
@@ -87,7 +87,13 @@ export default function RiesgoPage() {
               ? 'bg-red-100 border-red-500 text-red-700'
               : status.statusText === 'Extraordinario'
               ? 'bg-orange-100 border-orange-500 text-orange-700'
-              : 'bg-yellow-100 border-yellow-500 text-yellow-700';
+              : status.statusText === 'Peligro'
+              ? 'bg-yellow-100 border-yellow-500 text-yellow-700'
+              : status.statusText === 'Faltas'
+              ? 'bg-pink-100 border-pink-500 text-pink-700'
+              : status.statusText === 'NE'
+              ? 'bg-indigo-100 border-indigo-500 text-indigo-700'
+              : 'bg-blue-100 border-blue-500 text-blue-700'; // Bajo promedio
 
           if (statusFilter === 'todos' || status.statusText.toLowerCase() === statusFilter.toLowerCase()) {
             materiasEnRiesgo.push({
@@ -157,12 +163,19 @@ export default function RiesgoPage() {
     let recursarCount = 0;
     let npCount = 0;
     let extraordinarioCount = 0;
+  let bajoPromedioCount = 0;
+  let faltasCount = 0;
+  let neCountLocal = 0;
 
     Object.keys(filteredData).forEach(matricula => {
       const studentRows = filteredData[matricula] || [];
-      let hasRecursar = false;
-      let hasPeligro = false;
-      let hasNP = false;
+  let hasRecursar = false;
+  let hasPeligro = false;
+  let hasNP = false;
+  let hasBajoPromedio = false;
+  let hasExtraordinario = false;
+  let hasFaltas = false;
+  let hasNE = false;
 
       studentRows.forEach(row => {
         const nombreMateria = row['Nombre de la materia'];
@@ -171,17 +184,24 @@ export default function RiesgoPage() {
 
         if (status.statusText === 'NP') hasNP = true;
         else if (status.statusText === 'Recursar') hasRecursar = true;
-        else if (status.statusText === 'Extraordinario') extraordinarioCount++;
         else if (status.statusText === 'Peligro') hasPeligro = true;
+        else if (status.statusText === 'Faltas') hasFaltas = true;
+        else if (status.statusText === 'NE') hasNE = true;
+        else if (status.statusText === 'Bajo promedio') hasBajoPromedio = true;
+        else if (status.statusText === 'Extraordinario') hasExtraordinario = true;
       });
 
-      // Contar según prioridad: NP > Recursar > Peligro
+      // Contar según prioridad por alumno: NP > Recursar > Peligro > Bajo promedio > Extraordinario
       if (hasNP) npCount++;
       else if (hasRecursar) recursarCount++;
       else if (hasPeligro) peligroCount++;
+      else if (hasFaltas) faltasCount++;
+      else if (hasNE) neCountLocal++;
+      else if (hasBajoPromedio) bajoPromedioCount++;
+      else if (hasExtraordinario) extraordinarioCount++;
     });
 
-    return { peligroCount, recursarCount, npCount, extraordinarioCount };
+    return { peligroCount, recursarCount, npCount, extraordinarioCount, bajoPromedioCount, faltasCount, neCountLocal };
   }, [filteredData, ponderationData]);
 
   // Para manejar el estado del sidebar
@@ -190,7 +210,7 @@ export default function RiesgoPage() {
     setSidebarCollapsed(isCollapsed);
   };
 
-  const { peligroCount, recursarCount, npCount, extraordinarioCount } = getStatusCounts();
+  const { peligroCount, recursarCount, npCount, extraordinarioCount, bajoPromedioCount, faltasCount, neCountLocal } = getStatusCounts();
 
   return (
     <div className="min-h-screen flex bg-gray-50 dark:bg-gray-800">
@@ -257,6 +277,54 @@ export default function RiesgoPage() {
             </button>
             <button 
               className={`px-4 py-2 rounded-md transition-colors relative ${
+                statusFilter === 'bajo promedio' ? 'bg-blue-500 text-white' : 
+                'bg-blue-100 text-blue-800 hover:bg-blue-200'
+              }`}
+              onClick={() => setStatusFilter('bajo promedio')}
+            >
+              Bajo promedio
+              <span className="ml-2 inline-flex items-center justify-center bg-blue-200 text-blue-800 text-xs font-bold rounded-full h-5 w-5">
+                {bajoPromedioCount}
+              </span>
+            </button>
+            <button 
+              className={`px-4 py-2 rounded-md transition-colors relative ${
+                statusFilter === 'peligro' ? 'bg-yellow-500 text-white' : 
+                'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+              }`}
+              onClick={() => setStatusFilter('peligro')}
+            >
+              Peligro
+              <span className="ml-2 inline-flex items-center justify-center bg-yellow-200 text-yellow-800 text-xs font-bold rounded-full h-5 w-5">
+                {peligroCount}
+              </span>
+            </button>
+            <button 
+              className={`px-4 py-2 rounded-md transition-colors relative ${
+                statusFilter === 'faltas' ? 'bg-pink-500 text-white' : 
+                'bg-pink-100 text-pink-800 hover:bg-pink-200'
+              }`}
+              onClick={() => setStatusFilter('faltas')}
+            >
+              Faltas
+              <span className="ml-2 inline-flex items-center justify-center bg-pink-200 text-pink-800 text-xs font-bold rounded-full h-5 w-5">
+                {faltasCount}
+              </span>
+            </button>
+            <button 
+              className={`px-4 py-2 rounded-md transition-colors relative ${
+                statusFilter === 'ne' ? 'bg-indigo-500 text-white' : 
+                'bg-indigo-100 text-indigo-800 hover:bg-indigo-200'
+              }`}
+              onClick={() => setStatusFilter('ne')}
+            >
+              NE
+              <span className="ml-2 inline-flex items-center justify-center bg-indigo-200 text-indigo-800 text-xs font-bold rounded-full h-5 w-5">
+                {neCountLocal}
+              </span>
+            </button>
+            <button 
+              className={`px-4 py-2 rounded-md transition-colors relative ${
                 statusFilter === 'np' ? 'bg-purple-500 text-white' : 
                 'bg-purple-100 text-purple-800 hover:bg-purple-200'
               }`}
@@ -277,18 +345,6 @@ export default function RiesgoPage() {
               Extraordinario
               <span className="ml-2 inline-flex items-center justify-center bg-orange-200 text-orange-800 text-xs font-bold rounded-full h-5 w-5">
                 {extraordinarioCount}
-              </span>
-            </button>
-            <button 
-              className={`px-4 py-2 rounded-md transition-colors relative ${
-                statusFilter === 'peligro' ? 'bg-yellow-500 text-white' : 
-                'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
-              }`}
-              onClick={() => setStatusFilter('peligro')}
-            >
-              Peligro
-              <span className="ml-2 inline-flex items-center justify-center bg-yellow-200 text-yellow-800 text-xs font-bold rounded-full h-5 w-5">
-                {peligroCount}
               </span>
             </button>
             <button 
@@ -348,7 +404,10 @@ export default function RiesgoPage() {
                               materia.statusText === "NP" ? "bg-purple-100 border-purple-500 text-purple-700" :
                               materia.statusText === "Recursar" ? "bg-red-100 border-red-500 text-red-700" : 
                               materia.statusText === "Extraordinario" ? "bg-orange-100 border-orange-500 text-orange-700" : 
-                              "bg-yellow-100 border-yellow-500 text-yellow-700"
+                              materia.statusText === "Peligro" ? "bg-yellow-100 border-yellow-500 text-yellow-700" :
+                              materia.statusText === "Faltas" ? "bg-pink-100 border-pink-500 text-pink-700" :
+                              materia.statusText === "NE" ? "bg-indigo-100 border-indigo-500 text-indigo-700" :
+                              "bg-blue-100 border-blue-500 text-blue-700"  
                             }`}>
                               {materia.statusText}
                             </span>
