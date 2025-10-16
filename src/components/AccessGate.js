@@ -71,14 +71,6 @@ export default function AccessGate({ children }) {
 
   return (
     <>
-      <div className="fixed top-2 right-2 z-50">
-        <button
-          onClick={handleLogout}
-          className="text-xs px-2 py-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded shadow text-gray-700 dark:text-gray-200"
-        >
-          Salir
-        </button>
-      </div>
       {children}
     </>
   );

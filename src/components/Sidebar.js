@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import ColumnSelector from "./ColumnSelector";
 import ThemeToggle from "./ThemeToggle";
-import { FaAngleLeft, FaAngleRight, FaUpload, FaTrash } from "react-icons/fa";
+import { FaAngleLeft, FaAngleRight, FaUpload, FaTrash, FaSignOutAlt } from "react-icons/fa";
 import Link from "next/link";
 
 export default function Sidebar({
@@ -48,6 +48,14 @@ export default function Sidebar({
   const handleToggle = () => setIsCollapsed(!isCollapsed);
 
   const toggleShowWhatsappInput = (val) => setShowWhatsappInput(!showWhatsappInput);
+
+  const handleLogout = () => {
+    try {
+      localStorage.removeItem("monitoreos_access_granted");
+    } catch (e) {}
+    // Recargar para volver a la puerta de acceso
+    if (typeof window !== 'undefined') window.location.reload();
+  };
 
   return (
     <div className={`fixed left-0 top-0 h-screen p-4 bg-gray-800 dark:bg-gray-900 text-white transition-all duration-300 z-10 flex flex-col justify-between ${
@@ -185,8 +193,16 @@ export default function Sidebar({
             </button>
           </div>
           
-          <div className="mt-4 flex justify-center">
+          <div className="mt-4 flex items-center justify-center gap-3">
             <ThemeToggle />
+            <button
+              onClick={handleLogout}
+              className="p-2 rounded-full bg-gray-700 hover:bg-gray-600 text-white"
+              aria-label="Salir"
+              title="Salir"
+            >
+              <FaSignOutAlt className="h-5 w-5" />
+            </button>
           </div>
         </div>
       )}
