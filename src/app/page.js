@@ -389,9 +389,9 @@ export default function Home() {
             </Link>
           )}
           {/* Recursar */}
-          {recursarCount > 0 && (
+          {recursarCount >= 0 && (
             <Link href="/riesgo" className="relative inline-flex items-center justify-center w-12 h-12 bg-red-100 rounded-full shadow-sm" title="Recursar">
-              <MdCancel className="text-red-700" size={24} />
+              <MdCancel className="text-red-400" size={24} />
               <span className="absolute -top-1 -right-1 flex items-center justify-center w-6 h-6 bg-red-600 text-white text-xs font-bold rounded-full">{recursarCount}</span>
             </Link>
           )}
