@@ -16,6 +16,7 @@ export default function useStudentData(defaultVisibleColumns) {
   const [hasLoadedData, setHasLoadedData] = useState(false);
   const [notification, setNotification] = useState({ show: false, message: '' });
   const [scheduleRows, setScheduleRows] = useState([]); // Filas de la hoja "Horario" del archivo base
+  const [nomenclatureMap, setNomenclatureMap] = useState({}); // Mapa: clave de nomenclatura -> Nombre de actividad
 
   // Cargar datos del localStorage al iniciar - primera prioridad
   useEffect(() => {
@@ -40,6 +41,7 @@ export default function useStudentData(defaultVisibleColumns) {
           setVisibleColumns(parsedData.visibleColumns || {});
           setPonderationData(parsedData.ponderationData || {});
           setScheduleRows(parsedData.scheduleRows || []);
+          setNomenclatureMap(parsedData.nomenclatureMap || {});
           setHasLoadedData(true);
           isDataLoaded = true;
           console.log("Datos cargados desde localStorage");
@@ -73,7 +75,8 @@ export default function useStudentData(defaultVisibleColumns) {
         columns,
         visibleColumns,
         ponderationData,
-        scheduleRows
+        scheduleRows,
+        nomenclatureMap
       };
       
       try {
@@ -83,7 +86,7 @@ export default function useStudentData(defaultVisibleColumns) {
         // Opcional: Mostrar una notificación al usuario
       }
     }
-  }, [studentData, archivedStudents, filteredData, columns, visibleColumns, ponderationData, scheduleRows]);
+  }, [studentData, archivedStudents, filteredData, columns, visibleColumns, ponderationData, scheduleRows, nomenclatureMap]);
 
   const clearAllData = () => {
     localStorage.removeItem('studentAppData');
@@ -94,6 +97,7 @@ export default function useStudentData(defaultVisibleColumns) {
     setVisibleColumns({});
   setPonderationData({});
   setScheduleRows([]);
+  setNomenclatureMap({});
     setFile1(null);
     setFile2(null);
     setHasLoadedData(false);
@@ -170,7 +174,7 @@ export default function useStudentData(defaultVisibleColumns) {
         readExcel(fileToProcess2)
       ]);
 
-      const { data: data1, tutorMap, scheduleRows: horarioRows } = baseWorkbookInfo;
+      const { data: data1, tutorMap, scheduleRows: horarioRows, nomenclatureMap: nomenMap } = baseWorkbookInfo;
 
       // Validar formatos de archivos
       if (!data1[0]?.MATRICULA || !data1[0]?.ALUMNOS) {
@@ -250,9 +254,10 @@ export default function useStudentData(defaultVisibleColumns) {
       setStudentData(filteredStudentData);
       setColumns(uniqueColumns);
       setVisibleColumns(initialVisibleColumns);
-      setFilteredData(groupedData);
+    setFilteredData(groupedData);
   setPonderationData(ponderationInfo);
   setScheduleRows(horarioRows || []);
+  setNomenclatureMap(nomenMap || {});
       if (studentData.length == 0) {
         setHasLoadedData(false);
       } else {
@@ -275,7 +280,10 @@ export default function useStudentData(defaultVisibleColumns) {
     return XLSX.utils.sheet_to_json(sheet);
   };
 
-  // Lee el archivo base y extrae la segunda hoja para mapear clave tutor -> tutor
+  // Lee el archivo base y extrae hojas auxiliares:
+  // - Tutor: mapa clave tutor -> nombre tutor (detectado por columnas)
+  // - Horario: filas de la hoja "Horario"
+  // - Nomenclatura: mapa codigo nomenclatura -> Nombre de actividad
   const readBaseExcel = async (file) => {
     const data = await file.arrayBuffer();
     const workbook = XLSX.read(data, { type: "array" });
@@ -283,20 +291,45 @@ export default function useStudentData(defaultVisibleColumns) {
     const data1 = XLSX.utils.sheet_to_json(firstSheet);
     let tutorMap = {};
     let scheduleRows = [];
+    let nomenclatureMap = {};
     if (workbook.SheetNames.length > 1) {
       // Buscar hoja tutor y hoja Horario por nombre
       workbook.SheetNames.forEach(sheetName => {
         const lower = sheetName.toLowerCase();
         const sheet = workbook.Sheets[sheetName];
         if (!sheet) return;
-        if (lower === 'nomenclatura' && Object.keys(tutorMap).length === 0) {
-          const tutorRows = XLSX.utils.sheet_to_json(sheet);
-          console.log("Leyendo hoja Tutor", tutorRows);
-          tutorRows.forEach(r => {
-            const clave = r['clave tutor'] || r['CLAVE TUTOR'] || r['Clave tutor'] || r['Clave Tutor'];
-            const tutor = r['tutor'] || r['TUTOR'] || r['Tutor'];
-            if (clave) tutorMap[clave] = tutor;
-          });
+        // Detectar y construir tutorMap según columnas presentes
+        const rows = XLSX.utils.sheet_to_json(sheet);
+        if (rows && rows.length) {
+          const headers = Object.keys(rows[0] || {}).reduce((acc, key) => ({ ...acc, [key.toLowerCase()]: key }), {});
+          const hasTutorCols = (
+            headers['clave tutor'] || headers['clave_tutor'] || headers['clave']
+          ) && (
+            headers['tutor'] || headers['nombre tutor']
+          );
+
+          const hasNomenclatureCols = headers['nomenclatura'] && headers['nombre'];
+
+          if (hasTutorCols) {
+            // Construir mapa de tutores
+            rows.forEach(r => {
+              const clave = r[headers['clave tutor']] || r[headers['clave_tutor']] || r[headers['clave']];
+              const tutor = r[headers['tutor']] || r[headers['nombre tutor']];
+              if (clave && tutor && !tutorMap[clave]) tutorMap[clave] = tutor;
+            });
+          }
+
+          if (hasNomenclatureCols) {
+            // Construir mapa de nomenclatura -> Nombre
+            rows.forEach(r => {
+              const codeRaw = r[headers['nomenclatura']];
+              const name = r[headers['nombre']];
+              if (typeof codeRaw === 'string' && name) {
+                const code = codeRaw.trim().toLowerCase();
+                if (code) nomenclatureMap[code] = name;
+              }
+            });
+          }
         }
         if (lower === 'horario') {
           scheduleRows = XLSX.utils.sheet_to_json(sheet);
@@ -304,7 +337,7 @@ export default function useStudentData(defaultVisibleColumns) {
         }
       });
     }
-    return { data: data1, tutorMap, scheduleRows };
+    return { data: data1, tutorMap, scheduleRows, nomenclatureMap };
   };
 
   return {
@@ -319,6 +352,7 @@ export default function useStudentData(defaultVisibleColumns) {
     isLoading,
     ponderationData,
     scheduleRows,
+    nomenclatureMap,
     setFile1,
     setFile2,
     setSelectedStudent,

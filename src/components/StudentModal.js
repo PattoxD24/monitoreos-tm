@@ -15,7 +15,8 @@ export default function StudentModal({
   getFilledAColumns,
   scripts,
   whatsapp,
-  ponderationData
+  ponderationData,
+  nomenclatureMap
 }) {
   const [activeTab, setActiveTab] = useState("info");
   const [copiedScript, setCopiedScript] = useState(null);
@@ -145,35 +146,21 @@ export default function StudentModal({
     return { results, lastActivity };
   }
 
-  // Función para extraer el tipo de actividad desde la ponderación
+  // Obtener tipo de actividad desde Nomenclatura del archivo base
+  // Regla: en la ponderación viene un número y puede venir un sufijo (ej: "10ap").
+  // Ahora, en lugar de mapear el sufijo, buscamos ese sufijo en nomenclatureMap
+  // donde la columna "nomenclatura" es la clave y "Nombre" es el valor.
   const extractActivityType = (ponderation) => {
-    // Si es un string y contiene una letra al final después de un número
-    if (typeof ponderation === 'string' && ponderation.match(/\d+[a-zA-Z]+$/)) {
-      const suffix = ponderation.match(/([a-zA-Z]+)$/)[1].toLowerCase();
-      
-      switch(suffix) {
-        case 'a': return 'Actividad';
-        case 'ap': return 'Actividad Previa';
-        case 'cl': return 'Comprobación de lectura';
-        case 'e': return 'Evidencia';
-        case 'j': return 'Ejercicio';
-        case 'evf': return 'Evidencia final';
-        case 'er': return 'Examen rápido';
-        case 'ep': return 'Examen parcial';
-        case 'ef': return 'Examen final';
-        case 'g': return 'Gamificaión';
-        case 'ae': return 'Avance de evidencia';
-        case 'cta': return 'Certificación de tercer año';
-        case 'r': return 'Reto';
-        case 'pv': return 'Propósito de vida';
-        case 'cp': return 'Celebrando propósito';
-        case 'rf': return 'Reto final';
-        case 'v': return 'VIVE';
-        case 'q': return 'Quiz';
-        default: return null;
-      }
+    if (!ponderation) return null;
+    const str = String(ponderation).trim();
+    // Buscar letras al final como código de nomenclatura
+    const match = str.match(/([a-zA-Z]+)$/);
+    if (!match) return null;
+    const code = match[1].toLowerCase();
+    if (nomenclatureMap && typeof nomenclatureMap === 'object') {
+      return nomenclatureMap[code] || null;
     }
-    return null; // Si no hay sufijo reconocible
+    return null;
   }
 
   // Función para obtener el nombre descriptivo de la actividad

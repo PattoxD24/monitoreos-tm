@@ -62,6 +62,7 @@ export default function Home() {
     columns,
     visibleColumns,
     ponderationData,
+    nomenclatureMap,
     selectedStudent,
     setSelectedStudent,
     setArchivedStudents,
@@ -513,6 +514,7 @@ export default function Home() {
               scripts={scripts}
               whatsapp={whatsapp}
               ponderationData={ponderationData}
+              nomenclatureMap={nomenclatureMap}
             />
           )}
         </div>
