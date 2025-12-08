@@ -13,6 +13,8 @@ export default function SortAndFilterControls({
   uniqueGroups = [],
   uniqueSubjects = [],
   uniqueTutors = [],
+  uniqueScholarships = [],
+  uniqueTeams = [],
   selectedTeacher,
   setSelectedTeacher,
   selectedGroup,
@@ -21,6 +23,10 @@ export default function SortAndFilterControls({
   setSelectedSubject,
   selectedTutor,
   setSelectedTutor,
+  selectedScholarship,
+  setSelectedScholarship,
+  selectedTeam,
+  setSelectedTeam,
 }) {
   const [teacherSearch, setTeacherSearch] = useState("");
   const [groupSearch, setGroupSearch] = useState("");
@@ -30,6 +36,10 @@ export default function SortAndFilterControls({
   const [showSubjectOptions, setShowSubjectOptions] = useState(false);
   const [tutorSearch, setTutorSearch] = useState("");
   const [showTutorOptions, setShowTutorOptions] = useState(false);
+  const [scholarshipSearch, setScholarshipSearch] = useState("");
+  const [teamSearch, setTeamSearch] = useState("");
+  const [showScholarshipOptions, setShowScholarshipOptions] = useState(false);
+  const [showTeamOptions, setShowTeamOptions] = useState(false);
 
   const filteredTeachers = Array.isArray(uniqueTeachers) 
     ? uniqueTeachers.filter(teacher =>
@@ -55,12 +65,26 @@ export default function SortAndFilterControls({
       )
     : [];
 
+  const filteredScholarships = Array.isArray(uniqueScholarships)
+    ? uniqueScholarships.filter((scholarship) =>
+        scholarship?.toString().toLowerCase().includes(scholarshipSearch.toLowerCase())
+      )
+    : [];
+
+  const filteredTeams = Array.isArray(uniqueTeams)
+    ? uniqueTeams.filter((team) =>
+        team?.toString().toLowerCase().includes(teamSearch.toLowerCase())
+      )
+    : [];
+
   const handleClickOutside = () => {
     setTimeout(() => {
       setShowTeacherOptions(false);
       setShowGroupOptions(false);
       setShowSubjectOptions(false);
       setShowTutorOptions(false);
+      setShowScholarshipOptions(false);
+      setShowTeamOptions(false);
     }, 200);
   };
 
@@ -153,6 +177,49 @@ export default function SortAndFilterControls({
           </div>
         )}
       </div>
+
+      {/* Filtro de Beca */}
+      <div className="relative">
+        <input
+          type="text"
+          value={scholarshipSearch}
+          onChange={(e) => {
+            setScholarshipSearch(e.target.value);
+            setShowScholarshipOptions(true);
+          }}
+          onFocus={() => setShowScholarshipOptions(true)}
+          onBlur={handleClickOutside}
+          placeholder="Buscar beca..."
+          className="border rounded-lg p-2 text-gray-700"
+        />
+        {showScholarshipOptions && filteredScholarships.length > 0 && (
+          <div className="absolute z-30 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-60 overflow-auto text-gray-700">
+            <div
+              className="p-2 hover:bg-gray-100 cursor-pointer text-gray-500"
+              onClick={() => {
+                setSelectedScholarship("");
+                setScholarshipSearch("");
+                setShowScholarshipOptions(false);
+              }}
+            >
+              Mostrar todos
+            </div>
+            {filteredScholarships.map((scholarship, index) => (
+              <div
+                key={index}
+                className="p-2 hover:bg-gray-100 cursor-pointer"
+                onClick={() => {
+                  setSelectedScholarship(scholarship);
+                  setScholarshipSearch(scholarship);
+                  setShowScholarshipOptions(false);
+                }}
+              >
+                {scholarship}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
       
       
       {/* Filtro de Profesor */}
@@ -235,6 +302,49 @@ export default function SortAndFilterControls({
                 }}
               >
                 {group}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Filtro Equipo Representativo */}
+      <div className="relative">
+        <input
+          type="text"
+          value={teamSearch}
+          onChange={(e) => {
+            setTeamSearch(e.target.value);
+            setShowTeamOptions(true);
+          }}
+          onFocus={() => setShowTeamOptions(true)}
+          onBlur={handleClickOutside}
+          placeholder="Buscar equipo..."
+          className="border rounded-lg p-2 text-gray-700"
+        />
+        {showTeamOptions && filteredTeams.length > 0 && (
+          <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-60 overflow-auto text-gray-700">
+            <div
+              className="p-2 hover:bg-gray-100 cursor-pointer text-gray-500"
+              onClick={() => {
+                setSelectedTeam("");
+                setTeamSearch("");
+                setShowTeamOptions(false);
+              }}
+            >
+              Mostrar todos
+            </div>
+            {filteredTeams.map((team, index) => (
+              <div
+                key={index}
+                className="p-2 hover:bg-gray-100 cursor-pointer"
+                onClick={() => {
+                  setSelectedTeam(team);
+                  setTeamSearch(team);
+                  setShowTeamOptions(false);
+                }}
+              >
+                {team}
               </div>
             ))}
           </div>

@@ -39,10 +39,14 @@ export default function Home() {
   const [uniqueTutors, setUniqueTutors] = useState([]);
   const [uniqueGroups, setUniqueGroups] = useState([]);
   const [uniqueSubjects, setUniqueSubjects] = useState([]);
+  const [uniqueScholarships, setUniqueScholarships] = useState([]);
+  const [uniqueTeams, setUniqueTeams] = useState([]);
   const [selectedTeacher, setSelectedTeacher] = useState("");
   const [selectedGroup, setSelectedGroup] = useState("");
   const [selectedTutor, setSelectedTutor] = useState("");
   const [selectedSubject, setSelectedSubject] = useState("");
+  const [selectedScholarship, setSelectedScholarship] = useState("");
+  const [selectedTeam, setSelectedTeam] = useState("");
   const defaultVisibleColumns = {
     Matrícula: true,
     "Nombre del alumno": true,
@@ -85,10 +89,12 @@ export default function Home() {
   }, [hasLoadedData, filteredData]);
 
   useEffect(() => {
-  const teachers = new Set();
-  const tutors = new Set();
+    const teachers = new Set();
+    const tutors = new Set();
     const groups = new Set();
     const materias = new Set();
+    const scholarships = new Set();
+    const teams = new Set();
 
     Object.values(filteredData).forEach(subjects => {
       subjects.forEach(subject => {
@@ -106,12 +112,18 @@ export default function Home() {
     });
 
     // Extraer tutores desde studentData
-    studentData.forEach(st => { if (st.tutor) tutors.add(st.tutor); });
+    studentData.forEach((st) => {
+      if (st.tutor) tutors.add(st.tutor);
+      if (st.beca) scholarships.add(st.beca);
+      if (st.equipoRepresentativo) teams.add(st.equipoRepresentativo);
+    });
 
     setUniqueTeachers(Array.from(teachers).sort());
     setUniqueTutors(Array.from(tutors).sort());
     setUniqueGroups(Array.from(groups).sort());
     setUniqueSubjects(Array.from(materias).sort());
+    setUniqueScholarships(Array.from(scholarships).sort());
+    setUniqueTeams(Array.from(teams).sort());
   }, [filteredData, studentData]);
 
   const handleProcessFilesWithHide = async () => {
@@ -267,8 +279,10 @@ export default function Home() {
     const matchesSubject = !selectedSubject ||
       studentSubjects.some(subject => subject['Nombre de la materia'] === selectedSubject);
     const matchesTutor = !selectedTutor || (student.tutor === selectedTutor);
+    const matchesScholarship = !selectedScholarship || (student.beca === selectedScholarship);
+    const matchesTeam = !selectedTeam || (student.equipoRepresentativo === selectedTeam);
 
-    return matchesSearch && matchesTeacher && matchesGroup && matchesSubject && matchesTutor;
+    return matchesSearch && matchesTeacher && matchesGroup && matchesSubject && matchesTutor && matchesScholarship && matchesTeam;
   });
 
   const handleDeleteStudent = (matricula) => {
@@ -488,6 +502,12 @@ export default function Home() {
             uniqueTutors={uniqueTutors}
             selectedTutor={selectedTutor}
             setSelectedTutor={setSelectedTutor}
+            uniqueScholarships={uniqueScholarships}
+            selectedScholarship={selectedScholarship}
+            setSelectedScholarship={setSelectedScholarship}
+            uniqueTeams={uniqueTeams}
+            selectedTeam={selectedTeam}
+            setSelectedTeam={setSelectedTeam}
           />
           )}
           {/* Tarjetas de Estudiantes */}
