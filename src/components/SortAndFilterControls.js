@@ -8,6 +8,7 @@ export default function SortAndFilterControls({
   setSortOrder,
   toggleSortDirection,
   isAscending,
+  visibleCount = 0,
   uniqueTeachers = [],
   uniqueGroups = [],
   uniqueSubjects = [],
@@ -251,12 +252,17 @@ export default function SortAndFilterControls({
         <option value="faltas"># Faltas</option>
       </select>
 
-      <button
-        onClick={toggleSortDirection}
-        className="p-2 border rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-700"
-      >
-        {isAscending ? "Ascendente" : "Descendente"}
-      </button>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={toggleSortDirection}
+          className="p-2 border rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-700"
+        >
+          {isAscending ? "Ascendente" : "Descendente"}
+        </button>
+        <span className="px-3 py-2 border rounded-lg bg-white text-sm font-medium text-gray-700">
+          Alumno{visibleCount !== 1 ? "s" : ""}: {visibleCount}
+        </span>
+      </div>
     </div>
   );
 }

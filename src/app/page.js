@@ -475,6 +475,7 @@ export default function Home() {
             setSortOrder={setSortOrder}
             toggleSortDirection={toggleSortDirection}
             isAscending={isAscending}
+            visibleCount={filteredStudents.length}
             uniqueTeachers={uniqueTeachers}
             uniqueGroups={uniqueGroups}
             selectedTeacher={selectedTeacher}
