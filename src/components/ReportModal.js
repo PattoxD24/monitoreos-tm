@@ -38,6 +38,9 @@ export default function ReportModal({ visible, onClose, students, filteredData, 
   const [selectedColors, setSelectedColors] = useState(['todos']);
   const [selectedStatuses, setSelectedStatuses] = useState(['todos']);
   const [faltasMode, setFaltasMode] = useState('ninguna'); // 'todas' | 'porMateria' | 'ninguna'
+  const [isGeneralReport, setIsGeneralReport] = useState(false);
+  const [applyColorFilter, setApplyColorFilter] = useState(true);
+  const [applyStatusFilter, setApplyStatusFilter] = useState(true);
   const [includeMatricula, setIncludeMatricula] = useState(true);
   const [includeFullName, setIncludeFullName] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -47,6 +50,16 @@ export default function ReportModal({ visible, onClose, students, filteredData, 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
+
+  useEffect(() => {
+    if (!isGeneralReport) return;
+    // En modo General no aplican filtros ni faltas
+    setSelectedColors(['todos']);
+    setSelectedStatuses(['todos']);
+    setFaltasMode('ninguna');
+    setApplyColorFilter(false);
+    setApplyStatusFilter(false);
+  }, [isGeneralReport]);
 
   if (!visible) return null;
 
@@ -63,8 +76,7 @@ export default function ReportModal({ visible, onClose, students, filteredData, 
 
   const filterByColors = (student) => {
     if (selectedColors.includes('todos')) return true;
-    const criteria = calculateSortingCriteria(student);
-    return COLOR_OPTIONS.some(opt => selectedColors.includes(opt.key) && opt.match(criteria.backgroundColor));
+      return COLOR_OPTIONS.some(opt => selectedColors.includes(opt.key) && opt.match(criteria.backgroundColor));
   };
 
   const studentHasStatus = (student, statusKey) => {
@@ -81,31 +93,49 @@ export default function ReportModal({ visible, onClose, students, filteredData, 
     return selectedStatuses.some(st => studentHasStatus(student, st));
   };
 
+  const calculatePonderadoAverage = (subjects) => {
+    const values = (subjects || [])
+      .map((row) => parseFloat(row?.Ponderado))
+      .filter((value) => !isNaN(value));
+
+    if (values.length === 0) return '';
+    const avg = values.reduce((sum, v) => sum + v, 0) / values.length;
+    return Math.round(avg * 100) / 100;
+  };
+
   const buildRows = () => {
     // Filtrar alumnos
-    const finalStudents = students.filter(s => filterByColors(s) && filterByStatuses(s));
+    const finalStudents = students.filter(s => (
+      (!applyColorFilter || filterByColors(s)) &&
+      (!applyStatusFilter || filterByStatuses(s))
+    ));
     const rows = [];
+
+    const effectiveFaltasMode = isGeneralReport ? 'ninguna' : faltasMode;
 
     finalStudents.forEach(student => {
       const criteria = calculateSortingCriteria(student);
       const subjects = filteredData[student.matricula] || [];
 
-      if (faltasMode === 'ninguna') {
+      if (effectiveFaltasMode === 'ninguna') {
         const row = {};
         const subs = filteredData[student.matricula] || [];
         if (includeMatricula) row['Matrícula'] = student.matricula;
         if (includeFullName) row['Nombre'] = student.fullName;
+        row['Promedio General'] = calculatePonderadoAverage(subs);
         row['Promedio Mínimo'] = criteria.minPonderado === Infinity ? '' : criteria.minPonderado;
-        // NO agregamos faltas ni NE totals en este modo
-        ['NE','SC','DA','SD'].forEach(st=>{ if (selectedStatuses.includes(st) || selectedStatuses.includes('todos')) {
-          const count = countStatus(subs, st);
-          if (count>0) row[`# ${st}`] = count;
-        }});
+        // En modo General no aplican estatus ni contadores
+        if (!isGeneralReport) {
+          ['NE','SC','DA','SD'].forEach(st=>{ if (selectedStatuses.includes(st) || selectedStatuses.includes('todos')) {
+            const count = countStatus(subs, st);
+            if (count>0) row[`# ${st}`] = count;
+          }});
+        }
         row.__bgColor = criteria.backgroundColor;
         rows.push(row);
       }
       // Consolidado de faltas
-      else if (faltasMode === 'todas') {
+      else if (effectiveFaltasMode === 'todas') {
         let totalFaltas = 0, totalLimite = 0, totalNE = 0, totalLimiteNE = 0;
         subjects.forEach(sub => {
           const f = parseFloat(sub['Faltas del alumno']) || 0;
@@ -120,6 +150,7 @@ export default function ReportModal({ visible, onClose, students, filteredData, 
         const row = {};
         if (includeMatricula) row['Matrícula'] = student.matricula;
         if (includeFullName) row['Nombre'] = student.fullName;
+        row['Promedio General'] = calculatePonderadoAverage(subjects);
         row['Promedio Mínimo'] = criteria.minPonderado === Infinity ? '' : criteria.minPonderado;
         row['Total Faltas'] = totalFaltas;
         row['Límite Faltas'] = totalLimite;
@@ -148,6 +179,7 @@ export default function ReportModal({ visible, onClose, students, filteredData, 
           const row = {};
           if (includeMatricula) row['Matrícula'] = student.matricula;
           if (includeFullName) row['Nombre'] = student.fullName;
+          row['Promedio General'] = calculatePonderadoAverage(subjects);
           row['Materia'] = sub['Nombre de la materia'] || sub.Materia || '';
           row['Faltas'] = faltas;
           row['Límite Faltas'] = limiteF;
@@ -185,8 +217,13 @@ export default function ReportModal({ visible, onClose, students, filteredData, 
       const rows = buildRows();
       if (rows.length === 0) { alert('No hay datos para exportar con los filtros seleccionados'); return; }
       const cleanRows = rows.map(r => { const clone = { ...r }; delete clone.__bgColor; return clone; });
-      const ws = XLSX.utils.json_to_sheet(cleanRows);
-      const headers = Object.keys(cleanRows[0]);
+      const headers = [];
+      cleanRows.forEach((r) => {
+        Object.keys(r).forEach((k) => {
+          if (!headers.includes(k)) headers.push(k);
+        });
+      });
+      const ws = XLSX.utils.json_to_sheet(cleanRows, { header: headers });
       // Encabezados estilizados
       headers.forEach((_, idx) => {
         const ref = XLSX.utils.encode_cell({ r:0, c:idx });
@@ -222,45 +259,116 @@ export default function ReportModal({ visible, onClose, students, filteredData, 
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={(e)=>{ if(e.target===e.currentTarget) onClose(); }}>
       <div className="bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 p-6 rounded-lg shadow-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto">
         <h2 className="text-xl font-semibold mb-4">Generar Reporte</h2>
+
+        <div className="mb-4 p-3 rounded border border-gray-200 dark:border-gray-700">
+          <h3 className="font-semibold mb-2">Tipo</h3>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={isGeneralReport}
+              onChange={(e)=>setIsGeneralReport(e.target.checked)}
+            />
+            General (ignora colores, estatus y faltas)
+          </label>
+
+          {!isGeneralReport && (
+            <div className="flex flex-wrap gap-4 mt-2">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={applyColorFilter}
+                  onChange={(e)=>setApplyColorFilter(e.target.checked)}
+                />
+                Aplicar filtro de colores
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={applyStatusFilter}
+                  onChange={(e)=>setApplyStatusFilter(e.target.checked)}
+                />
+                Aplicar filtro de estatus
+              </label>
+            </div>
+          )}
+        </div>
+
         <div className="grid md:grid-cols-3 gap-6">
           {/* Colores */}
           <div>
             <h3 className="font-semibold mb-2">Colores</h3>
             {COLOR_OPTIONS.map(opt => (
-              <label key={opt.key} className="flex items-center gap-2 text-sm mb-1">
+              <label
+                key={opt.key}
+                className={`flex items-center gap-2 text-sm mb-1 ${(!applyColorFilter || isGeneralReport) ? 'opacity-50' : ''}`}
+              >
                 <input
                   type="checkbox"
+                  disabled={!applyColorFilter || isGeneralReport}
                   checked={selectedColors.includes(opt.key)}
                   onChange={()=>toggleSelection(setSelectedColors, selectedColors, opt.key)}
-                /> {opt.label}
+                />
+                {opt.label}
               </label>
             ))}
           </div>
+
           {/* Estatus */}
           <div>
             <h3 className="font-semibold mb-2">Estatus (Actividades)</h3>
             {STATUS_OPTIONS.map(opt => (
-              <label key={opt.key} className="flex items-center gap-2 text-sm mb-1">
+              <label
+                key={opt.key}
+                className={`flex items-center gap-2 text-sm mb-1 ${(!applyStatusFilter || isGeneralReport) ? 'opacity-50' : ''}`}
+              >
                 <input
                   type="checkbox"
+                  disabled={!applyStatusFilter || isGeneralReport}
                   checked={selectedStatuses.includes(opt.key)}
                   onChange={()=>toggleSelection(setSelectedStatuses, selectedStatuses, opt.key)}
-                /> {opt.label}
+                />
+                {opt.label}
               </label>
             ))}
           </div>
+
           {/* Faltas */}
           <div>
             <h3 className="font-semibold mb-2">Faltas</h3>
-            <label className="flex items-center gap-2 text-sm mb-1">
-              <input type="radio" name="faltasMode" value="todas" checked={faltasMode==='todas'} onChange={()=>setFaltasMode('todas')} /> Todas (consolidadas)
+            <label className={`flex items-center gap-2 text-sm mb-1 ${isGeneralReport ? 'opacity-50' : ''}`}>
+              <input
+                type="radio"
+                name="faltasMode"
+                value="todas"
+                disabled={isGeneralReport}
+                checked={faltasMode==='todas'}
+                onChange={()=>setFaltasMode('todas')}
+              />
+              Todas (consolidadas)
             </label>
-            <label className="flex items-center gap-2 text-sm mb-1">
-              <input type="radio" name="faltasMode" value="porMateria" checked={faltasMode==='porMateria'} onChange={()=>setFaltasMode('porMateria')} /> Por materia (solo con faltas)
+            <label className={`flex items-center gap-2 text-sm mb-1 ${isGeneralReport ? 'opacity-50' : ''}`}>
+              <input
+                type="radio"
+                name="faltasMode"
+                value="porMateria"
+                disabled={isGeneralReport}
+                checked={faltasMode==='porMateria'}
+                onChange={()=>setFaltasMode('porMateria')}
+              />
+              Por materia (solo con faltas)
             </label>
-            <label className="flex items-center gap-2 text-sm mb-1">
-              <input type="radio" name="faltasMode" value="ninguna" checked={faltasMode==='ninguna'} onChange={()=>setFaltasMode('ninguna')} /> No incluir faltas
+            <label className={`flex items-center gap-2 text-sm mb-1 ${isGeneralReport ? 'opacity-50' : ''}`}>
+              <input
+                type="radio"
+                name="faltasMode"
+                value="ninguna"
+                disabled={isGeneralReport}
+                checked={faltasMode==='ninguna'}
+                onChange={()=>setFaltasMode('ninguna')}
+              />
+              No incluir faltas
             </label>
+
             <h3 className="font-semibold mt-4 mb-2">Columnas básicas</h3>
             <label className="flex items-center gap-2 text-sm mb-1">
               <input type="checkbox" checked={includeMatricula} onChange={()=>setIncludeMatricula(v=>!v)} /> Matrícula
@@ -270,12 +378,14 @@ export default function ReportModal({ visible, onClose, students, filteredData, 
             </label>
           </div>
         </div>
+
         <div className="flex justify-end gap-4 mt-6">
           <button onClick={onClose} className="px-4 py-2 rounded bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500 text-sm">Cancelar</button>
           <button disabled={isGenerating} onClick={generateExcel} className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm">
             {isGenerating? 'Generando...' : 'Descargar Excel'}
           </button>
         </div>
+
         <p className="text-xs mt-4 text-gray-500 dark:text-gray-400">Nota: El color del nombre puede no mostrarse en algunos visores debido a limitaciones de estilos en la librería.</p>
       </div>
     </div>
