@@ -328,13 +328,32 @@ export default function useStudentData(defaultVisibleColumns) {
         }
         if (lower === 'ponderaciones') {
           const rows = XLSX.utils.sheet_to_json(sheet);
-          // Se espera una columna con el nombre de la materia y columnas A1..A50
-          // Intentar detectar el header de materia
+          // Se espera una columna para identificar la materia (preferimos CLAVE de materia)
+          // y columnas A1..A50. Guardamos también alias por nombre para compatibilidad.
           const headers = Object.keys(rows[0] || {});
-          const materiaKey = headers.find(h => h.toLowerCase().includes('materia')) || 'Nombre Materia';
+
+          const subjectCodeKey =
+            headers.find(h => /clave/i.test(h) && /materia/i.test(h)) ||
+            headers.find(h => /cve/i.test(h) && /materia/i.test(h)) ||
+            headers.find(h => /codigo/i.test(h) && /materia/i.test(h)) ||
+            null;
+
+          const subjectNameKey =
+            headers.find(h => /nombre/i.test(h) && /materia/i.test(h)) ||
+            headers.find(h => /materia/i.test(h) && !/clave|cve|codigo/i.test(h)) ||
+            null;
+
+          const normalizeId = (v) => {
+            if (v === undefined || v === null) return '';
+            const s = typeof v === 'string' ? v : String(v);
+            return s.trim();
+          };
+
           rows.forEach(r => {
-            const materia = r[materiaKey];
-            if (!materia) return;
+            const materiaClave = subjectCodeKey ? normalizeId(r[subjectCodeKey]) : '';
+            const materiaNombre = subjectNameKey ? normalizeId(r[subjectNameKey]) : '';
+            const materiaId = materiaClave || materiaNombre;
+            if (!materiaId) return;
             const activities = {};
             for (let i = 1; i <= 50; i++) {
               const key = `A${i}`;
@@ -342,7 +361,10 @@ export default function useStudentData(defaultVisibleColumns) {
                 activities[key] = r[key];
               }
             }
-            ponderationMap[materia] = activities;
+            // Clave (preferida)
+            if (materiaClave) ponderationMap[materiaClave] = activities;
+            // Alias por nombre (compatibilidad)
+            if (materiaNombre) ponderationMap[materiaNombre] = activities;
           });
         }
       });

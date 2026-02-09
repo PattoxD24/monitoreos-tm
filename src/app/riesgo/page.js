@@ -7,6 +7,7 @@ import StudentModal from "@/components/StudentModal";
 import SidebarNav from "@/components/SidebarNav";
 import StatusFilter from "@/components/StatusFilter";
 import { computeSubjectStatus } from "@/Utils/predictions";
+import { getPonderationsForRow, getSubjectNameFromRow } from "@/Utils/subjectIdentity";
 
 export default function RiesgoPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -50,8 +51,8 @@ export default function RiesgoPage() {
       const materiasEnRiesgo = [];
       
       studentRows.forEach(row => {
-        const nombreMateria = row["Nombre de la materia"];
-        const ponderacionesMateria = ponderationData?.[nombreMateria] || {};
+        const nombreMateria = getSubjectNameFromRow(row) || row["Nombre de la materia"];
+        const ponderacionesMateria = getPonderationsForRow(row, ponderationData);
         const status = computeSubjectStatus(row, ponderacionesMateria);
 
         // Filtro por tipo de indicador original (mantener opciones de UI)
@@ -178,8 +179,8 @@ export default function RiesgoPage() {
   let hasNE = false;
 
       studentRows.forEach(row => {
-        const nombreMateria = row['Nombre de la materia'];
-        const ponderacionesMateria = ponderationData?.[nombreMateria] || {};
+        const nombreMateria = getSubjectNameFromRow(row) || row['Nombre de la materia'];
+        const ponderacionesMateria = getPonderationsForRow(row, ponderationData);
         const status = computeSubjectStatus(row, ponderacionesMateria);
 
         if (status.statusText === 'NP') hasNP = true;

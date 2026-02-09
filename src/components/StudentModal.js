@@ -3,7 +3,8 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import html2canvas from "html2canvas";
 import ScriptsModal from "./ScriptsModal";
-import { ClientPageRoot } from "next/dist/client/components/client-page";
+
+import { getPonderationsForRow } from "@/Utils/subjectIdentity";
 
 export default function StudentModal({
   student,
@@ -99,7 +100,7 @@ export default function StudentModal({
         lastActivity = lastManualActivityNum > lastRealActivityNum ? 
           lastManualActivity : lastRealActivity;
 
-        const ponderations = ponderationData[materia] || {};
+        const ponderations = getPonderationsForRow(row, ponderationData);
         const activityResults = Object.keys(ponderations)
           .filter((activity) => {
             const p = ponderations[activity];
@@ -204,9 +205,14 @@ export default function StudentModal({
   const handleMateriaChange = (e) => {
     const materia = e.target.value;
     setSelectedMateria(e.target.value);
+
+    const studentRows = filteredData[student.matricula] || [];
+    const subjectRow = studentRows.find(r => r?.["Nombre de la materia"] === materia) || { "Nombre de la materia": materia };
+    const ponderations = getPonderationsForRow(subjectRow, ponderationData);
+
     setActivityColumns(
-      Object.keys(ponderationData[materia] || {}).filter((act) => {
-        const p = ponderationData[materia][act];
+      Object.keys(ponderations || {}).filter((act) => {
+        const p = ponderations[act];
         return p != null && p.toString().trim() !== '';
       })
     );
@@ -254,14 +260,19 @@ export default function StudentModal({
     if (materias.length > 0 && selectedMateria === "") {
       const defaultMateria = materias[0];
       setSelectedMateria(defaultMateria); // Select the first materia
+
+      const studentRows = filteredData[student.matricula] || [];
+      const subjectRow = studentRows.find(r => r?.["Nombre de la materia"] === defaultMateria) || { "Nombre de la materia": defaultMateria };
+      const ponderations = getPonderationsForRow(subjectRow, ponderationData);
+
       setActivityColumns(
-        Object.keys(ponderationData[defaultMateria] || {}).filter((act) => {
-          const p = ponderationData[defaultMateria][act];
+        Object.keys(ponderations || {}).filter((act) => {
+          const p = ponderations[act];
           return p != null && p.toString().trim() !== '';
         })
       ); // Initialize activity columns
     }
-  }, [materias, selectedMateria, ponderationData]);
+  }, [materias, selectedMateria, ponderationData, filteredData, student?.matricula]);
 
   // const nombre = student.preferredName.toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
   const replaceVariables = (content) => {

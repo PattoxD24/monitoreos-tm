@@ -17,6 +17,7 @@ import dynamic from "next/dynamic";
 import SidebarNav from "@/components/SidebarNav";
 import Link from "next/link";
 import { computeSubjectStatus } from "@/Utils/predictions";
+import { getPonderationsForRow } from "@/Utils/subjectIdentity";
 import { MdTrendingDown, MdWarningAmber, MdCancel } from "react-icons/md";
 
 const FileUploader = dynamic(() => import("@/components/FileUploader"),{ ssr: false });
@@ -354,7 +355,7 @@ export default function Home() {
 
       subjects.forEach(subject => {
         const nombreMateria = subject['Nombre de la materia'];
-        const ponderacionesMateria = ponderationData?.[nombreMateria] || {};
+        const ponderacionesMateria = getPonderationsForRow(subject, ponderationData);
         const status = computeSubjectStatus(subject, ponderacionesMateria);
 
         if (status.statusText === 'Recursar') hasRecursar = true;
