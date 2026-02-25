@@ -1,6 +1,9 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import * as XLSX from "xlsx";
+import { idbGet, idbSet, idbRemove } from "@/lib/storage";
+
+const STORAGE_KEY = "studentAppData";
 
 export default function useStudentData(defaultVisibleColumns) {
   const [file1, setFile1] = useState(null);
@@ -18,17 +21,39 @@ export default function useStudentData(defaultVisibleColumns) {
   const [scheduleRows, setScheduleRows] = useState([]); // Filas de la hoja "Horario" del archivo base
   const [nomenclatureMap, setNomenclatureMap] = useState({}); // Mapa: clave de nomenclatura -> Nombre de actividad
 
-  // Cargar datos del localStorage al iniciar - primera prioridad
-  useEffect(() => {
-    // Usar una flag para controlar si ya se cargaron los datos
-    let isDataLoaded = false;
-    
-    const savedData = localStorage.getItem('studentAppData');
-    if (savedData) {
-      try {
-        const parsedData = JSON.parse(savedData);
+  // Flag para evitar guardar mientras se cargan los datos iniciales
+  const isInitialLoadDone = useRef(false);
+  // Ref para debounce del guardado
+  const saveTimerRef = useRef(null);
 
-        if (parsedData.studentData?.length > 0 || Object.keys(parsedData.filteredData || {}).length > 0) {
+  // Cargar datos desde IndexedDB al iniciar (con migración desde localStorage si existe)
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadData() {
+      try {
+        // 1. Intentar cargar desde IndexedDB
+        let parsedData = await idbGet(STORAGE_KEY);
+
+        // 2. Si no hay datos en IDB, intentar migrar desde localStorage
+        if (!parsedData) {
+          const legacyRaw = localStorage.getItem(STORAGE_KEY);
+          if (legacyRaw) {
+            try {
+              parsedData = JSON.parse(legacyRaw);
+              // Migrar a IndexedDB y eliminar de localStorage
+              await idbSet(STORAGE_KEY, parsedData);
+              localStorage.removeItem(STORAGE_KEY);
+              console.log("Datos migrados de localStorage a IndexedDB");
+            } catch {
+              parsedData = null;
+            }
+          }
+        }
+
+        if (cancelled) return;
+
+        if (parsedData && (parsedData.studentData?.length > 0 || Object.keys(parsedData.filteredData || {}).length > 0)) {
           // sólo incluyo alumnos que tengan materias
           const validStudentData = (parsedData.studentData || []).filter(student =>
             Object.keys(parsedData.filteredData || {}).includes(student.matricula)
@@ -43,31 +68,34 @@ export default function useStudentData(defaultVisibleColumns) {
           setScheduleRows(parsedData.scheduleRows || []);
           setNomenclatureMap(parsedData.nomenclatureMap || {});
           setHasLoadedData(true);
-          isDataLoaded = true;
-          console.log("Datos cargados desde localStorage");
+          console.log("Datos cargados desde IndexedDB");
         } else {
           setHasLoadedData(false);
+          console.log("No se encontraron datos guardados");
         }
       } catch (error) {
-        console.error("Error al cargar datos del localStorage:", error);
-        setHasLoadedData(false);
+        console.error("Error al cargar datos:", error);
+        if (!cancelled) setHasLoadedData(false);
+      } finally {
+        if (!cancelled) isInitialLoadDone.current = true;
       }
     }
-    
-    // Si no hay datos en localStorage, no hacemos nada y dejamos los estados iniciales
-    return () => {
-      // Esta función de limpieza se ejecuta cuando el componente se desmonta
-      // Podemos usarla para asegurarnos de no sobreescribir localStorage con datos vacíos
-      if (!isDataLoaded) {
-        console.log("No se encontraron datos en localStorage");
-      }
-    };
+
+    loadData();
+    return () => { cancelled = true; };
   }, []);
 
-  // Guardar datos en localStorage cuando cambien
+  // Guardar datos en IndexedDB cuando cambien (con debounce de 500 ms)
   useEffect(() => {
-    // Solo guardar en localStorage si hay datos reales
-    if (studentData.length > 0 || Object.keys(filteredData).length > 0) {
+    // No guardar hasta que la carga inicial haya terminado
+    if (!isInitialLoadDone.current) return;
+
+    // Solo guardar si hay datos reales
+    if (studentData.length === 0 && Object.keys(filteredData).length === 0) return;
+
+    // Debounce para no saturar IDB con escrituras en cada micro-cambio
+    clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
       const dataToSave = {
         studentData,
         archivedStudents,
@@ -78,30 +106,29 @@ export default function useStudentData(defaultVisibleColumns) {
         scheduleRows,
         nomenclatureMap
       };
-      
-      try {
-        localStorage.setItem('studentAppData', JSON.stringify(dataToSave));
-      } catch (error) {
-        console.error("Error al guardar en localStorage:", error);
-        // Opcional: Mostrar una notificación al usuario
-      }
-    }
+      idbSet(STORAGE_KEY, dataToSave).catch(err =>
+        console.error("Error al guardar en IndexedDB:", err)
+      );
+    }, 500);
+
+    return () => clearTimeout(saveTimerRef.current);
   }, [studentData, archivedStudents, filteredData, columns, visibleColumns, ponderationData, scheduleRows, nomenclatureMap]);
 
-  const clearAllData = () => {
-    localStorage.removeItem('studentAppData');
+  const clearAllData = useCallback(async () => {
+    try { await idbRemove(STORAGE_KEY); } catch { /* ignore */ }
+    try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
     setStudentData([]);
     setArchivedStudents([]);
     setFilteredData({});
     setColumns([]);
     setVisibleColumns({});
-  setPonderationData({});
-  setScheduleRows([]);
-  setNomenclatureMap({});
+    setPonderationData({});
+    setScheduleRows([]);
+    setNomenclatureMap({});
     setFile1(null);
     setFile2(null);
     setHasLoadedData(false);
-  };
+  }, []);
 
   const showNotification = (message) => {
     setNotification({ show: true, message });
