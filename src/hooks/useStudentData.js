@@ -254,7 +254,6 @@ export default function useStudentData(defaultVisibleColumns) {
       });
 
       // filtro para quedarme sólo con los alumnos que sí tienen materias
-      console.log(studentData)
       const filteredStudentData = studentData.filter(s => groupedData[s.matricula]?.length > 0);
 
       // Usar las ponderaciones obtenidas desde la hoja "Ponderaciones"
