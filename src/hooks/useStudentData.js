@@ -68,7 +68,7 @@ export default function useStudentData(defaultVisibleColumns) {
           setScheduleRows(parsedData.scheduleRows || []);
           setNomenclatureMap(parsedData.nomenclatureMap || {});
           setHasLoadedData(true);
-          console.log("Datos cargados desde IndexedDB");
+          // console.log("Datos cargados desde IndexedDB");
         } else {
           setHasLoadedData(false);
           console.log("No se encontraron datos guardados");
