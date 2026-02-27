@@ -27,6 +27,8 @@ export default function SortAndFilterControls({
   setSelectedScholarship,
   selectedTeam,
   setSelectedTeam,
+  selectedColor,
+  setSelectedColor,
 }) {
   const [teacherSearch, setTeacherSearch] = useState("");
   const [groupSearch, setGroupSearch] = useState("");
@@ -91,6 +93,21 @@ export default function SortAndFilterControls({
   return (
     <div className="mt-4 flex flex-wrap gap-2">
       <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
+
+      {/* Filtro por Color */}
+      <select
+        value={selectedColor}
+        onChange={(e) => setSelectedColor(e.target.value)}
+        className="border rounded-lg p-2 text-gray-700"
+      >
+        <option value="">Todos los colores</option>
+        <option value="#FFCCCC" style={{ backgroundColor: '#FFCCCC' }}>🔴 Rojo</option>
+        <option value="#FFD9B3" style={{ backgroundColor: '#FFD9B3' }}>🟠 Naranja</option>
+        <option value="#FFFFCC" style={{ backgroundColor: '#FFFFCC' }}>🟡 Amarillo</option>
+        <option value="#CCFFCC" style={{ backgroundColor: '#CCFFCC' }}>🟢 Verde</option>
+        <option value="#E6D3FF" style={{ backgroundColor: '#E6D3FF' }}>🟣 NP</option>
+        <option value="#F0F0F0" style={{ backgroundColor: '#F0F0F0' }}>⚪ Sin ponderado</option>
+      </select>
 
       {/* Filtro de Materia */}
       <div className="relative">

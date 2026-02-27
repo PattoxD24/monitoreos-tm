@@ -48,6 +48,7 @@ export default function Home() {
   const [selectedSubject, setSelectedSubject] = useState("");
   const [selectedScholarship, setSelectedScholarship] = useState("");
   const [selectedTeam, setSelectedTeam] = useState("");
+  const [selectedColor, setSelectedColor] = useState("");
   const defaultVisibleColumns = {
     Matrícula: true,
     "Nombre del alumno": true,
@@ -88,6 +89,18 @@ export default function Home() {
       setShowUploader(true);
     }
   }, [hasLoadedData, filteredData]);
+
+  // Atajo de teclado: Cmd+J (Mac) / Ctrl+J para abrir/cerrar modal de columnas
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "j") {
+        e.preventDefault();
+        setShowColumnModal((prev) => !prev);
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   useEffect(() => {
     const teachers = new Set();
@@ -170,6 +183,34 @@ export default function Home() {
     setSelectedStudent(null);
   };
 
+  const handleNavigateStudent = (direction) => {
+    if (!selectedStudent) return;
+    const currentIndex = filteredStudents.findIndex(
+      (s) => s.matricula === selectedStudent.matricula
+    );
+    if (currentIndex === -1) return;
+    const nextIndex = currentIndex + direction;
+    if (nextIndex >= 0 && nextIndex < filteredStudents.length) {
+      setSelectedStudent(filteredStudents[nextIndex]);
+    }
+  };
+
+  const handleArchiveFromModal = (matricula) => {
+    const currentIndex = filteredStudents.findIndex(
+      (s) => s.matricula === matricula
+    );
+    handleDeleteStudent(matricula);
+    // Navegar al siguiente alumno tras archivar
+    const remaining = filteredStudents.filter((s) => s.matricula !== matricula);
+    if (remaining.length === 0) {
+      setSelectedStudent(null);
+    } else if (currentIndex < remaining.length) {
+      setSelectedStudent(remaining[currentIndex]);
+    } else {
+      setSelectedStudent(remaining[remaining.length - 1]);
+    }
+  };
+
   // Calcular número de "NE", "NP" y mínimo "Ponderado" por estudiante
   const calculateSortingCriteria = (student) => {
     const studentMatricula = student.matricula;
@@ -223,6 +264,8 @@ export default function Home() {
     let backgroundColor = "";
     if (hasNP) {
       backgroundColor = "#E6D3FF"; // Púrpura suave para NP (highest priority)
+    } else if (minPonderado === Infinity) {
+      backgroundColor = "#F0F0F0"; // Gris si no hay ponderado
     } else if (minPonderado < 70) {
       backgroundColor = "#FFCCCC"; // Rojo suave
     } else if (minPonderado >= 70 && minPonderado <= 75) {
@@ -247,7 +290,11 @@ export default function Home() {
         comparison = a.totalFaltas - b.totalFaltas;
       } else if (sortOrder === "original") {
         // Priority order: NP (highest) > NE > low ponderado
-        if (a.hasNP !== b.hasNP) {
+        const aIsInfinity = a.minPonderado === Infinity;
+        const bIsInfinity = b.minPonderado === Infinity;
+        if (aIsInfinity !== bIsInfinity) {
+          comparison = aIsInfinity ? -1 : 1; // Infinity students come first
+        } else if (a.hasNP !== b.hasNP) {
           comparison = b.hasNP ? 1 : -1; // NP students come first
         } else if (a.neCount !== b.neCount) {
           comparison = b.neCount - a.neCount; // More NE comes first
@@ -282,8 +329,9 @@ export default function Home() {
     const matchesTutor = !selectedTutor || (student.tutor === selectedTutor);
     const matchesScholarship = !selectedScholarship || (student.beca === selectedScholarship);
     const matchesTeam = !selectedTeam || (student.equipoRepresentativo === selectedTeam);
+    const matchesColor = !selectedColor || student.backgroundColor === selectedColor;
 
-    return matchesSearch && matchesTeacher && matchesGroup && matchesSubject && matchesTutor && matchesScholarship && matchesTeam;
+    return matchesSearch && matchesTeacher && matchesGroup && matchesSubject && matchesTutor && matchesScholarship && matchesTeam && matchesColor;
   });
 
   const handleDeleteStudent = (matricula) => {
@@ -509,6 +557,8 @@ export default function Home() {
             uniqueTeams={uniqueTeams}
             selectedTeam={selectedTeam}
             setSelectedTeam={setSelectedTeam}
+            selectedColor={selectedColor}
+            setSelectedColor={setSelectedColor}
           />
           )}
           {/* Tarjetas de Estudiantes */}
@@ -537,6 +587,8 @@ export default function Home() {
               whatsapp={whatsapp}
               ponderationData={ponderationData}
               nomenclatureMap={nomenclatureMap}
+              onNavigate={handleNavigateStudent}
+              onArchive={handleArchiveFromModal}
             />
           )}
         </div>

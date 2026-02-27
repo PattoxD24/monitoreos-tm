@@ -17,7 +17,9 @@ export default function StudentModal({
   scripts,
   whatsapp,
   ponderationData,
-  nomenclatureMap
+  nomenclatureMap,
+  onNavigate,
+  onArchive,
 }) {
   const [activeTab, setActiveTab] = useState("info");
   const [copiedScript, setCopiedScript] = useState(null);
@@ -56,6 +58,14 @@ export default function StudentModal({
       if (e.key === "Escape") {
         closeModal();
       }
+      if (e.key === "ArrowRight" && onNavigate) {
+        e.preventDefault();
+        onNavigate(1);
+      }
+      if (e.key === "ArrowLeft" && onNavigate) {
+        e.preventDefault();
+        onNavigate(-1);
+      }
     };
 
     const handleClickOutside = (e) => {
@@ -71,7 +81,7 @@ export default function StudentModal({
       document.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [closeModal]);
+  }, [closeModal, onNavigate]);
 
   const calculatePonderations = () => {
     const studentData = filteredData[student.matricula] || [];
@@ -536,14 +546,47 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
               <p className="text-sm text-gray-600 dark:text-gray-400">Tutor: {student.tutor}</p>
             )}
           </div>
-          <button
-            onClick={closeModal}
-            className="text-gray-500 hover:text-gray-700 dark:text-gray-200 dark:hover:text-white"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-2">
+            {onNavigate && (
+              <button
+                onClick={() => onNavigate(-1)}
+                className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-300"
+                title="Anterior (←)"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+            )}
+            {onNavigate && (
+              <button
+                onClick={() => onNavigate(1)}
+                className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-300"
+                title="Siguiente (→)"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            )}
+            {onArchive && (
+              <button
+                onClick={() => onArchive(student.matricula)}
+                className="px-3 py-1 text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg"
+                title="Archivar alumno"
+              >
+                Archivar
+              </button>
+            )}
+            <button
+              onClick={closeModal}
+              className="text-gray-500 hover:text-gray-700 dark:text-gray-200 dark:hover:text-white"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
         
         <div className="flex border-b border-gray-200 dark:border-gray-700">
