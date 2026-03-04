@@ -316,7 +316,7 @@ export default function Home() {
   const filteredStudents = sortedStudents.filter((student) => {
     const search = searchTerm.toLowerCase();
     const matchesSearch = student.matricula.toLowerCase().includes(search) ||
-      student.preferredName.toLowerCase().includes(search) ||
+      student.preferredName?.toLowerCase().includes(search) ||
       student.fullName.toLowerCase().includes(search);
 
     const studentSubjects = filteredData[student.matricula] || [];
