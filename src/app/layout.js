@@ -1,5 +1,6 @@
 import localFont from "next/font/local";
 import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import "./custom.css";
 import AccessGate from "@/components/AccessGate";
@@ -28,6 +29,7 @@ export default function RootLayout({ children }) {
         <AccessGate>
           {children}
         </AccessGate>
+        <SpeedInsights />
       </body>
     </html>
   );
