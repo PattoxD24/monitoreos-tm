@@ -62,8 +62,18 @@ export default function useStudentData(defaultVisibleColumns) {
           setStudentData(validStudentData);
           setArchivedStudents(parsedData.archivedStudents || []);
           setFilteredData(parsedData.filteredData || {});
-          setColumns(parsedData.columns || []);
-          setVisibleColumns(parsedData.visibleColumns || {});
+          const loadedColumns = parsedData.columns || [];
+          const semIdx = loadedColumns.indexOf('Nombre de la materia');
+          if (semIdx !== -1 && !loadedColumns.includes('Semestre')) {
+            loadedColumns.splice(semIdx + 1, 0, 'Semestre');
+          } else if (semIdx === -1 && !loadedColumns.includes('Semestre')) {
+            loadedColumns.push('Semestre');
+          }
+          setColumns(loadedColumns);
+          setVisibleColumns({
+            ...(parsedData.visibleColumns || {}),
+            Semestre: true,
+          });
           setPonderationData(parsedData.ponderationData || {});
           setScheduleRows(parsedData.scheduleRows || []);
           setNomenclatureMap(parsedData.nomenclatureMap || {});
@@ -261,6 +271,9 @@ export default function useStudentData(defaultVisibleColumns) {
 
       // Identificar columnas visibles
       const uniqueColumns = Object.keys(filtered[0] || {}).filter((col) => !/^A\d+$/.test(col));
+      // Insertar columna Semestre (derivada de Subjects.js) después de Nombre de la materia
+      const nmIdx = uniqueColumns.indexOf('Nombre de la materia');
+      if (nmIdx !== -1) uniqueColumns.splice(nmIdx + 1, 0, 'Semestre');
       const initialVisibleColumns = uniqueColumns.reduce((acc, col) => {
         acc[col] = defaultVisibleColumns[col] || false;
         return acc;

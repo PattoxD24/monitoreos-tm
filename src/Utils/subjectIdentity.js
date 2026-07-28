@@ -92,24 +92,63 @@ export const getSubjectSemester = (subjectName) => {
   return matched ? matched.semester : null;
 };
 
+export const getSubjectSemesterFromRow = (row) => {
+  // 1. Intentar por clave de materia
+  const clave = getSubjectKeyFromRow(row);
+  if (clave) {
+    const byCode = SUBJECTS.subjects.find(s => s.code === clave);
+    if (byCode) return byCode.semester;
+  }
+  // 2. Fallback por nombre
+  const name = getSubjectNameFromRow(row);
+  return name ? getSubjectSemester(name) : null;
+};
+
 export const inferStudentSemester = (studentSubjects) => {
   if (!studentSubjects || studentSubjects.length === 0) return null;
 
-  let maxSemester = 0;
-  let semesters = new Set();
+  // Agrupar por clave/nombre para contar cada materia una sola vez (ignorando repeticiones)
+  const seen = new Set();
+  const semesterCount = {};
+  const semesters = new Set();
 
   studentSubjects.forEach((subject) => {
-    const semester = getSubjectSemester(subject['Nombre de la materia']);
+    const clave = getSubjectKeyFromRow(subject);
+    const name = getSubjectNameFromRow(subject);
+    const key = clave || name;
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+
+    const semester = getSubjectSemesterFromRow(subject);
     if (semester) {
       semesters.add(semester);
-      if (semester > maxSemester) maxSemester = semester;
+      semesterCount[semester] = (semesterCount[semester] || 0) + 1;
     }
   });
 
-  if (maxSemester === 0) return null;
+  if (semesters.size === 0) return null;
+
+  let modeSemester = 0;
+  let maxCount = 0;
+  let maxSemester = 0;
+
+  for (const [sem, count] of Object.entries(semesterCount)) {
+    const semNum = parseInt(sem);
+    if (count > maxCount) {
+      maxCount = count;
+      modeSemester = semNum;
+    }
+    if (semNum > maxSemester) maxSemester = semNum;
+  }
+
+  // Si el semestre más alto tiene solo 1 materia y hay otro con más, usar el de mayoría
+  const currentSemester = (maxSemester > modeSemester && semesterCount[maxSemester] <= 1 && maxCount >= 2)
+    ? modeSemester
+    : maxSemester;
 
   return {
-    maxSemester,
+    maxSemester: currentSemester,
     semesters: Array.from(semesters).sort((a, b) => a - b),
+    semesterCount,
   };
 };

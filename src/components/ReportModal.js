@@ -262,6 +262,7 @@ export default function ReportModal({ visible, onClose, students, filteredData, 
         let allEventuallyAccredited = true;
         const observaciones = [];
         let totalAccredited = 0;
+        const semesterCount = {};
         const matchedSemesters = new Set();
 
         Object.values(subjectGroups).forEach(group => {
@@ -270,10 +271,12 @@ export default function ReportModal({ visible, onClose, students, filteredData, 
           // Ignorar materias optativas (clave empieza con "V")
           if (group.clave && group.clave.startsWith('V')) return;
 
-          entries.forEach(sub => {
-            const sem = getSubjectSemester(sub['Nombre de la materia']);
-            if (sem) matchedSemesters.add(sem);
-          });
+          // Contar semestres (1 por grupo, no por entrada)
+          const groupSem = getSubjectSemester(entries[0]['Nombre de la materia']);
+          if (groupSem) {
+            matchedSemesters.add(groupSem);
+            semesterCount[groupSem] = (semesterCount[groupSem] || 0) + 1;
+          }
 
           if (entries.length === 1) {
             const sub = entries[0];
@@ -313,7 +316,18 @@ export default function ReportModal({ visible, onClose, students, filteredData, 
           }
         });
 
-        const currentSemester = matchedSemesters.size > 0 ? Math.max(...Array.from(matchedSemesters)) : 0;
+        // Determinar semestre real del alumno (moda, no máximo, para evitar que 1 materia adelantada lo desplace)
+        let modeSemester = 0;
+        let maxCount = 0;
+        let maxSemester = 0;
+        for (const [sem, count] of Object.entries(semesterCount)) {
+          const semNum = parseInt(sem);
+          if (count > maxCount) { maxCount = count; modeSemester = semNum; }
+          if (semNum > maxSemester) maxSemester = semNum;
+        }
+        const currentSemester = (maxSemester > modeSemester && (semesterCount[maxSemester] || 0) <= 1 && maxCount >= 2)
+          ? modeSemester
+          : maxSemester;
 
         // Verificar mínimo de materias acreditadas según el semestre
         // Calcular materias esperadas acumuladas desde Subjects.js

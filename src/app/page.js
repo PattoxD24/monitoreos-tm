@@ -57,6 +57,7 @@ export default function Home() {
     Matrícula: true,
     "Nombre del alumno": true,
     "Nombre de la materia": true,
+    "Semestre": true,
     "# Grupo": true,
     "Límite de faltas": true,
     "Faltas del alumno": true,

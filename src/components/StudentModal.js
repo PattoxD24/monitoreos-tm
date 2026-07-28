@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState, useMemo } from "react";
 import html2canvas from "html2canvas";
 import ScriptsModal from "./ScriptsModal";
 
-import { getPonderationsForRow } from "@/Utils/subjectIdentity";
+import { getPonderationsForRow, getSubjectSemesterFromRow } from "@/Utils/subjectIdentity";
 
 export default function StudentModal({
   student,
@@ -674,7 +674,9 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                                 row[col] === "DA" ? "bg-green-300" : row[col] === "NE" ?  "bg-red-300" : row[col] === "SC" ? "bg-yellow-300" : row[col] === "SD" ? "bg-blue-300" : row[col] === "NP" ? "bg-purple-300" : ""
                               }`}
                             >
-                              {row[col] || ""}
+                              {col === "Semestre"
+                                ? getSubjectSemesterFromRow(row) || ""
+                                : row[col] || ""}
                             </td>
                           ))}
                           {hasDA && ponderado < 70 && ponderado > 49 && (

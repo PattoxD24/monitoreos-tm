@@ -1,5 +1,6 @@
 import JSZip from "jszip";
 import html2canvas from "html2canvas";
+import { getSubjectSemesterFromRow } from "@/Utils/subjectIdentity";
 
 export default async function downloadZipWithImages(
   studentData,
@@ -118,7 +119,9 @@ export default async function downloadZipWithImages(
           filledAColumns
         ).forEach((col) => {
           const td = document.createElement("td");
-          const cellValue = row[col] ?? "";
+          const cellValue = col === "Semestre"
+            ? getSubjectSemesterFromRow(row) ?? ""
+            : row[col] ?? "";
           styleBodyCell(td, cellValue, col);
           td.innerText = cellValue;
           dataRow.appendChild(td);
