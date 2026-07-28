@@ -1,3 +1,5 @@
+import { SUBJECTS } from './Subjects';
+
 // Subject identity helpers (prefer "Clave de materia" over subject name)
 
 const toTrimmedString = (value) => {
@@ -67,4 +69,47 @@ export const getPonderationsForRow = (row, ponderationData) => {
   }
 
   return {};
+};
+
+export const getPlanDeEstudiosFromRow = (row) => {
+  return getFieldInsensitive(row, [
+    'clave plan de estudios',
+    'plan de estudios',
+    'clave del plan de estudios',
+    'cve plan',
+    'plan',
+  ]);
+};
+
+export const getSubjectSemester = (subjectName) => {
+  if (!subjectName) return null;
+  const lower = subjectName.toLowerCase();
+  const matched = SUBJECTS.subjects.find((s) => {
+    const es = s.name.es.toLowerCase();
+    const en = s.name.en?.toLowerCase() || '';
+    return lower.includes(es) || (en && lower.includes(en));
+  });
+  return matched ? matched.semester : null;
+};
+
+export const inferStudentSemester = (studentSubjects) => {
+  if (!studentSubjects || studentSubjects.length === 0) return null;
+
+  let maxSemester = 0;
+  let semesters = new Set();
+
+  studentSubjects.forEach((subject) => {
+    const semester = getSubjectSemester(subject['Nombre de la materia']);
+    if (semester) {
+      semesters.add(semester);
+      if (semester > maxSemester) maxSemester = semester;
+    }
+  });
+
+  if (maxSemester === 0) return null;
+
+  return {
+    maxSemester,
+    semesters: Array.from(semesters).sort((a, b) => a - b),
+  };
 };

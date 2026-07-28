@@ -1,6 +1,8 @@
 "use client";
 import { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx-js-style';
+import { getPlanDeEstudiosFromRow, getSubjectSemester, getSubjectKeyFromRow } from '@/Utils/subjectIdentity';
+import { SUBJECTS } from '@/Utils/Subjects';
 
 /*
  Modal para generar reporte con filtros:
@@ -44,6 +46,8 @@ export default function ReportModal({ visible, onClose, students, filteredData, 
   const [includeMatricula, setIncludeMatricula] = useState(true);
   const [includeFullName, setIncludeFullName] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [activeTab, setActiveTab] = useState('general');
+  const [selectedSemesters, setSelectedSemesters] = useState([1, 2, 3, 4, 5, 6]);
 
   useEffect(() => {
     const handleKeyDown = (e) => { if (e.key === 'Escape') onClose(); };
@@ -211,10 +215,167 @@ export default function ReportModal({ visible, onClose, students, filteredData, 
     return count;
   };
 
+  const getSubjectCredited = (ponderado) => {
+    const val = parseFloat(ponderado);
+    return !isNaN(val) && val >= 70;
+  };
+
+  const buildSemestralRows = () => {
+    const rows = [];
+
+    students.forEach(student => {
+      const subjects = filteredData[student.matricula] || [];
+      if (subjects.length === 0) return;
+
+      // Extraer planes únicos de las materias del alumno
+      const plansMap = {};
+      subjects.forEach(sub => {
+        const plan = getPlanDeEstudiosFromRow(sub);
+        if (!plan) return;
+        if (!plansMap[plan]) plansMap[plan] = [];
+        plansMap[plan].push(sub);
+      });
+
+      const plans = Object.keys(plansMap);
+      if (plans.length === 0) {
+        // Si ninguna materia tiene plan, crear una fila sin plan
+        plansMap[''] = subjects;
+        plans.push('');
+      }
+
+      plans.forEach(plan => {
+        const planSubjects = plansMap[plan];
+
+        // Agrupar materias por Clave de materia (columna del Excel) o nombre como fallback
+        const subjectGroups = {};
+        planSubjects.forEach(sub => {
+          const clave = getSubjectKeyFromRow(sub);
+          const name = sub['Nombre de la materia'];
+          if (!clave && !name) return;
+
+          const key = clave || name;
+          if (!subjectGroups[key]) subjectGroups[key] = { name: name || clave, clave: clave || '', entries: [] };
+          subjectGroups[key].entries.push(sub);
+        });
+
+        // Evaluar cada grupo: si tiene múltiples intentos, ver la calificación más alta
+        let allEventuallyAccredited = true;
+        const observaciones = [];
+        let totalAccredited = 0;
+        const matchedSemesters = new Set();
+
+        Object.values(subjectGroups).forEach(group => {
+          const entries = group.entries;
+
+          // Ignorar materias optativas (clave empieza con "V")
+          if (group.clave && group.clave.startsWith('V')) return;
+
+          entries.forEach(sub => {
+            const sem = getSubjectSemester(sub['Nombre de la materia']);
+            if (sem) matchedSemesters.add(sem);
+          });
+
+          if (entries.length === 1) {
+            const sub = entries[0];
+            if (getSubjectCredited(sub.Ponderado)) {
+              totalAccredited++;
+            } else {
+              allEventuallyAccredited = false;
+              observaciones.push(`${sub['Nombre de la materia']}: ${sub.Ponderado} (no acreditada)`);
+            }
+          } else {
+            // Misma materia con varios registros (ej. reprobó y la volvió a cursar)
+            const grades = entries.map(sub => ({
+              name: sub['Nombre de la materia'],
+              raw: sub.Ponderado,
+              numeric: parseFloat(sub.Ponderado),
+            }));
+
+            const best = grades.reduce((max, g) => {
+              const gVal = isNaN(g.numeric) ? -1 : g.numeric;
+              const maxVal = isNaN(max.numeric) ? -1 : max.numeric;
+              return gVal > maxVal ? g : max;
+            }, grades[0]);
+
+            const last = grades[grades.length - 1];
+            const bestPassed = !isNaN(best.numeric) && best.numeric >= 70;
+            const lastPassed = !isNaN(last.numeric) && last.numeric >= 70;
+
+            if (bestPassed) {
+              totalAccredited++;
+              const progression = grades.map(g => g.raw).join(' → ');
+              observaciones.push(`${group.name}: ${progression} (acreditada)`);
+            } else {
+              allEventuallyAccredited = false;
+              const progression = grades.map(g => g.raw).join(' → ');
+              observaciones.push(`${group.name}: ${progression} (no acreditada)`);
+            }
+          }
+        });
+
+        const currentSemester = matchedSemesters.size > 0 ? Math.max(...Array.from(matchedSemesters)) : 0;
+
+        // Verificar mínimo de materias acreditadas según el semestre
+        // Calcular materias esperadas acumuladas desde Subjects.js
+        const subjectsPerSemester = {};
+        SUBJECTS.subjects.forEach(s => {
+          subjectsPerSemester[s.semester] = (subjectsPerSemester[s.semester] || 0) + 1;
+        });
+        let expectedAccredited = 0;
+        for (let sem = 1; sem <= currentSemester; sem++) {
+          expectedAccredited += subjectsPerSemester[sem] || 0;
+        }
+        const insufficientAccredited = currentSemester > 0 && totalAccredited < expectedAccredited;
+
+        if (insufficientAccredited) {
+          allEventuallyAccredited = false;
+          observaciones.push(
+            `Materias acreditadas insuficientes: ${totalAccredited}/${expectedAccredited} (se esperan ${expectedAccredited} para el semestre ${currentSemester})`
+          );
+        }
+
+        const status = allEventuallyAccredited ? 'REGULAR' : 'IRREGULAR';
+        const cag = status === 'REGULAR' ? 'SI' : '';
+
+        const row = {
+          'Matrícula': student.matricula,
+          'Nombre': student.fullName,
+          'Clave plan de estudios': plan,
+          'Estatus': status,
+          'Materias acreditadas': totalAccredited,
+          'Inscrito': '',
+          'CAG': cag,
+        };
+
+        // Promedios por semestre seleccionado
+        selectedSemesters.forEach(sem => {
+          const semSubjects = planSubjects.filter(sub => {
+            const s = getSubjectSemester(sub['Nombre de la materia']);
+            return s === sem;
+          });
+          const values = semSubjects
+            .map(s => parseFloat(s.Ponderado))
+            .filter(v => !isNaN(v));
+          const avg = values.length > 0
+            ? Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 100) / 100
+            : '';
+          row[`Promedio monitoreo Sem ${sem}`] = avg;
+          row[`Promedio kardex Sem ${sem}`] = '';
+        });
+
+        row['Observaciones'] = observaciones.length > 0 ? observaciones.join('; ') : '';
+        rows.push(row);
+      });
+    });
+
+    return rows;
+  };
+
   const generateExcel = () => {
     setIsGenerating(true);
     try {
-      const rows = buildRows();
+      const isSemestral = activeTab === 'semestral';
+      const rows = isSemestral ? buildSemestralRows() : buildRows();
       if (rows.length === 0) { alert('No hay datos para exportar con los filtros seleccionados'); return; }
       const cleanRows = rows.map(r => { const clone = { ...r }; delete clone.__bgColor; return clone; });
       const headers = [];
@@ -234,22 +395,24 @@ export default function ReportModal({ visible, onClose, students, filteredData, 
           border: { top:{style:'thin',color:{rgb:'FFFFFF'}}, bottom:{style:'thin',color:{rgb:'FFFFFF'}}, left:{style:'thin',color:{rgb:'FFFFFF'}}, right:{style:'thin',color:{rgb:'FFFFFF'}} }
         };
       });
-      // Colorear nombre
-      rows.forEach((r, i) => {
-        const rowIndex = i + 1; // data row
-        const nameIdx = headers.indexOf('Nombre');
-        if (nameIdx !== -1) {
-          const ref = XLSX.utils.encode_cell({ r: rowIndex, c: nameIdx });
-          if (ws[ref]) ws[ref].s = {
-            fill: { patternType:'solid', fgColor:{ rgb: (r.__bgColor||'#FFFFFF').replace('#','') } },
-            border: { top:{style:'thin',color:{rgb:'DDDDDD'}}, bottom:{style:'thin',color:{rgb:'DDDDDD'}}, left:{style:'thin',color:{rgb:'DDDDDD'}}, right:{style:'thin',color:{rgb:'DDDDDD'}} }
-          };
-        }
-      });
+      // Colorear nombre (solo para reporte general)
+      if (!isSemestral) {
+        rows.forEach((r, i) => {
+          const rowIndex = i + 1; // data row
+          const nameIdx = headers.indexOf('Nombre');
+          if (nameIdx !== -1) {
+            const ref = XLSX.utils.encode_cell({ r: rowIndex, c: nameIdx });
+            if (ws[ref]) ws[ref].s = {
+              fill: { patternType:'solid', fgColor:{ rgb: (r.__bgColor||'#FFFFFF').replace('#','') } },
+              border: { top:{style:'thin',color:{rgb:'DDDDDD'}}, bottom:{style:'thin',color:{rgb:'DDDDDD'}}, left:{style:'thin',color:{rgb:'DDDDDD'}}, right:{style:'thin',color:{rgb:'DDDDDD'}} }
+            };
+          }
+        });
+      }
       const wb = XLSX.utils.book_new();
-      ws['!cols'] = headers.map(()=>({ wch: 18 }));
-      XLSX.utils.book_append_sheet(wb, ws, 'Reporte');
-      XLSX.writeFile(wb, `reporte_monitoreos_${Date.now()}.xlsx`, { bookType:'xlsx', type:'binary' });
+      ws['!cols'] = headers.map(()=>({ wch: isSemestral ? 20 : 18 }));
+      XLSX.utils.book_append_sheet(wb, ws, isSemestral ? 'Reporte Semestral' : 'Reporte');
+      XLSX.writeFile(wb, `${isSemestral ? 'reporte_semestral' : 'reporte_monitoreos'}_${Date.now()}.xlsx`, { bookType:'xlsx', type:'binary' });
     } finally {
       setIsGenerating(false);
     }
@@ -258,126 +421,182 @@ export default function ReportModal({ visible, onClose, students, filteredData, 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={(e)=>{ if(e.target===e.currentTarget) onClose(); }}>
       <div className="bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 p-6 rounded-lg shadow-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-        <h2 className="text-xl font-semibold mb-4">Generar Reporte</h2>
+        {/* Pestañas */}
+        <div className="flex gap-6 mb-4 border-b border-gray-200 dark:border-gray-700">
+          <button
+            onClick={() => setActiveTab('general')}
+            className={`pb-2 text-sm font-semibold transition-colors ${
+              activeTab === 'general'
+                ? 'text-blue-600 border-b-2 border-blue-600'
+                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+            }`}
+          >
+            General
+          </button>
+          <button
+            onClick={() => setActiveTab('semestral')}
+            className={`pb-2 text-sm font-semibold transition-colors ${
+              activeTab === 'semestral'
+                ? 'text-blue-600 border-b-2 border-blue-600'
+                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+            }`}
+          >
+            Semestral
+          </button>
+        </div>
 
-        <div className="mb-4 p-3 rounded border border-gray-200 dark:border-gray-700">
-          <h3 className="font-semibold mb-2">Tipo</h3>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={isGeneralReport}
-              onChange={(e)=>setIsGeneralReport(e.target.checked)}
-            />
-            General (ignora colores, estatus y faltas)
-          </label>
-
-          {!isGeneralReport && (
-            <div className="flex flex-wrap gap-4 mt-2">
+        {activeTab === 'general' && (
+          <>
+            <div className="mb-4 p-3 rounded border border-gray-200 dark:border-gray-700">
+              <h3 className="font-semibold mb-2">Tipo</h3>
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
-                  checked={applyColorFilter}
-                  onChange={(e)=>setApplyColorFilter(e.target.checked)}
+                  checked={isGeneralReport}
+                  onChange={(e)=>setIsGeneralReport(e.target.checked)}
                 />
-                Aplicar filtro de colores
+                General (ignora colores, estatus y faltas)
               </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={applyStatusFilter}
-                  onChange={(e)=>setApplyStatusFilter(e.target.checked)}
-                />
-                Aplicar filtro de estatus
-              </label>
+
+              {!isGeneralReport && (
+                <div className="flex flex-wrap gap-4 mt-2">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={applyColorFilter}
+                      onChange={(e)=>setApplyColorFilter(e.target.checked)}
+                    />
+                    Aplicar filtro de colores
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={applyStatusFilter}
+                      onChange={(e)=>setApplyStatusFilter(e.target.checked)}
+                    />
+                    Aplicar filtro de estatus
+                  </label>
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        <div className="grid md:grid-cols-3 gap-6">
-          {/* Colores */}
-          <div>
-            <h3 className="font-semibold mb-2">Colores</h3>
-            {COLOR_OPTIONS.map(opt => (
-              <label
-                key={opt.key}
-                className={`flex items-center gap-2 text-sm mb-1 ${(!applyColorFilter || isGeneralReport) ? 'opacity-50' : ''}`}
-              >
-                <input
-                  type="checkbox"
-                  disabled={!applyColorFilter || isGeneralReport}
-                  checked={selectedColors.includes(opt.key)}
-                  onChange={()=>toggleSelection(setSelectedColors, selectedColors, opt.key)}
-                />
-                {opt.label}
-              </label>
-            ))}
+            <div className="grid md:grid-cols-3 gap-6">
+              {/* Colores */}
+              <div>
+                <h3 className="font-semibold mb-2">Colores</h3>
+                {COLOR_OPTIONS.map(opt => (
+                  <label
+                    key={opt.key}
+                    className={`flex items-center gap-2 text-sm mb-1 ${(!applyColorFilter || isGeneralReport) ? 'opacity-50' : ''}`}
+                  >
+                    <input
+                      type="checkbox"
+                      disabled={!applyColorFilter || isGeneralReport}
+                      checked={selectedColors.includes(opt.key)}
+                      onChange={()=>toggleSelection(setSelectedColors, selectedColors, opt.key)}
+                    />
+                    {opt.label}
+                  </label>
+                ))}
+              </div>
+
+              {/* Estatus */}
+              <div>
+                <h3 className="font-semibold mb-2">Estatus (Actividades)</h3>
+                {STATUS_OPTIONS.map(opt => (
+                  <label
+                    key={opt.key}
+                    className={`flex items-center gap-2 text-sm mb-1 ${(!applyStatusFilter || isGeneralReport) ? 'opacity-50' : ''}`}
+                  >
+                    <input
+                      type="checkbox"
+                      disabled={!applyStatusFilter || isGeneralReport}
+                      checked={selectedStatuses.includes(opt.key)}
+                      onChange={()=>toggleSelection(setSelectedStatuses, selectedStatuses, opt.key)}
+                    />
+                    {opt.label}
+                  </label>
+                ))}
+              </div>
+
+              {/* Faltas */}
+              <div>
+                <h3 className="font-semibold mb-2">Faltas</h3>
+                <label className={`flex items-center gap-2 text-sm mb-1 ${isGeneralReport ? 'opacity-50' : ''}`}>
+                  <input
+                    type="radio"
+                    name="faltasMode"
+                    value="todas"
+                    disabled={isGeneralReport}
+                    checked={faltasMode==='todas'}
+                    onChange={()=>setFaltasMode('todas')}
+                  />
+                  Todas (consolidadas)
+                </label>
+                <label className={`flex items-center gap-2 text-sm mb-1 ${isGeneralReport ? 'opacity-50' : ''}`}>
+                  <input
+                    type="radio"
+                    name="faltasMode"
+                    value="porMateria"
+                    disabled={isGeneralReport}
+                    checked={faltasMode==='porMateria'}
+                    onChange={()=>setFaltasMode('porMateria')}
+                  />
+                  Por materia (solo con faltas)
+                </label>
+                <label className={`flex items-center gap-2 text-sm mb-1 ${isGeneralReport ? 'opacity-50' : ''}`}>
+                  <input
+                    type="radio"
+                    name="faltasMode"
+                    value="ninguna"
+                    disabled={isGeneralReport}
+                    checked={faltasMode==='ninguna'}
+                    onChange={()=>setFaltasMode('ninguna')}
+                  />
+                  No incluir faltas
+                </label>
+
+                <h3 className="font-semibold mt-4 mb-2">Columnas básicas</h3>
+                <label className="flex items-center gap-2 text-sm mb-1">
+                  <input type="checkbox" checked={includeMatricula} onChange={()=>setIncludeMatricula(v=>!v)} /> Matrícula
+                </label>
+                <label className="flex items-center gap-2 text-sm mb-1">
+                  <input type="checkbox" checked={includeFullName} onChange={()=>setIncludeFullName(v=>!v)} /> Nombre completo
+                </label>
+              </div>
+            </div>
+          </>
+        )}
+
+        {activeTab === 'semestral' && (
+          <div className="mb-4 p-3 rounded border border-gray-200 dark:border-gray-700">
+            <h3 className="font-semibold mb-2">Seleccionar semestres para promedios</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+              Se generarán columnas de promedio por cada semestre seleccionado.
+            </p>
+            <div className="flex flex-wrap gap-4">
+              {[1, 2, 3, 4, 5, 6].map(sem => (
+                <label key={sem} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={selectedSemesters.includes(sem)}
+                    onChange={() => {
+                      setSelectedSemesters(prev =>
+                        prev.includes(sem)
+                          ? prev.filter(s => s !== sem)
+                          : [...prev, sem].sort((a, b) => a - b)
+                      );
+                    }}
+                  />
+                  Semestre {sem}
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400 mt-2">
+              Se generará una fila por cada alumno + plan de estudios. Si un alumno tiene materias de dos planes, aparecerá en dos filas.
+            </p>
           </div>
-
-          {/* Estatus */}
-          <div>
-            <h3 className="font-semibold mb-2">Estatus (Actividades)</h3>
-            {STATUS_OPTIONS.map(opt => (
-              <label
-                key={opt.key}
-                className={`flex items-center gap-2 text-sm mb-1 ${(!applyStatusFilter || isGeneralReport) ? 'opacity-50' : ''}`}
-              >
-                <input
-                  type="checkbox"
-                  disabled={!applyStatusFilter || isGeneralReport}
-                  checked={selectedStatuses.includes(opt.key)}
-                  onChange={()=>toggleSelection(setSelectedStatuses, selectedStatuses, opt.key)}
-                />
-                {opt.label}
-              </label>
-            ))}
-          </div>
-
-          {/* Faltas */}
-          <div>
-            <h3 className="font-semibold mb-2">Faltas</h3>
-            <label className={`flex items-center gap-2 text-sm mb-1 ${isGeneralReport ? 'opacity-50' : ''}`}>
-              <input
-                type="radio"
-                name="faltasMode"
-                value="todas"
-                disabled={isGeneralReport}
-                checked={faltasMode==='todas'}
-                onChange={()=>setFaltasMode('todas')}
-              />
-              Todas (consolidadas)
-            </label>
-            <label className={`flex items-center gap-2 text-sm mb-1 ${isGeneralReport ? 'opacity-50' : ''}`}>
-              <input
-                type="radio"
-                name="faltasMode"
-                value="porMateria"
-                disabled={isGeneralReport}
-                checked={faltasMode==='porMateria'}
-                onChange={()=>setFaltasMode('porMateria')}
-              />
-              Por materia (solo con faltas)
-            </label>
-            <label className={`flex items-center gap-2 text-sm mb-1 ${isGeneralReport ? 'opacity-50' : ''}`}>
-              <input
-                type="radio"
-                name="faltasMode"
-                value="ninguna"
-                disabled={isGeneralReport}
-                checked={faltasMode==='ninguna'}
-                onChange={()=>setFaltasMode('ninguna')}
-              />
-              No incluir faltas
-            </label>
-
-            <h3 className="font-semibold mt-4 mb-2">Columnas básicas</h3>
-            <label className="flex items-center gap-2 text-sm mb-1">
-              <input type="checkbox" checked={includeMatricula} onChange={()=>setIncludeMatricula(v=>!v)} /> Matrícula
-            </label>
-            <label className="flex items-center gap-2 text-sm mb-1">
-              <input type="checkbox" checked={includeFullName} onChange={()=>setIncludeFullName(v=>!v)} /> Nombre completo
-            </label>
-          </div>
-        </div>
+        )}
 
         <div className="flex justify-end gap-4 mt-6">
           <button onClick={onClose} className="px-4 py-2 rounded bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500 text-sm">Cancelar</button>

@@ -17,7 +17,7 @@ import dynamic from "next/dynamic";
 import SidebarNav from "@/components/SidebarNav";
 import Link from "next/link";
 import { computeSubjectStatus } from "@/Utils/predictions";
-import { getPonderationsForRow } from "@/Utils/subjectIdentity";
+import { getPonderationsForRow, inferStudentSemester } from "@/Utils/subjectIdentity";
 import { MdTrendingDown, MdWarningAmber, MdCancel } from "react-icons/md";
 
 const FileUploader = dynamic(() => import("@/components/FileUploader"),{ ssr: false });
@@ -42,6 +42,8 @@ export default function Home() {
   const [uniqueSubjects, setUniqueSubjects] = useState([]);
   const [uniqueScholarships, setUniqueScholarships] = useState([]);
   const [uniqueTeams, setUniqueTeams] = useState([]);
+  const [uniqueSubjectCounts, setUniqueSubjectCounts] = useState([]);
+  const [uniqueSemesters, setUniqueSemesters] = useState([]);
   const [selectedTeacher, setSelectedTeacher] = useState("");
   const [selectedGroup, setSelectedGroup] = useState("");
   const [selectedTutor, setSelectedTutor] = useState("");
@@ -49,6 +51,8 @@ export default function Home() {
   const [selectedScholarship, setSelectedScholarship] = useState("");
   const [selectedTeam, setSelectedTeam] = useState("");
   const [selectedColor, setSelectedColor] = useState("");
+  const [selectedSubjectCount, setSelectedSubjectCount] = useState("");
+  const [selectedSemester, setSelectedSemester] = useState("");
   const defaultVisibleColumns = {
     Matrícula: true,
     "Nombre del alumno": true,
@@ -109,6 +113,7 @@ export default function Home() {
     const materias = new Set();
     const scholarships = new Set();
     const teams = new Set();
+    const subjectCounts = new Set();
 
     Object.values(filteredData).forEach(subjects => {
       subjects.forEach(subject => {
@@ -123,6 +128,7 @@ export default function Home() {
           materias.add(subject['Nombre de la materia']);
         }
       });
+      subjectCounts.add(subjects.length);
     });
 
     // Extraer tutores desde studentData
@@ -138,6 +144,14 @@ export default function Home() {
     setUniqueSubjects(Array.from(materias).sort());
     setUniqueScholarships(Array.from(scholarships).sort());
     setUniqueTeams(Array.from(teams).sort());
+    setUniqueSubjectCounts(Array.from(subjectCounts).sort((a, b) => a - b));
+
+    const semesters = new Set();
+    Object.entries(filteredData).forEach(([matricula, subjects]) => {
+      const result = inferStudentSemester(subjects);
+      if (result) semesters.add(result.maxSemester);
+    });
+    setUniqueSemesters(Array.from(semesters).sort((a, b) => a - b));
   }, [filteredData, studentData]);
 
   const handleProcessFilesWithHide = async () => {
@@ -276,7 +290,10 @@ export default function Home() {
       backgroundColor = "#CCFFCC"; // Verde suave
     }
   
-    return { neCount, npCount, hasNP, minPonderado, backgroundColor, totalFaltas };
+    const semesterInfo = inferStudentSemester(studentSubjects);
+    const semester = semesterInfo?.maxSemester || null;
+
+    return { neCount, npCount, hasNP, minPonderado, backgroundColor, totalFaltas, semester };
   };
 
   const sortStudents = (students) => {
@@ -330,8 +347,11 @@ export default function Home() {
     const matchesScholarship = !selectedScholarship || (student.beca === selectedScholarship);
     const matchesTeam = !selectedTeam || (student.equipoRepresentativo === selectedTeam);
     const matchesColor = !selectedColor || student.backgroundColor === selectedColor;
+    const subjectCount = filteredData[student.matricula]?.length || 0;
+    const matchesSubjectCount = !selectedSubjectCount || subjectCount === parseInt(selectedSubjectCount);
+    const matchesSemester = !selectedSemester || student.semester?.toString() === selectedSemester;
 
-    return matchesSearch && matchesTeacher && matchesGroup && matchesSubject && matchesTutor && matchesScholarship && matchesTeam && matchesColor;
+    return matchesSearch && matchesTeacher && matchesGroup && matchesSubject && matchesTutor && matchesScholarship && matchesTeam && matchesColor && matchesSubjectCount && matchesSemester;
   });
 
   const handleDeleteStudent = (matricula) => {
@@ -559,6 +579,12 @@ export default function Home() {
             setSelectedTeam={setSelectedTeam}
             selectedColor={selectedColor}
             setSelectedColor={setSelectedColor}
+            uniqueSubjectCounts={uniqueSubjectCounts}
+            selectedSubjectCount={selectedSubjectCount}
+            setSelectedSubjectCount={setSelectedSubjectCount}
+            uniqueSemesters={uniqueSemesters}
+            selectedSemester={selectedSemester}
+            setSelectedSemester={setSelectedSemester}
           />
           )}
           {/* Tarjetas de Estudiantes */}

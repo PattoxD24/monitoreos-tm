@@ -545,6 +545,9 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
             {student.tutor && (
               <p className="text-sm text-gray-600 dark:text-gray-400">Tutor: {student.tutor}</p>
             )}
+            {student.semester && (
+              <p className="text-sm text-gray-600 dark:text-gray-400">Semestre: {student.semester}</p>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {onNavigate && (

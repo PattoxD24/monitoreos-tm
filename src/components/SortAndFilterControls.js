@@ -15,6 +15,8 @@ export default function SortAndFilterControls({
   uniqueTutors = [],
   uniqueScholarships = [],
   uniqueTeams = [],
+  uniqueSubjectCounts = [],
+  uniqueSemesters = [],
   selectedTeacher,
   setSelectedTeacher,
   selectedGroup,
@@ -29,6 +31,10 @@ export default function SortAndFilterControls({
   setSelectedTeam,
   selectedColor,
   setSelectedColor,
+  selectedSubjectCount,
+  setSelectedSubjectCount,
+  selectedSemester,
+  setSelectedSemester,
 }) {
   const [teacherSearch, setTeacherSearch] = useState("");
   const [groupSearch, setGroupSearch] = useState("");
@@ -42,6 +48,8 @@ export default function SortAndFilterControls({
   const [teamSearch, setTeamSearch] = useState("");
   const [showScholarshipOptions, setShowScholarshipOptions] = useState(false);
   const [showTeamOptions, setShowTeamOptions] = useState(false);
+  const [subjectCountSearch, setSubjectCountSearch] = useState("");
+  const [showSubjectCountOptions, setShowSubjectCountOptions] = useState(false);
 
   const filteredTeachers = Array.isArray(uniqueTeachers) 
     ? uniqueTeachers.filter(teacher =>
@@ -79,6 +87,12 @@ export default function SortAndFilterControls({
       )
     : [];
 
+  const filteredSubjectCounts = Array.isArray(uniqueSubjectCounts)
+    ? uniqueSubjectCounts.filter(count =>
+        count?.toString().includes(subjectCountSearch)
+      )
+    : [];
+
   const handleClickOutside = () => {
     setTimeout(() => {
       setShowTeacherOptions(false);
@@ -87,6 +101,7 @@ export default function SortAndFilterControls({
       setShowTutorOptions(false);
       setShowScholarshipOptions(false);
       setShowTeamOptions(false);
+      setShowSubjectCountOptions(false);
     }, 200);
   };
 
@@ -107,6 +122,65 @@ export default function SortAndFilterControls({
         <option value="#CCFFCC" style={{ backgroundColor: '#CCFFCC' }}>🟢 Verde</option>
         <option value="#E6D3FF" style={{ backgroundColor: '#E6D3FF' }}>🟣 NP</option>
         <option value="#F0F0F0" style={{ backgroundColor: '#F0F0F0' }}>⚪ Sin ponderado</option>
+      </select>
+
+      {/* Filtro por Cantidad de Materias */}
+      <div className="relative">
+        <input
+          type="text"
+          value={selectedSubjectCount ? `${selectedSubjectCount} materias` : subjectCountSearch}
+          onChange={(e) => {
+            setSubjectCountSearch(e.target.value);
+            setShowSubjectCountOptions(true);
+            if (!e.target.value) setSelectedSubjectCount("");
+          }}
+          onFocus={() => {
+            setShowSubjectCountOptions(true);
+            setSubjectCountSearch("");
+          }}
+          onBlur={handleClickOutside}
+          placeholder="N° materias..."
+          className="border rounded-lg p-2 text-gray-700 w-36"
+        />
+        {showSubjectCountOptions && filteredSubjectCounts.length > 0 && (
+          <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-60 overflow-auto text-gray-700">
+            <div
+              className="p-2 hover:bg-gray-100 cursor-pointer text-gray-500"
+              onClick={() => {
+                setSelectedSubjectCount("");
+                setSubjectCountSearch("");
+                setShowSubjectCountOptions(false);
+              }}
+            >
+              Mostrar todos
+            </div>
+            {filteredSubjectCounts.map((count, index) => (
+              <div
+                key={index}
+                className="p-2 hover:bg-gray-100 cursor-pointer"
+                onClick={() => {
+                  setSelectedSubjectCount(count.toString());
+                  setSubjectCountSearch("");
+                  setShowSubjectCountOptions(false);
+                }}
+              >
+                {count} materias
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Filtro de Semestre */}
+      <select
+        value={selectedSemester}
+        onChange={(e) => setSelectedSemester(e.target.value)}
+        className="border rounded-lg p-2 text-gray-700"
+      >
+        <option value="">Todos los semestres</option>
+        {uniqueSemesters.map((sem) => (
+          <option key={sem} value={sem}>Semestre {sem}</option>
+        ))}
       </select>
 
       {/* Filtro de Materia */}

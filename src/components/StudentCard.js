@@ -286,6 +286,9 @@ export default function StudentCard({
       {student.tutor && (
         <p className='text-xs text-gray-500 mt-1'><span className='font-semibold'>Tutor:</span> {student.tutor}</p>
       )}
+      {student.semester && (
+        <p className='text-xs text-gray-500 mt-1'><span className='font-semibold'>Semestre:</span> {student.semester}</p>
+      )}
 
       {onDelete && (
         <>
