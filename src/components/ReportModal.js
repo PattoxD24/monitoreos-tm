@@ -246,6 +246,9 @@ export default function ReportModal({ visible, onClose, students, filteredData, 
       plans.forEach(plan => {
         const planSubjects = plansMap[plan];
 
+        // Identificar columnas de actividades (A1, A2, …)
+        const activityColumns = Object.keys(planSubjects[0] || {}).filter(col => /^A\d+$/i.test(col));
+
         // Agrupar materias por Clave de materia (columna del Excel) o nombre como fallback
         const subjectGroups = {};
         planSubjects.forEach(sub => {
@@ -262,8 +265,11 @@ export default function ReportModal({ visible, onClose, students, filteredData, 
         let allEventuallyAccredited = true;
         const observaciones = [];
         let totalAccredited = 0;
+        const accreditedGrades = [];
         const semesterCount = {};
         const matchedSemesters = new Set();
+        let hasDA = false;
+        let daSubject = '';
 
         Object.values(subjectGroups).forEach(group => {
           const entries = group.entries;
@@ -278,10 +284,26 @@ export default function ReportModal({ visible, onClose, students, filteredData, 
             semesterCount[groupSem] = (semesterCount[groupSem] || 0) + 1;
           }
 
+        // Detectar DA en cualquier actividad del grupo y registrar pérdida de mención
+          if (!hasDA) {
+            entries.some(sub => {
+              return activityColumns.some(col => {
+                const val = String(sub[col] || '').trim();
+                if (val === 'DA') {
+                  hasDA = true;
+                  daSubject = group.name || sub['Nombre de la materia'] || '';
+                  return true;
+                }
+                return false;
+              });
+            });
+          }
+
           if (entries.length === 1) {
             const sub = entries[0];
             if (getSubjectCredited(sub.Ponderado)) {
               totalAccredited++;
+              accreditedGrades.push(parseFloat(sub.Ponderado));
             } else {
               allEventuallyAccredited = false;
               observaciones.push(`${sub['Nombre de la materia']}: ${sub.Ponderado} (no acreditada)`);
@@ -306,6 +328,7 @@ export default function ReportModal({ visible, onClose, students, filteredData, 
 
             if (bestPassed) {
               totalAccredited++;
+              accreditedGrades.push(best.numeric);
               const progression = grades.map(g => g.raw).join(' → ');
               observaciones.push(`${group.name}: ${progression} (acreditada)`);
             } else {
@@ -351,6 +374,19 @@ export default function ReportModal({ visible, onClose, students, filteredData, 
         const status = allEventuallyAccredited ? 'REGULAR' : 'IRREGULAR';
         const cag = status === 'REGULAR' ? 'SI' : '';
 
+        // Promedio total de materias acreditadas
+        const totalAverage = accreditedGrades.length > 0
+          ? Math.round((accreditedGrades.reduce((a, b) => a + b, 0) / accreditedGrades.length) * 100) / 100
+          : '';
+
+        // Mención honorífica (50% del plan cursado + promedio >= 95)
+        const totalCurriculum = SUBJECTS.subjects.length;
+        const hasHalfCurriculum = totalAccredited >= Math.ceil(totalCurriculum / 2);
+
+        if (hasDA && hasHalfCurriculum && typeof totalAverage === 'number' && totalAverage >= 95) {
+          observaciones.push(`Pierde mención honorífica por DA en: ${daSubject}`);
+        }
+
         const row = {
           'Matrícula': student.matricula,
           'Nombre': student.fullName,
@@ -359,6 +395,9 @@ export default function ReportModal({ visible, onClose, students, filteredData, 
           'Materias acreditadas': totalAccredited,
           'Inscrito': '',
           'CAG': cag,
+          'Promedio total': totalAverage,
+          'Mención': '', // se llena tras el segundo pase
+          _noMencion: hasDA,
         };
 
         // Promedios por semestre seleccionado
@@ -382,6 +421,27 @@ export default function ReportModal({ visible, onClose, students, filteredData, 
       });
     });
 
+    // Segundo pase: determinar menciones honoríficas
+    const candidates = rows
+      .filter(r => {
+        if (r._noMencion) return false;
+        const avg = r['Promedio total'];
+        const totalCurriculum = SUBJECTS.subjects.length;
+        const hasHalf = r['Materias acreditadas'] >= Math.ceil(totalCurriculum / 2);
+        return hasHalf && typeof avg === 'number' && avg >= 95;
+      })
+      .sort((a, b) => b['Promedio total'] - a['Promedio total']);
+
+    const excelsior = candidates.length > 0 && candidates[0]['Promedio total'] >= 96 ? candidates[0] : null;
+
+    rows.forEach(r => {
+      if (r === excelsior) {
+        r['Mención'] = 'Excelencia';
+      } else if (candidates.includes(r)) {
+        r['Mención'] = 'Honorífica';
+      }
+    });
+
     return rows;
   };
 
@@ -391,7 +451,7 @@ export default function ReportModal({ visible, onClose, students, filteredData, 
       const isSemestral = activeTab === 'semestral';
       const rows = isSemestral ? buildSemestralRows() : buildRows();
       if (rows.length === 0) { alert('No hay datos para exportar con los filtros seleccionados'); return; }
-      const cleanRows = rows.map(r => { const clone = { ...r }; delete clone.__bgColor; return clone; });
+      const cleanRows = rows.map(r => { const clone = { ...r }; delete clone.__bgColor; delete clone._noMencion; return clone; });
       const headers = [];
       cleanRows.forEach((r) => {
         Object.keys(r).forEach((k) => {
