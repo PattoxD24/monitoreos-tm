@@ -276,7 +276,7 @@ export default function ProyeccionesPage() {
         alert('No se encontraron combinaciones de horarios sin conflicto con ' + availableSubjects.length + ' materias disponibles.\n\nPuede deberse a horarios superpuestos o disponibilidad insuficiente en la oferta. Intenta con un semestre objetivo más alto o verifica la oferta de grupos.');
       }
       setPlans(result);
-      if (result.length > 0) setSelectedPlan(result[0]);
+      // if (result.length > 0) setSelectedPlan(result[0]);
       setIsGenerating(false);
     }, 50);
   };
@@ -665,7 +665,7 @@ export default function ProyeccionesPage() {
         </section>
 
         {/* Tabla de materias cursadas */}
-        {parsedData.length > 0 && (
+        {parsedData.length < 0 && (
           <section className="mt-6 rounded-3xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur">
             <div className="flex items-center justify-between">
               <p className="text-sm uppercase tracking-[0.2em] text-slate-400">Materias cursadas</p>
@@ -831,6 +831,13 @@ export default function ProyeccionesPage() {
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-white">Calendario - Plan {plans.findIndex(p => p.id === selectedPlan.id) + 1}</h3>
                 <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setIsEditing(true); }}
+                    className="rounded-xl border border-white/15 px-3 py-1.5 text-xs text-slate-200 hover:bg-white/10 transition"
+                  >
+                    Editar
+                  </button>
                   <button
                     type="button"
                     onClick={() => exportPlanToPDF(selectedPlan, studentInfo.name)}
