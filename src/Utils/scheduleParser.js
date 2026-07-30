@@ -53,6 +53,39 @@ function matchSubjectByCodeOrName(clave, nombreMateria) {
   return null;
 }
 
+function mergeDuplicateGroups(groups) {
+  const map = new Map();
+  for (const g of groups) {
+    const key = `${g.clave}|${g.grupo}`;
+    let existing = map.get(key);
+    if (!existing) {
+      existing = { ...g, horarios: {} };
+      existing.dias = [];
+      map.set(key, existing);
+    }
+    for (const dia of g.dias) {
+      existing.horarios[dia] = { start: g.horario.start, end: g.horario.end };
+    }
+    existing.dias = [...new Set([...existing.dias, ...g.dias])];
+  }
+  for (const g of map.values()) {
+    let totalMinutes = 0;
+    for (const dia of g.dias) {
+      const h = g.horarios[dia];
+      if (h) {
+        const [h1, m1] = h.start.split(':').map(Number);
+        const [h2, m2] = h.end.split(':').map(Number);
+        if (!isNaN(h1) && !isNaN(m1) && !isNaN(h2) && !isNaN(m2)) {
+          totalMinutes += (h2 * 60 + m2) - (h1 * 60 + m1);
+        }
+      }
+    }
+    g.hrs = Math.max(Math.round(totalMinutes / 60), 1);
+    g.horario = g.horarios[g.dias[0]] || g.horario;
+  }
+  return [...map.values()];
+}
+
 export function parseOfertaExcel(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -62,7 +95,8 @@ export function parseOfertaExcel(file) {
         const sheetName = wb.SheetNames[0];
         const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: '' });
         const parsed = rows.map(parseGroupRow).filter(Boolean);
-        resolve(parsed);
+        const merged = mergeDuplicateGroups(parsed);
+        resolve(merged);
       } catch (err) {
         reject(err);
       }

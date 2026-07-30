@@ -10,6 +10,18 @@ function timeToMinutes(t) {
   return parseInt(parts[0], 10) * 60 + (parseInt(parts[1], 10) || 0);
 }
 
+function getHorario(seccion, dia) {
+  if (seccion.horarios && seccion.horarios[dia]) return seccion.horarios[dia];
+  return seccion.horario;
+}
+
+function formatHorarios(m) {
+  return m.dias.map(d => {
+    const h = getHorario(m, d);
+    return `${DAY_LABELS[d] || d} ${h.start}-${h.end}`;
+  }).join(', ');
+}
+
 function getActiveDays(plan) {
   const active = new Set();
   plan.materias.forEach(m => m.dias.forEach(d => active.add(d)));
@@ -57,8 +69,8 @@ export function exportPlanToPDF(plan, studentName) {
     activeDays.forEach(dayKey => {
       const matching = plan.materias.filter(m =>
         m.dias.includes(dayKey) &&
-        timeToMinutes(m.horario.start) <= h * 60 &&
-        timeToMinutes(m.horario.end) > h * 60
+        timeToMinutes(getHorario(m, dayKey).start) <= h * 60 &&
+        timeToMinutes(getHorario(m, dayKey).end) > h * 60
       );
       
       if (matching.length > 0) {
@@ -117,15 +129,14 @@ export function exportPlanToPDF(plan, studentName) {
     m.clave,
     m.materia,
     m.grupo,
-    m.dias.map(d => DAY_LABELS[d] || d).join(', '),
-    `${m.horario.start}-${m.horario.end}`,
+    formatHorarios(m),
     `${m.hrs}h`,
     m.modalidad.charAt(0).toUpperCase() + m.modalidad.slice(1),
   ]);
 
   autoTable(doc, {
     startY: yAfterCalendar + 5,
-    head: [['Clave', 'Materia', 'Grupo', 'Días', 'Horario', 'Hrs', 'Modalidad']],
+    head: [['Clave', 'Materia', 'Grupo', 'Horario', 'Hrs', 'Modalidad']],
     body: materiasData,
     theme: 'striped',
     styles: {
@@ -141,10 +152,9 @@ export function exportPlanToPDF(plan, studentName) {
       0: { cellWidth: 25 },
       1: { cellWidth: 70 },
       2: { cellWidth: 20 },
-      3: { cellWidth: 30 },
-      4: { cellWidth: 30 },
-      5: { cellWidth: 15 },
-      6: { cellWidth: 25 },
+      3: { cellWidth: 60 },
+      4: { cellWidth: 15 },
+      5: { cellWidth: 25 },
     },
   });
 
@@ -214,8 +224,8 @@ export function exportAllPlansToPDF(plans, studentName) {
       activeDays.forEach(dayKey => {
         const matching = plan.materias.filter(m =>
           m.dias.includes(dayKey) &&
-          timeToMinutes(m.horario.start) <= h * 60 &&
-          timeToMinutes(m.horario.end) > h * 60
+          timeToMinutes(getHorario(m, dayKey).start) <= h * 60 &&
+          timeToMinutes(getHorario(m, dayKey).end) > h * 60
         );
         
         if (matching.length > 0) {
@@ -273,15 +283,14 @@ export function exportAllPlansToPDF(plans, studentName) {
       m.clave,
       m.materia,
       m.grupo,
-      m.dias.map(d => DAY_LABELS[d] || d).join(', '),
-      `${m.horario.start}-${m.horario.end}`,
+      formatHorarios(m),
       `${m.hrs}h`,
       m.modalidad.charAt(0).toUpperCase() + m.modalidad.slice(1),
     ]);
 
     autoTable(doc, {
       startY: yAfterCalendar + 5,
-      head: [['Clave', 'Materia', 'Grupo', 'Días', 'Horario', 'Hrs', 'Modalidad']],
+      head: [['Clave', 'Materia', 'Grupo', 'Horario', 'Hrs', 'Modalidad']],
       body: materiasData,
       theme: 'striped',
       styles: {
@@ -297,10 +306,9 @@ export function exportAllPlansToPDF(plans, studentName) {
         0: { cellWidth: 25 },
         1: { cellWidth: 70 },
         2: { cellWidth: 20 },
-        3: { cellWidth: 30 },
-        4: { cellWidth: 30 },
-        5: { cellWidth: 15 },
-        6: { cellWidth: 25 },
+        3: { cellWidth: 60 },
+        4: { cellWidth: 15 },
+        5: { cellWidth: 25 },
       },
     });
   });

@@ -9,15 +9,29 @@ function timeToMinutes(t) {
   return parseInt(parts[0], 10) * 60 + (parseInt(parts[1], 10) || 0);
 }
 
+function getHorario(seccion, dia) {
+  if (seccion.horarios && seccion.horarios[dia]) return seccion.horarios[dia];
+  return seccion.horario;
+}
+
+function formatHorarios(m) {
+  return m.dias.map(d => {
+    const h = getHorario(m, d);
+    return `${DAY_LABELS[d] || d} ${h.start}-${h.end}`;
+  }).join(', ');
+}
+
 function hasTimeConflict(seccion, plan) {
   for (const m of plan) {
     if (m.clave === seccion.clave) continue;
     for (const dia of seccion.dias) {
       if (!m.dias.includes(dia)) continue;
-      const aStart = timeToMinutes(seccion.horario.start);
-      const aEnd = timeToMinutes(seccion.horario.end);
-      const bStart = timeToMinutes(m.horario.start);
-      const bEnd = timeToMinutes(m.horario.end);
+      const aHorario = getHorario(seccion, dia);
+      const bHorario = getHorario(m, dia);
+      const aStart = timeToMinutes(aHorario.start);
+      const aEnd = timeToMinutes(aHorario.end);
+      const bStart = timeToMinutes(bHorario.start);
+      const bEnd = timeToMinutes(bHorario.end);
       if (aStart < bEnd && bStart < aEnd) return true;
     }
   }
@@ -111,7 +125,7 @@ export default function ScheduleEditor({ plan, oferta, doneCodes, onSave, onCanc
                     <td className="py-2.5 pr-3 text-slate-300">{m.clave}</td>
                     <td className="py-2.5 pr-3 text-slate-300">{m.grupo}</td>
                     <td className="py-2.5 pr-3 text-slate-300">
-                      {m.dias.map(d => DAY_LABELS[d] || d).join(', ')} {m.horario.start}-{m.horario.end}
+                      {formatHorarios(m)}
                     </td>
                     <td className="py-2.5 pr-3 text-slate-300">{m.hrs}</td>
                     <td className="py-2.5 pr-3">
@@ -205,9 +219,9 @@ export default function ScheduleEditor({ plan, oferta, doneCodes, onSave, onCanc
                     {seccion.modalidad}
                   </span>
                 </div>
-                <div className="mt-1 text-slate-400">
+                  <div className="mt-1 text-slate-400">
                   {seccion.clave} · Grupo {seccion.grupo} · {seccion.hrs}h
-                  · {seccion.dias.map(d => DAY_LABELS[d] || d).join(', ')} {seccion.horario.start}-{seccion.horario.end}
+                  · {formatHorarios(seccion)}
                   · Disp: {seccion.disponibilidad}
                 </div>
               </button>

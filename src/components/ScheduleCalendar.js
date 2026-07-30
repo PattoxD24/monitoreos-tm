@@ -1,5 +1,6 @@
 const DAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'];
 const DAY_KEY_MAP = { L: 'Lun', Ma: 'Mar', Mi: 'Mié', J: 'Jue', V: 'Vie' };
+const DAY_KEY_REVERSE = Object.fromEntries(Object.entries(DAY_KEY_MAP).map(([k, v]) => [v, k]));
 const HOUR_RANGE = Array.from({ length: 14 }, (_, i) => i + 7);
 
 function timeToMinutes(t) {
@@ -14,6 +15,11 @@ function getActiveDays(plan) {
   return DAYS.filter(d => active.has(d));
 }
 
+function getHorario(seccion, dia) {
+  if (seccion.horarios && seccion.horarios[dia]) return seccion.horarios[dia];
+  return seccion.horario;
+}
+
 export default function ScheduleCalendar({ plan }) {
   const activeDays = getActiveDays(plan);
 
@@ -22,14 +28,15 @@ export default function ScheduleCalendar({ plan }) {
     for (const dia of m.dias) {
       const dayLabel = DAY_KEY_MAP[dia] || dia;
       if (!grid[dayLabel]) grid[dayLabel] = {};
-      const startMin = timeToMinutes(m.horario.start);
-      const endMin = timeToMinutes(m.horario.end);
-      for (const h of HOUR_RANGE) {
-        const hourStart = h * 60;
-        const hourEnd = (h + 1) * 60;
+      const h = getHorario(m, dia);
+      const startMin = timeToMinutes(h.start);
+      const endMin = timeToMinutes(h.end);
+      for (const hh of HOUR_RANGE) {
+        const hourStart = hh * 60;
+        const hourEnd = (hh + 1) * 60;
         if (startMin < hourEnd && endMin > hourStart) {
-          if (!grid[dayLabel][h]) grid[dayLabel][h] = [];
-          grid[dayLabel][h].push(m);
+          if (!grid[dayLabel][hh]) grid[dayLabel][hh] = [];
+          grid[dayLabel][hh].push(m);
         }
       }
     }
@@ -73,7 +80,7 @@ export default function ScheduleCalendar({ plan }) {
                             ? 'bg-amber-500/15 text-amber-200 border-amber-500/30'
                             : 'bg-emerald-500/15 text-emerald-200 border-emerald-500/30'
                         }`}
-                        title={`${m.materia} (${m.grupo}) ${m.horario.start}-${m.horario.end}`}
+                        title={`${m.materia} (${m.grupo}) ${d} ${getHorario(m, DAY_KEY_REVERSE[d] || d).start}-${getHorario(m, DAY_KEY_REVERSE[d] || d).end}`}
                       >
                         <div className="break-words font-medium line-clamp-3">{m.materia}</div>
                         <div className="opacity-70 flex gap-1 flex-wrap">

@@ -1,3 +1,8 @@
+function getHorario(seccion, dia) {
+  if (seccion.horarios && seccion.horarios[dia]) return seccion.horarios[dia];
+  return seccion.horario;
+}
+
 const DAY_LABELS = { L: 'Lun', Ma: 'Mar', Mi: 'Mié', J: 'Jue', V: 'Vie' };
 const MODALITY_COLORS = {
   regular: 'bg-emerald-500/15 text-emerald-200 border-emerald-500/30',
@@ -38,7 +43,7 @@ export default function SchedulePlanCard({ plan, rank, onView, onEdit, onExport 
                 className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs border ${
                   MODALITY_COLORS[m.modalidad] || 'bg-white/5 text-slate-300 border-white/10'
                 }`}
-                title={`${m.clave} - ${m.materia} - ${m.dias.map(d => DAY_LABELS[d] || d).join(', ')} ${m.horario.start}-${m.horario.end}`}
+                title={`${m.clave} - ${m.materia} - ${m.dias.map(d => `${DAY_LABELS[d] || d} ${getHorario(m, d).start}-${getHorario(m, d).end}`).join(', ')}`}
               >
                 <span className="truncate max-w-[110px] shrink-0">{m.materia}</span>
                 <span className="opacity-60 font-mono text-[10px]">{m.clave}</span>

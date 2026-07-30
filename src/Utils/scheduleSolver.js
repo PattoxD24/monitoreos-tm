@@ -15,10 +15,16 @@ function overlaps(a, b) {
   return aStart < bEnd && bStart < aEnd;
 }
 
+function getHorario(seccion, dia) {
+  if (seccion.horarios && seccion.horarios[dia]) return seccion.horarios[dia];
+  return seccion.horario;
+}
+
 function hasTimeConflict(seccion, usedSlots) {
   for (const dia of seccion.dias) {
+    const h = getHorario(seccion, dia);
     for (const slot of usedSlots) {
-      if (slot.dia === dia && overlaps(seccion.horario, slot)) return true;
+      if (slot.dia === dia && overlaps(h, slot)) return true;
     }
   }
   return false;
@@ -141,7 +147,8 @@ export function generateSchedulePlans(availableSubjects, oferta, options = {}) {
 
         const newSlots = [];
         for (const dia of seccion.dias) {
-          newSlots.push({ dia, start: seccion.horario.start, end: seccion.horario.end });
+          const h = getHorario(seccion, dia);
+          newSlots.push({ dia, start: h.start, end: h.end });
         }
 
         currentPlan.push(seccion);
