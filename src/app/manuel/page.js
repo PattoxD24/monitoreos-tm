@@ -67,33 +67,43 @@ export default function Page() {
     })
   }
 
+  const normalize = str => str?.trim().toLowerCase();
+
+  const findSubject = (item) => {
+    const matNorm = normalize(item.materia.replace(/\s*\(.*?\)\s*/g, ''));
+    const byName = SUBJECTS.subjects.find(s => {
+      if (normalize(s.name.es) === matNorm || normalize(s.name.en) === matNorm) return true;
+      if (s.name.additional) {
+        const extras = s.name.additional.split(',').map(n => normalize(n));
+        if (extras.includes(matNorm)) return true;
+      }
+      return false;
+    });
+    if (byName) return byName;
+    const clave = item.claveMateria;
+    if (clave) {
+      const byCode = SUBJECTS.subjects.find(s => {
+        const allCodes = s.codes || [s.code];
+        return allCodes.includes(clave) || s.curriculumCode === clave;
+      });
+      if (byCode) return byCode;
+    }
+    return null;
+  };
+
   const curricularBySemester = useMemo(() => {
-    // Helper to normalize text
-    const normalize = str => str?.trim().toLowerCase();
     const passedCodes = modalItems
       .filter(i => Number(i.calificacion) > 69)
       .map(i => {
-        const matNorm = normalize(i.materia);
-        const subj = SUBJECTS.subjects.find(s => {
-          // comparar nombre en español, inglés o adicionales
-          if (normalize(s.name.es) === matNorm || normalize(s.name.en) === matNorm) {
-            return true;
-          }
-          // lista de nombres adicionales (separados por coma)
-          if (s.name.additional) {
-            const extras = s.name.additional.split(',').map(n => normalize(n));
-            if (extras.includes(matNorm)) return true;
-          }
-          return false;
-        });
-        return subj?.code;
+        const subj = findSubject(i);
+        return subj?.curriculumCode || subj?.code;
       })
      .filter(Boolean);
     return SUBJECTS.subjects
       .slice()
       .sort((a, b) => a.semester - b.semester)
       .reduce((acc, s) => {
-        const done = passedCodes.includes(s.code)
+        const done = passedCodes.includes(s.curriculumCode || s.code)
         const canTake = s.prerequisites.every(pr => passedCodes.includes(pr))
         acc[s.semester] = acc[s.semester] || []
         acc[s.semester].push({ ...s, done, canTake })
@@ -103,27 +113,17 @@ export default function Page() {
 
   // Determinar estado de alumno según materias aprobadas en semestres 1-4
   const statusForAlumno = (items) => {
-    const normalize = str => str?.trim().toLowerCase();
-    // códigos de materias aprobadas
     const passedCodes = items
       .filter(it => Number(it.calificacion) > 69)
       .map(it => {
-        const matNorm = normalize(it.materia);
-        const subj = SUBJECTS.subjects.find(s => {
-          if (normalize(s.name.es) === matNorm || normalize(s.name.en) === matNorm) return true;
-          if (s.name.additional) {
-            const extras = s.name.additional.split(',').map(n => normalize(n));
-            if (extras.includes(matNorm)) return true;
-          }
-          return false;
-        });
-        return subj?.code;
+        const subj = findSubject(it);
+        return subj?.curriculumCode || subj?.code;
       })
       .filter(Boolean);
     // materias requeridas semestres 1 a 4
     const required = SUBJECTS.subjects
       .filter(s => s.semester <= 4)
-      .map(s => s.code);
+      .map(s => s.curriculumCode || s.code);
     const isRegular = required.every(code => passedCodes.includes(code));
     return isRegular ? 'Regular' : 'Irregular';
   }
@@ -188,9 +188,7 @@ export default function Page() {
           group.rows.forEach((r, j) => {
             // Calcular estatus y sujeto antes de agregar fila
             const est = Number(r.calificacion) > 69 ? 'Aprobada' : 'Reprobada';
-            const subj = SUBJECTS.subjects.find(s =>
-              [s.name.es, s.name.en].map(n => normalize(n)).includes(normalize(r.materia))
-            ) || {};
+            const subj = findSubject(r) || {};
             // leave cell A blank; will number after merges
             ws.addRow([null, group.sem, j+1, r.periodo, r.matricula, r.alumno, r.materia, subj.code || r.claveMateria, r.calificacion, r.clavePlan, est]);
             const row = ws.getRow(currentRow);

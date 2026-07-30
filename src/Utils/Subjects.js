@@ -1,7 +1,8 @@
 export const SUBJECTS = {
   "subjects": [
     {
-      "code": "MA13001",
+      "code": "BSMA1001",
+      "curriculumCode": "MA13001",
       "semester": 1,
       "languages": ["es"],
       "name": {
@@ -12,7 +13,9 @@ export const SUBJECTS = {
       "prerequisites": []
     },
     {
-      "code": "SO13001",
+      "code": "BSHU1004",
+      "curriculumCode": "SO13001",
+      "codes": ["BSHU1004", "BSHU1005"],
       "semester": 1,
       "languages": ["es", "en"],
       "name": {
@@ -24,7 +27,8 @@ export const SUBJECTS = {
       "prerequisites": []
     },
     {
-      "code": "CM13001",
+      "code": "BSHU1002",
+      "curriculumCode": "CM13001",
       "semester": 1,
       "languages": ["es"],
       "name": {
@@ -35,7 +39,9 @@ export const SUBJECTS = {
       "prerequisites": []
     },
     {
-      "code": "OPT_LENG_ES_I",
+      "code": "BSOP1006",
+      "curriculumCode": "OPT_LENG_ES_I",
+      "codes": ["BSOP1006", "BSOP1001", "PI13022"],
       "semester": 1,
       "languages": ["es"],
       "name": {
@@ -47,7 +53,9 @@ export const SUBJECTS = {
       "prerequisites": []
     },
     {
-      "code": "CG13001",
+      "code": "BSCN1005",
+      "curriculumCode": "CG13001",
+      "codes": ["BSCN1005", "BSCN1006"],
       "semester": 1,
       "languages": ["es", "en"],
       "name": {
@@ -59,7 +67,9 @@ export const SUBJECTS = {
       "prerequisites": []
     },
     {
-      "code": "CS13001",
+      "code": "BSTI1001",
+      "curriculumCode": "CS13001",
+      "codes": ["BSTI1001", "BSTI1003"],
       "semester": 1,
       "languages": ["es", "en"],
       "name": {
@@ -71,7 +81,8 @@ export const SUBJECTS = {
       "prerequisites": []
     },
     {
-      "code": "HP13001",
+      "code": "BSLI1001",
+      "curriculumCode": "HP13001",
       "semester": 1,
       "languages": ["es"],
       "name": {
@@ -83,7 +94,9 @@ export const SUBJECTS = {
     },
 
     {
-      "code": "MA13002",
+      "code": "BSMA1002",
+      "curriculumCode": "MA13002",
+      "codes": ["BSMA1002", "BSMA1003"],
       "semester": 2,
       "languages": ["es", "en"],
       "name": {
@@ -95,7 +108,8 @@ export const SUBJECTS = {
       "prerequisites": ["MA13001"]
     },
     {
-      "code": "HS13001",
+      "code": "BSHU1001",
+      "curriculumCode": "HS13001",
       "semester": 2,
       "languages": ["es"],
       "name": {
@@ -106,7 +120,8 @@ export const SUBJECTS = {
       "prerequisites": []
     },
     {
-      "code": "CM13002",
+      "code": "BSHU1003",
+      "curriculumCode": "CM13002",
       "semester": 2,
       "languages": ["es"],
       "name": {
@@ -117,7 +132,9 @@ export const SUBJECTS = {
       "prerequisites": ["CM13001"]
     },
     {
-      "code": "OPT_LENG_ES_II",
+      "code": "BSOP1002",
+      "curriculumCode": "OPT_LENG_ES_II",
+      "codes": ["BSOP1002", "BSOP1012", "BSHI1032"],
       "semester": 2,
       "languages": ["es"],
       "name": {
@@ -129,7 +146,8 @@ export const SUBJECTS = {
       "prerequisites": ["OPT_LENG_ES_I"]
     },
     {
-      "code": "QU13001",
+      "code": "BSCN1001",
+      "curriculumCode": "QU13001",
       "semester": 2,
       "languages": ["es"],
       "name": {
@@ -140,7 +158,9 @@ export const SUBJECTS = {
       "prerequisites": ["CG13001"]
     },
     {
-      "code": "CS13002",
+      "code": "BSTI1002",
+      "curriculumCode": "CS13002",
+      "codes": ["BSTI1002", "BSTI1004"],
       "semester": 2,
       "languages": ["es", "en"],
       "name": {
@@ -152,7 +172,8 @@ export const SUBJECTS = {
       "prerequisites": ["CS13001"]
     },
     {
-      "code": "HP13002",
+      "code": "BSLI1002",
+      "curriculumCode": "HP13002",
       "semester": 2,
       "languages": ["es"],
       "name": {
@@ -164,7 +185,9 @@ export const SUBJECTS = {
     },
 
     {
-      "code": "MA13003",
+      "code": "BSMA2001",
+      "curriculumCode": "MA13003",
+      "codes": ["BSMA2001", "BSMA2003"],
       "semester": 3,
       "languages": ["es", "en"],
       "name": {
@@ -176,7 +199,8 @@ export const SUBJECTS = {
       "prerequisites": ["MA13002"]
     },
     {
-      "code": "HS13002",
+      "code": "BSHU2001",
+      "curriculumCode": "HS13002",
       "semester": 3,
       "languages": ["es"],
       "name": {
@@ -187,7 +211,9 @@ export const SUBJECTS = {
       "prerequisites": ["HS13001"]
     },
     {
-      "code": "LI13001",
+      "code": "BSHU2003",
+      "curriculumCode": "LI13001",
+      "codes": ["BSHU2003", "BSHU2004"],
       "semester": 3,
       "languages": ["es", "en"],
       "name": {
@@ -199,7 +225,9 @@ export const SUBJECTS = {
       "prerequisites": ["CM13002"]
     },
     {
-      "code": "OPT_LENG_ES_III",
+      "code": "BSOP1003",
+      "curriculumCode": "OPT_LENG_ES_III",
+      "codes": ["BSOP1003", "BSOP1013", "BSHI1035", "PI13023", "BSOP1007"],
       "semester": 3,
       "languages": ["es"],
       "name": {
@@ -210,7 +238,8 @@ export const SUBJECTS = {
       "prerequisites": ["OPT_LENG_ES_II"]
     },
     {
-      "code": "QU13002",
+      "code": "BSCN1002",
+      "curriculumCode": "QU13002",
       "semester": 3,
       "languages": ["es"],
       "name": {
@@ -221,7 +250,8 @@ export const SUBJECTS = {
       "prerequisites": ["QU13001"]
     },
     {
-      "code": "HP13003",
+      "code": "BSLI2001",
+      "curriculumCode": "HP13003",
       "semester": 3,
       "languages": ["es"],
       "name": {
@@ -232,7 +262,8 @@ export const SUBJECTS = {
       "prerequisites": []
     },
     {
-      "code": "HP13004",
+      "code": "BSLI2002",
+      "curriculumCode": "HP13004",
       "semester": 3,
       "languages": ["es"],
       "name": {
@@ -244,7 +275,9 @@ export const SUBJECTS = {
     },
 
     {
-      "code": "MA13004",
+      "code": "BSMA2002",
+      "curriculumCode": "MA13004",
+      "codes": ["BSMA2002", "BSMA2004"],
       "semester": 4,
       "languages": ["es", "en"],
       "name": {
@@ -256,7 +289,9 @@ export const SUBJECTS = {
       "prerequisites": ["MA13003"]
     },
     {
-      "code": "SO13002",
+      "code": "BSHU2005",
+      "curriculumCode": "SO13002",
+      "codes": ["BSHU2005", "BSHU2006"],
       "semester": 4,
       "languages": ["es", "en"],
       "name": {
@@ -268,7 +303,8 @@ export const SUBJECTS = {
       "prerequisites": ["SO13001"]
     },
     {
-      "code": "LI13002",
+      "code": "BSHU2002",
+      "curriculumCode": "LI13002",
       "semester": 4,
       "languages": ["es"],
       "name": {
@@ -279,7 +315,9 @@ export const SUBJECTS = {
       "prerequisites": ["LI13001"]
     },
     {
-      "code": "OPT_LENG_ES_IV",
+      "code": "BSOP1004",
+      "curriculumCode": "OPT_LENG_ES_IV",
+      "codes": ["BSOP1004", "BSOP1009", "BSOP1014", "BSHI1036", "BSOP1008", "PI13024"],
       "semester": 4,
       "languages": ["es"],
       "name": {
@@ -291,7 +329,9 @@ export const SUBJECTS = {
       "prerequisites": ["OPT_LENG_ES_III"]
     },
     {
-      "code": "FI13001",
+      "code": "BSCN2001",
+      "curriculumCode": "FI13001",
+      "codes": ["BSCN2001", "BSCN2003"],
       "semester": 4,
       "languages": ["es", "en"],
       "name": {
@@ -304,6 +344,8 @@ export const SUBJECTS = {
     },
     {
       "code": "BI13001",
+      "curriculumCode": "BI13001",
+      "codes": ["BI13001", "BSCN2005", "BSCN2006"],
       "semester": 4,
       "languages": ["es", "en"],
       "name": {
@@ -315,7 +357,8 @@ export const SUBJECTS = {
       "prerequisites": []
     },
     {
-      "code": "HP13005",
+      "code": "BSLI3001",
+      "curriculumCode": "HP13005",
       "semester": 4,
       "languages": ["es"],
       "name": {
@@ -327,7 +370,8 @@ export const SUBJECTS = {
     },
 
     {
-      "code": "SO13003",
+      "code": "BSHU3009",
+      "curriculumCode": "SO13003",
       "semester": 5,
       "languages": ["es"],
       "name": {
@@ -339,6 +383,8 @@ export const SUBJECTS = {
     },
     {
       "code": "HS13003",
+      "curriculumCode": "HS13003",
+      "codes": ["HS13003", "BSHU3008"],
       "semester": 5,
       "languages": ["es", "en"],
       "name": {
@@ -351,6 +397,7 @@ export const SUBJECTS = {
     },
     {
       "code": "MA13006",
+      "curriculumCode": "MA13006",
       "semester": 5,
       "languages": ["es"],
       "name": {
@@ -361,7 +408,9 @@ export const SUBJECTS = {
       "prerequisites": []
     },
     {
-      "code": "OPT_LENG_ES_V",
+      "code": "BSOP1005",
+      "curriculumCode": "OPT_LENG_ES_V",
+      "codes": ["BSOP1005", "BSOP1010", "BSOP1015", "BSHI1037", "PI13021", "PI13025"],
       "semester": 5,
       "languages": ["es"],
       "name": {
@@ -373,7 +422,9 @@ export const SUBJECTS = {
       "prerequisites": ["OPT_LENG_ES_IV"]
     },
     {
-      "code": "FI13002",
+      "code": "BSCN2002",
+      "curriculumCode": "FI13002",
+      "codes": ["BSCN2002", "BSCN2004"],
       "semester": 5,
       "languages": ["es", "en"],
       "name": {
@@ -385,7 +436,9 @@ export const SUBJECTS = {
       "prerequisites": ["FI13001"]
     },
     {
-      "code": "BI13002",
+      "code": "BSCN3001",
+      "curriculumCode": "BI13002",
+      "codes": ["BSCN3001", "BSCN3002"],
       "semester": 5,
       "languages": ["es", "en"],
       "name": {
@@ -397,7 +450,8 @@ export const SUBJECTS = {
       "prerequisites": ["BI13001"]
     },
     {
-      "code": "HP13006",
+      "code": "BSLI3002",
+      "curriculumCode": "HP13006",
       "semester": 5,
       "languages": ["es"],
       "name": {
@@ -409,7 +463,9 @@ export const SUBJECTS = {
     },
 
     {
-      "code": "HP13007",
+      "code": "BSCN3003",
+      "curriculumCode": "HP13007",
+      "codes": ["BSCN3003", "BSCN3004"],
       "semester": 6,
       "languages": ["es", "en"],
       "name": {
@@ -422,6 +478,8 @@ export const SUBJECTS = {
     },
     {
       "code": "HS13004",
+      "curriculumCode": "HS13004",
+      "codes": ["HS13004", "BSHU3005", "BSHU3006"],
       "semester": 6,
       "languages": ["es", "en"],
       "name": {
@@ -434,6 +492,7 @@ export const SUBJECTS = {
     },
     {
       "code": "MA13005",
+      "curriculumCode": "MA13005",
       "semester": 6,
       "languages": ["es"],
       "name": {
@@ -445,6 +504,7 @@ export const SUBJECTS = {
     },
     {
       "code": "OPT_MOD_FORM_I",
+      "curriculumCode": "OPT_MOD_FORM_I",
       "semester": 6,
       "languages": ["es"],
       "name": {
@@ -455,7 +515,8 @@ export const SUBJECTS = {
       "prerequisites": []
     },
     {
-      "code": "FL13001",
+      "code": "BSHU3010",
+      "curriculumCode": "FL13001",
       "semester": 6,
       "languages": ["es"],
       "name": {
@@ -467,6 +528,8 @@ export const SUBJECTS = {
     },
     {
       "code": "SO13004",
+      "curriculumCode": "SO13004",
+      "codes": ["SO13004", "BSEC3001"],
       "semester": 6,
       "languages": ["es"],
       "name": {
@@ -478,6 +541,8 @@ export const SUBJECTS = {
     },
     {
       "code": "HP13008",
+      "curriculumCode": "HP13008",
+      "codes": ["HP13008", "BSLI3003"],
       "semester": 6,
       "languages": ["es"],
       "name": {

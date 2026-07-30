@@ -1,7 +1,13 @@
 "use client";
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { SUBJECTS } from '@/Utils/Subjects';
+import { parseOfertaExcel } from '@/Utils/scheduleParser';
+import { generateSchedulePlans } from '@/Utils/scheduleSolver';
+import { exportPlanToPDF, exportAllPlansToPDF } from '@/Utils/scheduleExport';
+import SchedulePlanCard from '@/components/SchedulePlanCard';
+import ScheduleCalendar from '@/components/ScheduleCalendar';
+import ScheduleEditor from '@/components/ScheduleEditor';
 
 export default function ProyeccionesPage() {
   const [parsedData, setParsedData] = useState([]);
@@ -12,10 +18,8 @@ export default function ProyeccionesPage() {
     const month = new Date().getMonth() + 1;
     return month <= 5 ? 'enero-mayo' : 'agosto-diciembre';
   });
-  const [targetSemester, setTargetSemester] = useState(() => {
-    const month = new Date().getMonth() + 1;
-    return month <= 5 ? 2 : 1;
-  });
+  const [targetSemester, setTargetSemester] = useState(6);
+  const firstLoadDone = useRef(false);
 
   // función para actualizar estado manualmente
   const handleStatusChange = (index, newStatus) => {
@@ -32,22 +36,17 @@ export default function ProyeccionesPage() {
         const changed = updated[index];
         console.log('changed item:', changed);
         // buscar sujeto en Subjects
-        const changedSubj = SUBJECTS.subjects.find(s => {
-          const lower = changed.name.toLowerCase();
-          const es = s.name.es.toLowerCase();
-          const en = s.name.en?.toLowerCase() || '';
-          return lower.includes(es) || (en && lower.includes(en));
-        });
+        const changedSubj = findSubject(changed);
         console.log('matched changedSubj:', changedSubj);
         if (changedSubj) {
           // construir lista de bloqueadas recursivas
-          const blocked = new Set([changedSubj.code]);
+          const blocked = new Set([changedSubj.curriculumCode || changedSubj.code]);
           let addedFlag = true;
           while (addedFlag) {
             addedFlag = false;
             SUBJECTS.subjects.forEach(s => {
-              if (!blocked.has(s.code) && s.prerequisites.some(pr => blocked.has(pr))) {
-                blocked.add(s.code);
+              if (!blocked.has(s.curriculumCode || s.code) && s.prerequisites.some(pr => blocked.has(pr))) {
+                blocked.add(s.curriculumCode || s.code);
                 addedFlag = true;
               }
             });
@@ -55,13 +54,8 @@ export default function ProyeccionesPage() {
           console.log('blocked codes:', Array.from(blocked));
           // aplicar bloqueo
           return updated.map(item => {
-            const subj = SUBJECTS.subjects.find(s => {
-              const lower = item.name.toLowerCase();
-              const es = s.name.es.toLowerCase();
-              const en = s.name.en?.toLowerCase() || '';
-              return lower.includes(es) || (en && lower.includes(en));
-            });
-            if (subj && blocked.has(subj.code) && subj.code !== changedSubj.code) {
+            const subj = findSubject(item) || {};
+            if (subj && blocked.has(subj.curriculumCode || subj.code) && subj.code !== changedSubj.code) {
               return { ...item, status: 'not_started', numericGrade: null };
             }
             return item;
@@ -98,12 +92,19 @@ export default function ProyeccionesPage() {
       const validRows = rows.filter(r => r['Nombre materia']);
       const data = validRows.map(row => {
         const raw = row['Calificación'];
-        let status = (raw === '-' || raw === '') ? 'not_started'
-          : (raw === 'CU')    ? 'in_progress'
-          : (!isNaN(raw))      ? 'passed'
+        const rawStr = (raw ?? '').toString().trim();
+        let status = (!rawStr || rawStr === '-') ? 'not_started'
+          : (rawStr === 'CU')    ? 'in_progress'
+          : (!isNaN(rawStr))      ? 'passed'
           : 'unknown';
+        const claveMateria = (row['Clave materia oficial'] || '').toString().trim();
+        const claveBanner = (row['Clave materia banner'] || '').toString().trim();
+        const claves = [];
+        if (claveMateria) claves.push(claveMateria);
+        if (claveBanner && claveBanner !== claveMateria) claves.push(claveBanner);
         return {
           name: row['Nombre materia']?.trim(),
+          claves,
           grade: raw,
           status,
           numericGrade: !isNaN(raw) ? Number(raw) : null
@@ -153,43 +154,232 @@ export default function ProyeccionesPage() {
     reader.readAsBinaryString(file);
   };
 
+  // procesa archivo de oferta de grupos
+  const handleOfertaFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const parsed = await parseOfertaExcel(file);
+      setOferta(parsed);
+      setOfertaFileName(file.name);
+      setPlans([]);
+      setSelectedPlan(null);
+    } catch (err) {
+      alert('Error al leer el archivo de oferta: ' + err.message);
+    }
+  };
+
+  // Función auxiliar para determinar el siguiente código secuencial de idiomas
+  const getNextLanguageCode = (passedClaves, prefix, allOfertaClaves) => {
+    // Extraer números de claves acreditadas con el prefijo
+    const passedNums = [...passedClaves]
+      .filter(c => c.startsWith(prefix))
+      .map(c => parseInt(c.replace(prefix, ''), 10))
+      .filter(n => !isNaN(n));
+    
+    if (passedNums.length === 0) {
+      return null; // Alumno nuevo, permitir todas
+    }
+    
+    const maxPassed = Math.max(...passedNums);
+    
+    // Encontrar siguiente disponible en oferta
+    const availableNums = [...allOfertaClaves]
+      .filter(c => c.startsWith(prefix))
+      .map(c => parseInt(c.replace(prefix, ''), 10))
+      .filter(n => !isNaN(n) && n > maxPassed)
+      .sort((a, b) => a - b);
+    
+    return availableNums.length > 0 ? `${prefix}${String(availableNums[0]).padStart(4, '0')}` : null;
+  };
+
+  const handleGeneratePlans = () => {
+    if (!availableSubjects.length) {
+      alert('No hay materias disponibles para planear con el semestre objetivo ' + targetSemester + '.\n\nPosibles causas:\n• Ya aprobaste todas las materias hasta el semestre ' + targetSemester + ' — prueba con un semestre más alto.\n• No se pudo hacer match de tus materias contra el plan de estudios (revisa que los nombres coincidan).\n• Aún no cargas el Kardex.');
+      return;
+    }
+    if (!oferta.length) {
+      alert('Carga primero el archivo de oferta de grupos.');
+      return;
+    }
+    setIsGenerating(true);
+    setTimeout(() => {
+      // Recopilar todas las claves de materias ya acreditadas
+      const allPassedClaves = new Set();
+      parsedData.forEach(item => {
+        if (item.status !== 'passed') return;
+        (item.claves || []).forEach(c => {
+          if (c) allPassedClaves.add(c);
+        });
+      });
+      
+      // Extraer claves de oferta únicas
+      const allOfertaClaves = new Set(oferta.map(s => s.clave));
+      
+      // Detectar si el alumno tiene algún idioma acreditado
+      const hasAnyLanguage = [...allPassedClaves].some(c => 
+        c.startsWith('BSOP') || c.startsWith('BSHI')
+      );
+      
+      // Filtrar idiomas BSOP y BSHI secuencialmente
+      const bsopNext = getNextLanguageCode(allPassedClaves, 'BSOP', allOfertaClaves);
+      const bshiNext = getNextLanguageCode(allPassedClaves, 'BSHI', allOfertaClaves);
+      
+      let ofertaToUse = oferta.filter(s => {
+        // Remover si la clave ya está acreditada
+        if (allPassedClaves.has(s.clave)) return false;
+        
+        // Filtrado secuencial para BSOP
+        if (s.clave.startsWith('BSOP')) {
+          if (hasAnyLanguage) {
+            // Alumno con idioma iniciado: solo permitir si es el siguiente de SU idioma
+            return bsopNext && s.clave === bsopNext;
+          }
+          // Alumno sin idiomas: permitir todos
+          return true;
+        }
+        
+        // Filtrado secuencial para BSHI
+        if (s.clave.startsWith('BSHI')) {
+          if (hasAnyLanguage) {
+            // Alumno con idioma iniciado: solo permitir si es el siguiente de SU idioma
+            return bshiNext && s.clave === bshiNext;
+          }
+          // Alumno sin idiomas: permitir todos
+          return true;
+        }
+        
+        return true;
+      });
+      
+      // Ordenar por número de clave para priorizar menores
+      ofertaToUse.sort((a, b) => {
+        const na = parseInt(a.clave.replace(/\D/g, ''), 10) || 0;
+        const nb = parseInt(b.clave.replace(/\D/g, ''), 10) || 0;
+        return na - nb;
+      });
+      
+      // Reasignar curriculumCode de idiomas para que usen su clave como identificador único
+      // Esto evita que sean filtrados por doneCodes en el editor
+      ofertaToUse = ofertaToUse.map(s => {
+        if (s.clave.startsWith('BSOP') || s.clave.startsWith('BSHI')) {
+          return { ...s, curriculumCode: s.clave };
+        }
+        return s;
+      });
+      
+      // Guardar oferta filtrada para usar en el editor
+      setFilteredOferta(ofertaToUse);
+      
+      const result = generateSchedulePlans(availableSubjects, ofertaToUse, { maxPlans: 10 });
+      if (result.length === 0) {
+        alert('No se encontraron combinaciones de horarios sin conflicto con ' + availableSubjects.length + ' materias disponibles.\n\nPuede deberse a horarios superpuestos o disponibilidad insuficiente en la oferta. Intenta con un semestre objetivo más alto o verifica la oferta de grupos.');
+      }
+      setPlans(result);
+      if (result.length > 0) setSelectedPlan(result[0]);
+      setIsGenerating(false);
+    }, 50);
+  };
+
   // orden para status de calificaciones
   const statusOrder = { in_progress: 0, not_started: 1, passed: 2, unknown: 3 };
-  // IDs de materias aprobadas (matching por inclusión de texto)
+  const findSubject = (item) => {
+    // 1. Match por nombre base (sin paréntesis) — el kardex es la fuente de verdad
+    const baseName = item.name.replace(/\s*\(.*?\)\s*/g, '').toLowerCase();
+    const byName = SUBJECTS.subjects
+      .slice()
+      .sort((a, b) => b.name.es.length - a.name.es.length)
+      .find(s => {
+        const es = s.name.es.toLowerCase();
+        const en = s.name.en?.toLowerCase() || '';
+        const check = (name) => {
+          const idx = baseName.indexOf(name);
+          if (idx === -1) return false;
+          const nextChar = baseName[idx + name.length];
+          if (nextChar && /[a-záéíóú]/i.test(nextChar)) return false;
+          return true;
+        };
+        return check(es) || (en && check(en));
+      });
+    if (byName) return byName;
+    // 2. Fallback por códigos del kardex
+    const claves = item.claves || [];
+    if (claves.length > 0) {
+      const byCode = SUBJECTS.subjects.find(s => {
+        const allCodes = s.codes || [s.code];
+        return claves.some(c => allCodes.includes(c) || s.curriculumCode === c);
+      });
+      if (byCode) return byCode;
+    }
+    return null;
+  };
+
   const passedCodes = useMemo(() => (
     parsedData
       .filter(item => item.status === 'passed')
       .map(item => {
-        const lowerName = item.name.toLowerCase();
-        const subj = SUBJECTS.subjects
-          .slice()
-          .sort((a, b) => b.name.es.length - a.name.es.length)
-          .find(s => {
-            const es = s.name.es.toLowerCase();
-            const en = s.name.en?.toLowerCase() || '';
-            return lowerName.includes(es) || (en && lowerName.includes(en));
-          });
-        return subj?.code;
+        const subj = findSubject(item);
+        return subj?.curriculumCode || subj?.code;
       })
       .filter(Boolean)
   ), [parsedData]);
 
-  const enrollmentList = useMemo(() => (
-    SUBJECTS.subjects
+  const enrollmentList = useMemo(() => {
+    // Build map of curriculum code → Kardex codes y nombres
+    const codeMap = {};
+    const nameMap = {};
+    parsedData.forEach(item => {
+      const subj = findSubject(item);
+      if (subj) {
+        const key = subj.curriculumCode || subj.code;
+        if (!codeMap[key]) codeMap[key] = [];
+        (item.claves || []).forEach(c => {
+          if (!codeMap[key].includes(c)) codeMap[key].push(c);
+        });
+        nameMap[key] = item.name.replace(/\s*\(.*?\)\s*/g, '').trim();
+      }
+    });
+    return SUBJECTS.subjects
       .slice()
       .sort((a, b) => a.semester - b.semester)
       .map(s => {
-        const done = passedCodes.includes(s.code);
+        const key = s.curriculumCode || s.code;
+        const done = passedCodes.includes(key);
         const canTake = s.prerequisites.every(pr => passedCodes.includes(pr));
         const isProgress = !done && parsedData.some(item => {
-          const lowerName = item.name.toLowerCase();
+          if (item.status !== 'in_progress') return false;
+          const baseName = item.name.replace(/\s*\(.*?\)\s*/g, '').toLowerCase();
           const es = s.name.es.toLowerCase();
           const en = s.name.en?.toLowerCase() || '';
-          return (lowerName.includes(es) || (en && lowerName.includes(en))) && item.status === 'in_progress';
+          const check = (name) => {
+            const idx = baseName.indexOf(name);
+            if (idx === -1) return false;
+            const nextChar = baseName[idx + name.length];
+            if (nextChar && /[a-záéíóú]/i.test(nextChar)) return false;
+            return true;
+          };
+          if (check(es) || (en && check(en))) return true;
+          const claves = item.claves || [];
+          if (claves.length > 0) {
+            const allCodes = s.codes || [s.code];
+            if (claves.some(c => allCodes.includes(c) || s.curriculumCode === c)) return true;
+          }
+          return false;
         });
-        return { ...s, done, canTake, isProgress };
-      })
-  ), [parsedData, passedCodes]);
+        return { ...s, done, canTake, isProgress, kardexCodes: codeMap[key] || [], kardexName: nameMap[key] };
+      });
+  }, [parsedData, passedCodes]);
+
+  const doneCodesSet = useMemo(() => {
+    const set = new Set();
+    enrollmentList.forEach(s => {
+      if (s.done) {
+        set.add(s.code);
+        if (s.curriculumCode) set.add(s.curriculumCode);
+      }
+    });
+    return set;
+  }, [enrollmentList]);
 
   const allowedSemesters = useMemo(() => (
     period === 'enero-mayo' ? [2, 4, 6] : [1, 3, 5]
@@ -203,6 +393,14 @@ export default function ProyeccionesPage() {
   ), [enrollmentList, allowedSemesters]);
 
   const [manualTypeMap, setManualTypeMap] = useState({});
+
+  const [oferta, setOferta] = useState([]);
+  const [ofertaFileName, setOfertaFileName] = useState('');
+  const [filteredOferta, setFilteredOferta] = useState([]);
+  const [plans, setPlans] = useState([]);
+  const [selectedPlan, setSelectedPlan] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     if (parsedData.length === 0) {
@@ -219,6 +417,9 @@ export default function ProyeccionesPage() {
   // manejar flechas y teclas V, F, R
   useEffect(() => {
     const handler = e => {
+      // ignorar si el foco está en un input
+      const tag = e.target.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable) return;
       // horizontal
       if (['ArrowUp','ArrowDown'].includes(e.key)) {
         e.preventDefault();
@@ -262,16 +463,25 @@ export default function ProyeccionesPage() {
 
   const statusMap = useMemo(() => (
     parsedData.reduce((acc, item) => {
-      const subj = SUBJECTS.subjects.find(s => {
-        const lower = item.name.toLowerCase();
-        const es = s.name.es.toLowerCase();
-        const en = s.name.en?.toLowerCase() || '';
-        return lower.includes(es) || (en && lower.includes(en));
-      });
+      const subj = findSubject(item);
       if (subj) acc[subj.code] = item.status;
       return acc;
     }, {})
   ), [parsedData]);
+
+  // auto-detect targetSemester: first semester with pending subjects
+  useEffect(() => {
+    if (!firstLoadDone.current && enrollmentList.length > 0) {
+      firstLoadDone.current = true;
+      for (let sem = 1; sem <= 6; sem++) {
+        const undone = enrollmentList.filter(s => s.semester === sem && !s.done);
+        if (undone.length > 0) {
+          setTargetSemester(sem);
+          break;
+        }
+      }
+    }
+  }, [enrollmentList]);
 
   const availableSubjects = useMemo(
     () => enrollmentList.filter(s => s.canTake && !s.done && !s.isProgress && s.semester <= targetSemester),
@@ -454,6 +664,214 @@ export default function ProyeccionesPage() {
           </div>
         </section>
 
+        {/* Tabla de materias cursadas */}
+        {parsedData.length > 0 && (
+          <section className="mt-6 rounded-3xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur">
+            <div className="flex items-center justify-between">
+              <p className="text-sm uppercase tracking-[0.2em] text-slate-400">Materias cursadas</p>
+              <span className="text-xs text-slate-500">{parsedData.length} registros</span>
+            </div>
+            <div className="mt-4 max-h-80 overflow-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="sticky top-0 bg-slate-900 text-xs uppercase tracking-[0.1em] text-slate-400">
+                  <tr>
+                    <th className="px-3 py-2">Códigos (Kardex)</th>
+                    <th className="px-3 py-2">Nombre materia</th>
+                    <th className="px-3 py-2">Calif</th>
+                    <th className="px-3 py-2">Status</th>
+                    <th className="px-3 py-2">Match Subjects.js</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {parsedData.map((item, i) => {
+                    const subj = findSubject(item);
+                    return (
+                      <tr key={i} className="border-t border-white/5 hover:bg-white/[0.02]">
+                        <td className="whitespace-nowrap px-3 py-2 font-mono text-xs text-slate-300">
+                          {(item.claves || []).join(', ') || <span className="text-slate-600">—</span>}
+                        </td>
+                        <td className="px-3 py-2 text-slate-200">{item.name.replace(/\s*\(.*?\)\s*/g, '').trim()}</td>
+                        <td className="px-3 py-2 text-slate-300">{item.grade || '—'}</td>
+                        <td className="px-3 py-2">
+                          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                            item.status === 'passed' ? 'bg-emerald-500/15 text-emerald-200' :
+                            item.status === 'in_progress' ? 'bg-blue-500/15 text-blue-200' :
+                            item.status === 'not_started' ? 'bg-slate-500/10 text-slate-300' :
+                            'bg-red-500/15 text-red-200'
+                          }`}>{item.status}</span>
+                        </td>
+                        <td className="px-3 py-2 font-mono text-xs text-slate-300">
+                          {subj ? <span className="text-emerald-300">{subj.curriculumCode || subj.code}</span> : <span className="text-rose-400">Sin match</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {/* Paso 3: Oferta de grupos */}
+        <section className="mt-8 rounded-3xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-sm uppercase tracking-[0.2em] text-slate-400">Paso 3</p>
+              <h2 className="text-2xl font-semibold text-white">Oferta de grupos</h2>
+              <p className="mt-2 text-sm text-slate-300">
+                Sube el archivo con la oferta de grupos (horarios, disponibilidad) para generar planes de inscripción.
+              </p>
+            </div>
+            {parsedData.length > 0 && oferta.length > 0 && (
+              <button
+                type="button"
+                onClick={handleGeneratePlans}
+                disabled={isGenerating}
+                className="shrink-0 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 px-6 py-3 text-sm font-semibold text-emerald-300 hover:bg-emerald-500/30 transition disabled:opacity-50"
+              >
+                {isGenerating ? 'Generando...' : 'Generar planes'}
+              </button>
+            )}
+          </div>
+
+          <div className="mt-6 grid gap-6 lg:grid-cols-2">
+            <label
+              htmlFor="ofertaFile"
+              className={`flex min-h-[120px] cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed px-6 text-center text-slate-300 transition ${
+                oferta.length > 0
+                  ? 'border-emerald-400/30 bg-emerald-500/5 hover:border-emerald-400/50'
+                  : 'border-white/20 bg-slate-900/40 hover:border-white/50 hover:bg-slate-900/60'
+              }`}
+            >
+              {oferta.length > 0 ? (
+                <div className="text-center">
+                  <span className="text-base font-medium text-emerald-300">✓ {ofertaFileName}</span>
+                  <span className="mt-1 block text-sm text-slate-400">{oferta.length} grupos cargados</span>
+                  <span className="mt-2 block text-xs text-slate-500">Toca para cambiar archivo</span>
+                </div>
+              ) : (
+                <>
+                  <span className="text-base font-medium">Subir oferta de grupos</span>
+                  <span className="mt-2 text-sm text-slate-400">Formatos admitidos: .xlsx, .xls</span>
+                </>
+              )}
+              <input
+                id="ofertaFile"
+                type="file"
+                accept=".xlsx, .xls"
+                onChange={handleOfertaFileChange}
+                className="hidden"
+              />
+            </label>
+
+            {oferta.length > 0 && (
+              <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Resumen de oferta</p>
+                <div className="mt-2 grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-slate-400">Materias distintas:</span>
+                    <span className="ml-2 font-semibold text-white">{new Set(oferta.map(g => g.clave)).size}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400">Grupos totales:</span>
+                    <span className="ml-2 font-semibold text-white">{oferta.length}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400">Regular:</span>
+                    <span className="ml-2 font-semibold text-emerald-300">{oferta.filter(g => g.modalidad === 'regular').length}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400">Flex:</span>
+                    <span className="ml-2 font-semibold text-amber-300">{oferta.filter(g => g.modalidad === 'flex').length}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Planes generados */}
+        {plans.length > 0 && (
+          <section className="mt-12">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm uppercase tracking-[0.2em] text-slate-400">Planes sugeridos</p>
+                <h3 className="text-2xl font-semibold text-white">
+                  {plans.length} opción{plans.length !== 1 ? 'es' : ''} de horario
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => exportAllPlansToPDF(plans, studentInfo.name)}
+                className="rounded-2xl border border-white/15 px-4 py-2 text-sm text-slate-200 hover:bg-white/10 transition"
+              >
+                Exportar todos
+              </button>
+            </div>
+
+            <div className="mt-6 space-y-4">
+              {plans.map((plan, idx) => (
+                <SchedulePlanCard
+                  key={plan.id}
+                  plan={plan}
+                  rank={idx + 1}
+                  onView={() => setSelectedPlan(plan)}
+                  onEdit={() => { setSelectedPlan(plan); setIsEditing(true); }}
+                  onExport={() => exportPlanToPDF(plan, studentInfo.name)}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Modal: calendario */}
+        {selectedPlan && !isEditing && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 overflow-y-auto" onClick={() => setSelectedPlan(null)}>
+            <div className="w-full max-w-7xl rounded-3xl border border-white/10 bg-slate-900 p-6 shadow-2xl overflow-auto" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-white">Calendario - Plan {plans.findIndex(p => p.id === selectedPlan.id) + 1}</h3>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => exportPlanToPDF(selectedPlan, studentInfo.name)}
+                    className="rounded-xl border border-emerald-400/30 px-3 py-1.5 text-xs text-emerald-300 hover:bg-emerald-500/10 transition"
+                  >
+                    Exportar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPlan(null)}
+                    className="rounded-xl border border-white/15 px-3 py-1.5 text-xs text-slate-300 hover:bg-white/10 transition"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              </div>
+              <ScheduleCalendar plan={selectedPlan} />
+            </div>
+          </div>
+        )}
+
+        {/* Modal: editor */}
+        {isEditing && selectedPlan && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setSelectedPlan(null)}>
+            <div className="w-full max-w-7xl max-h-[90vh] rounded-3xl border border-white/10 bg-slate-900 p-6 shadow-2xl overflow-y-auto" onClick={e => e.stopPropagation()}>
+              <h3 className="text-lg font-semibold text-white mb-4">Editar Plan</h3>
+              <ScheduleEditor
+                plan={selectedPlan}
+                oferta={filteredOferta.length > 0 ? filteredOferta : oferta}
+                doneCodes={doneCodesSet}
+                onSave={(edited) => {
+                  setPlans(prev => prev.map(p => p.id === selectedPlan.id ? edited : p));
+                  setSelectedPlan(edited);
+                  setIsEditing(false);
+                }}
+                onCancel={() => setIsEditing(false)}
+              />
+            </div>
+          </div>
+        )}
+
         {parsedData.length > 0 && (
           <section className="mt-12 space-y-8">
             <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl backdrop-blur">
@@ -524,9 +942,9 @@ export default function ProyeccionesPage() {
                       className="rounded-2xl border border-white/10 bg-slate-900/40 p-4 shadow-lg"
                     >
                       <p className="text-sm uppercase tracking-[0.25em] text-slate-500">Sem {s.semester}</p>
-                      <h4 className="mt-2 text-lg font-semibold text-white">{s.name.es}</h4>
+                      <h4 className="mt-2 text-lg font-semibold text-white">{s.kardexName || s.name.es}</h4>
                       <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                        <span className="rounded-full bg-white/10 px-3 py-1 text-slate-200">{s.code}</span>
+                        <span className="rounded-full bg-white/10 px-3 py-1 text-slate-200">{s.kardexCodes?.length > 0 ? s.kardexCodes.join(', ') : s.code}</span>
                         <span className="rounded-full bg-white/5 px-3 py-1 text-slate-300">{allowedSemesters.includes(s.semester) ? 'Regular' : 'Flex'}</span>
                       </div>
                     </div>
@@ -579,12 +997,15 @@ export default function ProyeccionesPage() {
                           className={`rounded-2xl border border-white/10 bg-gradient-to-br p-4 text-left transition focus:outline-none focus:ring-2 focus:ring-white/40 ${cardPalette} ${isSelected ? 'ring-2 ring-blue-400' : ''}`}
                         >
                           <div className="flex items-start justify-between">
-                            <p className="text-base font-semibold text-white">{s.name.es}</p>
+                            <p className="text-base font-semibold text-white">{s.kardexName || s.name.es}</p>
                             <span className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${statusBadges[status] || 'bg-white/10 text-white'}`}>
                               {status ? status.replace('_', ' ') : (s.done ? 'passed' : s.canTake ? 'available' : 'blocked')}
                             </span>
                           </div>
-                          <p className="mt-2 text-sm text-slate-200">{s.code} · {type || 'Sin tipo'}</p>
+                          <p className="mt-2 text-sm text-slate-200">
+                            {s.kardexCodes.length > 0 ? s.kardexCodes.join(', ') : s.code}
+                            {' · '}{type || 'Sin tipo'}
+                          </p>
                           <p className="mt-1 text-xs text-slate-400">Horas: {s.hours} • Créditos: {s.credits}</p>
                         </button>
                       );

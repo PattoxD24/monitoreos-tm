@@ -83,11 +83,18 @@ export const getPlanDeEstudiosFromRow = (row) => {
 
 export const getSubjectSemester = (subjectName) => {
   if (!subjectName) return null;
-  const lower = subjectName.toLowerCase();
+  const lower = subjectName.replace(/\s*\(.*?\)\s*/g, '').toLowerCase();
   const matched = SUBJECTS.subjects.find((s) => {
     const es = s.name.es.toLowerCase();
     const en = s.name.en?.toLowerCase() || '';
-    return lower.includes(es) || (en && lower.includes(en));
+    const check = (name) => {
+      const idx = lower.indexOf(name);
+      if (idx === -1) return false;
+      const nextChar = lower[idx + name.length];
+      if (nextChar && /[a-záéíóú]/i.test(nextChar)) return false;
+      return true;
+    };
+    return check(es) || (en && check(en));
   });
   return matched ? matched.semester : null;
 };
@@ -96,7 +103,10 @@ export const getSubjectSemesterFromRow = (row) => {
   // 1. Intentar por clave de materia
   const clave = getSubjectKeyFromRow(row);
   if (clave) {
-    const byCode = SUBJECTS.subjects.find(s => s.code === clave);
+    const byCode = SUBJECTS.subjects.find(s => {
+      const allCodes = s.codes || [s.code];
+      return allCodes.includes(clave) || s.curriculumCode === clave;
+    });
     if (byCode) return byCode.semester;
   }
   // 2. Fallback por nombre
