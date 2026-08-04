@@ -1,6 +1,5 @@
 const DAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'];
 const DAY_KEY_MAP = { L: 'Lun', Ma: 'Mar', Mi: 'Mié', J: 'Jue', V: 'Vie' };
-const DAY_KEY_REVERSE = Object.fromEntries(Object.entries(DAY_KEY_MAP).map(([k, v]) => [v, k]));
 const TIME_SLOTS = Array.from({ length: 27 }, (_, i) => 420 + i * 30);
 
 function formatTimeLabel(t) {
@@ -49,55 +48,89 @@ export default function ScheduleCalendar({ plan }) {
   return (
     <div className="overflow-x-auto">
       <div className="min-w-[700px]">
-        <div className="grid grid-cols-[80px_repeat(5,1fr)] gap-px bg-slate-700/30 rounded-xl overflow-hidden">
-          {/* Header */}
-          <div className="bg-slate-800 p-2"></div>
-          {DAYS.map(d => (
-            <div key={d} className={`bg-slate-800 p-2 text-center text-xs font-semibold uppercase tracking-wider text-slate-300 ${
-              !activeDays.includes(d) ? 'opacity-30' : ''
-            }`}>
+        <div
+          className="grid gap-px bg-slate-700/30 rounded-xl overflow-hidden"
+          style={{
+            gridTemplateColumns: '80px repeat(5, 1fr)',
+            gridTemplateRows: `repeat(${TIME_SLOTS.length}, 34px)`,
+          }}
+        >
+          {/* Esquina */}
+          <div className="bg-slate-800 p-2 z-10" style={{ gridRow: '1', gridColumn: '1' }} />
+
+          {/* Encabezados de día */}
+          {DAYS.map((d, di) => (
+            <div
+              key={d}
+              className={`bg-slate-800 p-2 text-center text-xs font-semibold uppercase tracking-wider text-slate-300 z-10 ${
+                !activeDays.includes(d) ? 'opacity-30' : ''
+              }`}
+              style={{ gridRow: '1', gridColumn: di + 2 }}
+            >
               {d}
             </div>
           ))}
 
-          {/* Rows */}
-          {TIME_SLOTS.map(t => (
-            <div key={t} className="contents">
-              <div className="bg-slate-800/60 p-1 text-[10px] text-slate-400 flex items-center justify-center border-t border-slate-700/30">
-                {formatTimeLabel(t)}
-              </div>
-              {DAYS.map(d => {
-                const cells = grid[d]?.[t] || [];
-                const isActive = activeDays.includes(d);
-                return (
-                  <div
-                    key={`${t}-${d}`}
-                    className={`min-h-[34px] p-0.5 border-t border-slate-700/30 ${
-                      cells.length > 0 ? 'bg-slate-800/80' : 'bg-slate-900/40'
-                    } ${!isActive ? 'opacity-30' : ''}`}
-                  >
-                    {cells.map((m, i) => (
-                      <div
-                        key={`${m.clave}-${m.grupo}-${i}`}
-                        className={`text-[9px] leading-tight rounded px-1 py-0.5 mb-0.5 border ${
-                          m.modalidad === 'flex'
-                            ? 'bg-amber-500/15 text-amber-200 border-amber-500/30'
-                            : 'bg-emerald-500/15 text-emerald-200 border-emerald-500/30'
-                        }`}
-                        title={`${m.materia} (${m.grupo}) ${d} ${getHorario(m, DAY_KEY_REVERSE[d] || d).start}-${getHorario(m, DAY_KEY_REVERSE[d] || d).end}`}
-                      >
-                        <div className="break-words font-medium line-clamp-2">{m.materia}</div>
-                        <div className="opacity-70 flex gap-1 flex-wrap">
-                          <span>{m.grupo}</span>
-                          <span className="font-mono">{m.clave}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })}
+          {/* Etiquetas de hora */}
+          {TIME_SLOTS.map((t, ti) => (
+            <div
+              key={t}
+              className="bg-slate-800/60 p-1 text-[10px] text-slate-400 flex items-center justify-center border-t border-slate-700/30 z-10"
+              style={{ gridRow: ti + 2, gridColumn: '1' }}
+            >
+              {formatTimeLabel(t)}
             </div>
           ))}
+
+          {/* Celdas de fondo */}
+          {DAYS.map((d, di) => TIME_SLOTS.map((t, ti) => {
+            const occupied = (grid[d]?.[t] || []).length > 0;
+            const isActive = activeDays.includes(d);
+            return (
+              <div
+                key={`${t}-${d}`}
+                className={`border-t border-slate-700/30 ${
+                  occupied ? 'bg-slate-800/80' : 'bg-slate-900/40'
+                } ${!isActive ? 'opacity-30' : ''}`}
+                style={{ gridRow: ti + 2, gridColumn: di + 2 }}
+              />
+            );
+          }))}
+
+          {/* Tarjetas de materias (una por materia y día, abarcando su duración) */}
+          {plan.materias.flatMap(m =>
+            m.dias.map(d => {
+              const dayLabel = DAY_KEY_MAP[d] || d;
+              const col = DAYS.indexOf(dayLabel) + 2;
+              if (col < 2) return null;
+              const h = getHorario(m, d);
+              const startMin = timeToMinutes(h.start);
+              const endMin = timeToMinutes(h.end);
+              const startSlot = Math.floor((startMin - 420) / 30);
+              const endSlot = Math.ceil((endMin - 420) / 30);
+              const s = Math.max(0, startSlot);
+              const e = Math.min(TIME_SLOTS.length, endSlot);
+              if (e <= s) return null;
+              return (
+                <div
+                  key={`${m.clave}-${m.grupo}-${d}`}
+                  className={`rounded px-1 py-0.5 border text-[9px] leading-tight overflow-hidden flex flex-col items-center justify-center text-center ${
+                    m.modalidad === 'flex'
+                      ? 'bg-amber-500/20 text-amber-200 border-amber-500/30'
+                      : 'bg-emerald-500/20 text-emerald-200 border-emerald-500/30'
+                  }`}
+                  style={{ gridRow: `${s + 2} / ${e + 2}`, gridColumn: col }}
+                  title={`${m.materia} (${m.grupo}) ${dayLabel} ${h.start}-${h.end}`}
+                >
+                  <div className="break-words font-medium line-clamp-2">{m.materia}</div>
+                  <div className="opacity-70 flex gap-1 flex-wrap">
+                    <span>{m.grupo}</span>
+                    <span className="font-mono">{m.clave}</span>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
 

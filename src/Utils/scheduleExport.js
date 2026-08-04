@@ -32,37 +32,50 @@ function getActiveDays(plan) {
   return ['L', 'Ma', 'Mi', 'J', 'V'].filter(d => active.has(d));
 }
 
+function buildDayCells(plan, dayKey) {
+  const subjects = plan.materias.filter(m => m.dias.includes(dayKey));
+  const cells = Array.from({ length: TIME_SLOTS.length }, () => ({ text: '', color: 'empty', span: 0 }));
+  subjects.forEach(m => {
+    const startMin = timeToMinutes(getHorario(m, dayKey).start);
+    const endMin = timeToMinutes(getHorario(m, dayKey).end);
+    const s = Math.max(0, Math.floor((startMin - 420) / 30));
+    const e = Math.min(TIME_SLOTS.length, Math.ceil((endMin - 420) / 30));
+    if (e <= s) return;
+    const color = m.modalidad === 'flex' ? 'flex' : 'regular';
+    for (let i = s; i < e; i++) cells[i].color = color;
+    cells[s].text = `${m.materia}\nG${m.grupo} ${m.clave}`;
+    cells[s].span = e - s;
+  });
+  return cells;
+}
+
 function buildCalendarTable(plan) {
   const activeDays = getActiveDays(plan);
   const dayHeaders = activeDays.map(d => DAY_LABELS[d]);
+  const dayCells = {};
+  activeDays.forEach(d => dayCells[d] = buildDayCells(plan, d));
   const calendarData = [];
   const calendarColors = [];
-  TIME_SLOTS.forEach(t => {
+  const calendarSpans = [];
+  TIME_SLOTS.forEach((t, ti) => {
     const row = [formatTimeLabel(t)];
     const colors = [null];
+    const spans = [0];
     activeDays.forEach(dayKey => {
-      const matching = plan.materias.filter(m =>
-        m.dias.includes(dayKey) &&
-        timeToMinutes(getHorario(m, dayKey).start) <= t &&
-        timeToMinutes(getHorario(m, dayKey).end) > t
-      );
-      if (matching.length > 0) {
-        const materia = matching[0];
-        row.push(`${materia.materia}\nG${materia.grupo} ${materia.clave}`);
-        colors.push(materia.modalidad === 'flex' ? 'flex' : 'regular');
-      } else {
-        row.push('');
-        colors.push('empty');
-      }
+      const cell = dayCells[dayKey][ti];
+      row.push(cell.text);
+      colors.push(cell.color);
+      spans.push(cell.span);
     });
     calendarData.push(row);
     calendarColors.push(colors);
+    calendarSpans.push(spans);
   });
-  return { dayHeaders, calendarData, calendarColors };
+  return { dayHeaders, calendarData, calendarColors, calendarSpans };
 }
 
 function buildCalendarTableOptions(plan, startY) {
-  const { dayHeaders, calendarData, calendarColors } = buildCalendarTable(plan);
+  const { dayHeaders, calendarData, calendarColors, calendarSpans } = buildCalendarTable(plan);
   return {
     startY,
     head: [['Hora', ...dayHeaders]],
@@ -87,6 +100,7 @@ function buildCalendarTableOptions(plan, startY) {
     didParseCell: function(data) {
       if (data.section !== 'body' || data.column.index === 0) return;
       const rowColors = calendarColors[data.row.index];
+      const rowSpans = calendarSpans[data.row.index];
       if (!rowColors) return;
       const kind = rowColors[data.column.index];
       if (kind === 'flex') {
@@ -95,6 +109,9 @@ function buildCalendarTableOptions(plan, startY) {
         data.cell.styles.fillColor = [220, 252, 231];
       } else {
         data.cell.styles.fillColor = [235, 238, 242];
+      }
+      if (rowSpans && rowSpans[data.column.index] > 1) {
+        data.cell.rowSpan = rowSpans[data.column.index];
       }
     },
   };
