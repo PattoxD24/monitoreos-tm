@@ -271,7 +271,10 @@ export default function ProyeccionesPage() {
       // Guardar oferta filtrada para usar en el editor
       setFilteredOferta(ofertaToUse);
       
-      const result = generateSchedulePlans(availableSubjects, ofertaToUse, { maxPlans: 10 });
+      const result = generateSchedulePlans(availableSubjects, ofertaToUse, {
+        maxPlans: 10,
+        preferredGrupo: preferredGrupo || undefined,
+      });
       if (result.length === 0) {
         alert('No se encontraron combinaciones de horarios sin conflicto con ' + availableSubjects.length + ' materias disponibles.\n\nPuede deberse a horarios superpuestos o disponibilidad insuficiente en la oferta. Intenta con un semestre objetivo más alto o verifica la oferta de grupos.');
       }
@@ -401,6 +404,41 @@ export default function ProyeccionesPage() {
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [preferredGrupo, setPreferredGrupo] = useState('');
+
+  const uniqueGrupos = useMemo(() => {
+    const available = enrollmentList.filter(s => s.canTake && !s.done && !s.isProgress && s.semester <= targetSemester);
+    const belongsToAvailable = (sec) => {
+      return available.some(a => {
+        const aCodes = new Set(a.codes || [a.code]);
+        // Coincidencia por código (curriculumCode de la sección o su clave)
+        if (sec.curriculumCode &&
+          (sec.curriculumCode === a.code || sec.curriculumCode === a.curriculumCode || aCodes.has(sec.curriculumCode))) {
+          return true;
+        }
+        if (sec.clave &&
+          (sec.clave === a.code || sec.clave === a.curriculumCode || aCodes.has(sec.clave))) {
+          return true;
+        }
+        // Coincidencia por nombre (en ambas direcciones)
+        const lowerMateria = sec.materia.replace(/\s*\(.*?\)\s*/g, '').toLowerCase();
+        const es = a.name.es.toLowerCase();
+        const checkContains = (longText, shortName) => {
+          const idx = longText.indexOf(shortName);
+          if (idx === -1) return false;
+          const nextChar = longText[idx + shortName.length];
+          if (nextChar && /[a-záéíóú]/i.test(nextChar)) return false;
+          return true;
+        };
+        if (checkContains(lowerMateria, es)) return true;
+        if (checkContains(es, lowerMateria)) return true;
+        return false;
+      });
+    };
+    return [...new Set(
+      oferta.filter(belongsToAvailable).map(s => s.grupo).filter(Boolean)
+    )].sort();
+  }, [oferta, enrollmentList, targetSemester]);
 
   useEffect(() => {
     if (parsedData.length === 0) {
@@ -723,14 +761,29 @@ export default function ProyeccionesPage() {
               </p>
             </div>
             {parsedData.length > 0 && oferta.length > 0 && (
-              <button
-                type="button"
-                onClick={handleGeneratePlans}
-                disabled={isGenerating}
-                className="shrink-0 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 px-6 py-3 text-sm font-semibold text-emerald-300 hover:bg-emerald-500/30 transition disabled:opacity-50"
-              >
-                {isGenerating ? 'Generando...' : 'Generar planes'}
-              </button>
+              <div className="flex flex-col items-stretch gap-3 md:items-center md:flex-row">
+                <label className="flex flex-col gap-1">
+                  <span className="text-[10px] uppercase tracking-wider text-slate-500">Grupo prioridad ({uniqueGrupos.length} grupos)</span>
+                  <select
+                    value={preferredGrupo}
+                    onChange={e => setPreferredGrupo(e.target.value)}
+                    className="rounded-xl border border-white/15 bg-slate-900/60 px-3 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-400/40"
+                  >
+                    <option value="">Sin prioridad</option>
+                    {uniqueGrupos.map(g => (
+                      <option key={g} value={g}>Grupo {g}</option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  onClick={handleGeneratePlans}
+                  disabled={isGenerating}
+                  className="shrink-0 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 px-6 py-3 text-sm font-semibold text-emerald-300 hover:bg-emerald-500/30 transition disabled:opacity-50"
+                >
+                  {isGenerating ? 'Generando...' : 'Generar planes'}
+                </button>
+              </div>
             )}
           </div>
 

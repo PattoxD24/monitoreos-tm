@@ -71,6 +71,7 @@ export function generateSchedulePlans(availableSubjects, oferta, options = {}) {
   const maxPlans = options.maxPlans || 5;
   const maxMaterias = options.maxMaterias || 7;
   const maxHoras = options.maxHoras || 29;
+  const preferredGrupo = options.preferredGrupo;
 
   if (!availableSubjects.length || !oferta.length) return [];
 
@@ -115,28 +116,61 @@ export function generateSchedulePlans(availableSubjects, oferta, options = {}) {
   const materiaKeys = Object.keys(byMateria);
   if (materiaKeys.length === 0) return [];
 
-  const plans = [];
+  // Materias que tienen secciones del grupo preferido (para la fase prioritaria)
+  const hasPreferredByCode = {};
+  if (preferredGrupo) {
+    materiaKeys.forEach(code => {
+      hasPreferredByCode[code] = byMateria[code].some(s => s.grupo === preferredGrupo);
+    });
+  }
 
-  function backtrack(currentPlan, remainingCodes, usedSlots) {
+  const plans = [];
+  const seen = new Set();
+
+  function planSignature(materias) {
+    return materias.map(m => `${m.clave}|${m.grupo}`).sort().join(';');
+  }
+
+  function pushPlan(currentPlan, hours) {
+    const sig = planSignature(currentPlan);
+    if (seen.has(sig)) return;
+    seen.add(sig);
+    plans.push({
+      id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      materias: currentPlan.map(m => ({ ...m })),
+      totalHoras: hours,
+      warnings: getWarnings(currentPlan, oferta),
+      score: scorePlan(currentPlan),
+      usesPreferred: preferredGrupo ? currentPlan.some(m => m.grupo === preferredGrupo) : false,
+    });
+  }
+
+  function backtrack(currentPlan, remainingCodes, usedSlots, preferredOnly) {
     if (plans.length >= maxPlans) return;
 
     const hours = sumHours(currentPlan);
 
     if (currentPlan.length >= 2) {
-      plans.push({
-        id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-        materias: currentPlan.map(m => ({ ...m })),
-        totalHoras: hours,
-        warnings: getWarnings(currentPlan, oferta),
-        score: scorePlan(currentPlan),
-      });
+      pushPlan(currentPlan, hours);
     }
 
     if (currentPlan.length >= maxMaterias || hours >= maxHoras) return;
 
     for (let i = 0; i < remainingCodes.length; i++) {
       const code = remainingCodes[i];
-      const secciones = byMateria[code];
+      let secciones = byMateria[code];
+
+      // Fase prioritaria: si la materia tiene el grupo preferido, solo probar ese grupo
+      if (preferredOnly && preferredGrupo && hasPreferredByCode[code]) {
+        secciones = secciones.filter(s => s.grupo === preferredGrupo);
+      } else if (preferredGrupo) {
+        // En fase normal, explorar primero las secciones del grupo preferido
+        secciones = secciones.slice().sort((a, b) => {
+          const aPref = a.grupo === preferredGrupo ? 1 : 0;
+          const bPref = b.grupo === preferredGrupo ? 1 : 0;
+          return bPref - aPref;
+        });
+      }
 
       const newRemaining = [...remainingCodes];
       newRemaining.splice(i, 1);
@@ -152,7 +186,7 @@ export function generateSchedulePlans(availableSubjects, oferta, options = {}) {
         }
 
         currentPlan.push(seccion);
-        backtrack(currentPlan, newRemaining, [...usedSlots, ...newSlots]);
+        backtrack(currentPlan, newRemaining, [...usedSlots, ...newSlots], preferredOnly);
         currentPlan.pop();
 
         if (plans.length >= maxPlans) return;
@@ -160,9 +194,21 @@ export function generateSchedulePlans(availableSubjects, oferta, options = {}) {
     }
   }
 
-  backtrack([], materiaKeys, []);
+  // Fase 1: planes que priorizan el grupo seleccionado
+  if (preferredGrupo) {
+    backtrack([], materiaKeys, [], true);
+  }
+  // Fase 2: completar con planes normales
+  if (plans.length < maxPlans) {
+    backtrack([], materiaKeys, [], false);
+  }
 
   return plans
-    .sort((a, b) => b.score - a.score || b.materias.length - a.materias.length)
+    .sort((a, b) => {
+      if (preferredGrupo && a.usesPreferred !== b.usesPreferred) {
+        return (b.usesPreferred ? 1 : 0) - (a.usesPreferred ? 1 : 0);
+      }
+      return b.score - a.score || b.materias.length - a.materias.length;
+    })
     .slice(0, maxPlans);
 }
