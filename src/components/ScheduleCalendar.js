@@ -78,7 +78,7 @@ export default function ScheduleCalendar({ plan }) {
               className="bg-slate-800/60 p-1 text-[10px] text-slate-400 flex items-center justify-center border-t border-slate-700/30 z-10"
               style={{ gridRow: ti + 2, gridColumn: '1' }}
             >
-              {formatTimeLabel(t)}
+              {t % 60 === 0 ? formatTimeLabel(t) : <div className="h-px w-3 bg-slate-500/50" />}
             </div>
           ))}
 

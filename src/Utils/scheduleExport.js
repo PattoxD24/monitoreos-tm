@@ -19,8 +19,10 @@ function getHorario(seccion, dia) {
   return seccion.horario;
 }
 
+const DAY_ORDER = ['L', 'Ma', 'Mi', 'J', 'V', 'S', 'D'];
+
 function formatHorarios(m) {
-  return m.dias.map(d => {
+  return [...m.dias].sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b)).map(d => {
     const h = getHorario(m, d);
     return `${DAY_LABELS[d] || d} ${h.start}-${h.end}`;
   }).join(', ');
@@ -58,7 +60,7 @@ function buildCalendarTable(plan) {
   const calendarColors = [];
   const calendarSpans = [];
   TIME_SLOTS.forEach((t, ti) => {
-    const row = [formatTimeLabel(t)];
+    const row = [t % 60 === 0 ? formatTimeLabel(t) : ''];
     const colors = [null];
     const spans = [0];
     activeDays.forEach(dayKey => {
@@ -114,6 +116,16 @@ function buildCalendarTableOptions(plan, startY) {
         data.cell.rowSpan = rowSpans[data.column.index];
       }
     },
+    didDrawCell: function(data) {
+      if (data.section !== 'body' || data.column.index !== 0) return;
+      if (data.cell.raw !== '') return;
+      const { x, y, width, height } = data.cell;
+      const midX = x + width / 2;
+      const midY = y + height / 2;
+      data.doc.setDrawColor(160, 170, 180);
+      data.doc.setLineWidth(0.2);
+      data.doc.line(midX - 3, midY, midX + 3, midY);
+    },
   };
 }
 
@@ -151,12 +163,12 @@ export function exportPlanToPDF(plan, studentName) {
   // Tabla de calendario
   autoTable(doc, buildCalendarTableOptions(plan, 40));
 
-  // Lista de materias
-  const yAfterCalendar = doc.lastAutoTable.finalY + 10;
-  
+  // Lista de materias en página aparte
+  doc.addPage();
+
   doc.setFontSize(12);
   doc.setFont(undefined, 'bold');
-  doc.text('Detalle de Materias', 15, yAfterCalendar);
+  doc.text('Detalle de Materias', 15, 20);
 
   const materiasData = plan.materias.map(m => [
     m.clave,
@@ -168,7 +180,7 @@ export function exportPlanToPDF(plan, studentName) {
   ]);
 
   autoTable(doc, {
-    startY: yAfterCalendar + 5,
+    startY: 26,
     head: [['Clave', 'Materia', 'Grupo', 'Horario', 'Hrs', 'Modalidad']],
     body: materiasData,
     theme: 'striped',
@@ -250,12 +262,12 @@ export function exportAllPlansToPDF(plans, studentName) {
     // Tabla de calendario
     autoTable(doc, buildCalendarTableOptions(plan, 40));
 
-    // Lista de materias
-    const yAfterCalendar = doc.lastAutoTable.finalY + 10;
-    
+    // Lista de materias en página aparte
+    doc.addPage();
+
     doc.setFontSize(12);
     doc.setFont(undefined, 'bold');
-    doc.text('Detalle de Materias', 15, yAfterCalendar);
+    doc.text(`Detalle de Materias - Plan ${index + 1}`, 15, 20);
 
     const materiasData = plan.materias.map(m => [
       m.clave,
@@ -267,7 +279,7 @@ export function exportAllPlansToPDF(plans, studentName) {
     ]);
 
     autoTable(doc, {
-      startY: yAfterCalendar + 5,
+      startY: 26,
       head: [['Clave', 'Materia', 'Grupo', 'Horario', 'Hrs', 'Modalidad']],
       body: materiasData,
       theme: 'striped',

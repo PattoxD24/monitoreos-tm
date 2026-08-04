@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import ScheduleCalendar from './ScheduleCalendar';
 
 const DAY_LABELS = { L: 'Lun', Ma: 'Mar', Mi: 'Mié', J: 'Jue', V: 'Vie' };
+const DAY_ORDER = ['L', 'Ma', 'Mi', 'J', 'V'];
 
 function timeToMinutes(t) {
   if (!t) return 0;
@@ -15,7 +16,7 @@ function getHorario(seccion, dia) {
 }
 
 function formatHorarios(m) {
-  return m.dias.map(d => {
+  return [...m.dias].sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b)).map(d => {
     const h = getHorario(m, d);
     return `${DAY_LABELS[d] || d} ${h.start}-${h.end}`;
   }).join(', ');
