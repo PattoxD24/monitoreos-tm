@@ -2,7 +2,11 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 const DAY_LABELS = { L: 'Lun', Ma: 'Mar', Mi: 'Mié', J: 'Jue', V: 'Vie', S: 'Sáb', D: 'Dom' };
-const HOUR_RANGE = Array.from({ length: 14 }, (_, i) => i + 7);
+const TIME_SLOTS = Array.from({ length: 27 }, (_, i) => 420 + i * 30);
+
+function formatTimeLabel(t) {
+  return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
+}
 
 function timeToMinutes(t) {
   if (!t) return 0;
@@ -28,15 +32,80 @@ function getActiveDays(plan) {
   return ['L', 'Ma', 'Mi', 'J', 'V'].filter(d => active.has(d));
 }
 
+function buildCalendarTable(plan) {
+  const activeDays = getActiveDays(plan);
+  const dayHeaders = activeDays.map(d => DAY_LABELS[d]);
+  const calendarData = [];
+  const calendarColors = [];
+  TIME_SLOTS.forEach(t => {
+    const row = [formatTimeLabel(t)];
+    const colors = [null];
+    activeDays.forEach(dayKey => {
+      const matching = plan.materias.filter(m =>
+        m.dias.includes(dayKey) &&
+        timeToMinutes(getHorario(m, dayKey).start) <= t &&
+        timeToMinutes(getHorario(m, dayKey).end) > t
+      );
+      if (matching.length > 0) {
+        const materia = matching[0];
+        row.push(`${materia.materia}\nG${materia.grupo} ${materia.clave}`);
+        colors.push(materia.modalidad === 'flex' ? 'flex' : 'regular');
+      } else {
+        row.push('');
+        colors.push('empty');
+      }
+    });
+    calendarData.push(row);
+    calendarColors.push(colors);
+  });
+  return { dayHeaders, calendarData, calendarColors };
+}
+
+function buildCalendarTableOptions(plan, startY) {
+  const { dayHeaders, calendarData, calendarColors } = buildCalendarTable(plan);
+  return {
+    startY,
+    head: [['Hora', ...dayHeaders]],
+    body: calendarData,
+    theme: 'grid',
+    styles: {
+      fontSize: 6,
+      cellPadding: 1,
+      overflow: 'linebreak',
+      halign: 'center',
+      valign: 'middle',
+    },
+    headStyles: {
+      fillColor: [30, 58, 138],
+      textColor: 255,
+      fontStyle: 'bold',
+      halign: 'center',
+    },
+    columnStyles: {
+      0: { cellWidth: 20, fontStyle: 'bold', fillColor: [241, 245, 249] },
+    },
+    didParseCell: function(data) {
+      if (data.section !== 'body' || data.column.index === 0) return;
+      const rowColors = calendarColors[data.row.index];
+      if (!rowColors) return;
+      const kind = rowColors[data.column.index];
+      if (kind === 'flex') {
+        data.cell.styles.fillColor = [255, 243, 205];
+      } else if (kind === 'regular') {
+        data.cell.styles.fillColor = [220, 252, 231];
+      } else {
+        data.cell.styles.fillColor = [235, 238, 242];
+      }
+    },
+  };
+}
+
 export function exportPlanToPDF(plan, studentName) {
   const doc = new jsPDF({
     orientation: 'landscape',
     unit: 'mm',
     format: 'a4'
   });
-
-  const activeDays = getActiveDays(plan);
-  const dayHeaders = activeDays.map(d => DAY_LABELS[d]);
 
   // Título
   doc.setFontSize(18);
@@ -62,61 +131,8 @@ export function exportPlanToPDF(plan, studentName) {
     doc.setTextColor(0, 0, 0);
   }
 
-  // Preparar datos del calendario
-  const calendarData = [];
-  HOUR_RANGE.forEach(h => {
-    const row = [`${h}:00`];
-    activeDays.forEach(dayKey => {
-      const matching = plan.materias.filter(m =>
-        m.dias.includes(dayKey) &&
-        timeToMinutes(getHorario(m, dayKey).start) <= h * 60 &&
-        timeToMinutes(getHorario(m, dayKey).end) > h * 60
-      );
-      
-      if (matching.length > 0) {
-        const materia = matching[0];
-        row.push(`${materia.materia}\n${materia.grupo}\n${materia.clave}`);
-      } else {
-        row.push('');
-      }
-    });
-    calendarData.push(row);
-  });
-
   // Tabla de calendario
-  autoTable(doc, {
-    startY: 40,
-    head: [['Hora', ...dayHeaders]],
-    body: calendarData,
-    theme: 'grid',
-    styles: {
-      fontSize: 7,
-      cellPadding: 2,
-      overflow: 'linebreak',
-      halign: 'center',
-      valign: 'middle',
-    },
-    headStyles: {
-      fillColor: [30, 58, 138],
-      textColor: 255,
-      fontStyle: 'bold',
-      halign: 'center',
-    },
-    columnStyles: {
-      0: { cellWidth: 20, fontStyle: 'bold', fillColor: [241, 245, 249] },
-    },
-    didParseCell: function(data) {
-      if (data.section === 'body' && data.column.index > 0 && data.cell.text.length > 0) {
-        // Colorear celdas con materias
-        const rowText = data.cell.text.join('\n');
-        if (rowText.includes('F')) { // Flex (grupo con F)
-          data.cell.styles.fillColor = [255, 243, 205]; // Ámbar claro
-        } else {
-          data.cell.styles.fillColor = [220, 252, 231]; // Verde claro
-        }
-      }
-    }
-  });
+  autoTable(doc, buildCalendarTableOptions(plan, 40));
 
   // Lista de materias
   const yAfterCalendar = doc.lastAutoTable.finalY + 10;
@@ -190,9 +206,6 @@ export function exportAllPlansToPDF(plans, studentName) {
       doc.addPage();
     }
 
-    const activeDays = getActiveDays(plan);
-    const dayHeaders = activeDays.map(d => DAY_LABELS[d]);
-
     // Título
     doc.setFontSize(18);
     doc.setFont(undefined, 'bold');
@@ -217,60 +230,8 @@ export function exportAllPlansToPDF(plans, studentName) {
       doc.setTextColor(0, 0, 0);
     }
 
-    // Preparar datos del calendario
-    const calendarData = [];
-    HOUR_RANGE.forEach(h => {
-      const row = [`${h}:00`];
-      activeDays.forEach(dayKey => {
-        const matching = plan.materias.filter(m =>
-          m.dias.includes(dayKey) &&
-          timeToMinutes(getHorario(m, dayKey).start) <= h * 60 &&
-          timeToMinutes(getHorario(m, dayKey).end) > h * 60
-        );
-        
-        if (matching.length > 0) {
-          const materia = matching[0];
-          row.push(`${materia.materia}\n${materia.grupo}\n${materia.clave}`);
-        } else {
-          row.push('');
-        }
-      });
-      calendarData.push(row);
-    });
-
     // Tabla de calendario
-    autoTable(doc, {
-      startY: 40,
-      head: [['Hora', ...dayHeaders]],
-      body: calendarData,
-      theme: 'grid',
-      styles: {
-        fontSize: 7,
-        cellPadding: 2,
-        overflow: 'linebreak',
-        halign: 'center',
-        valign: 'middle',
-      },
-      headStyles: {
-        fillColor: [30, 58, 138],
-        textColor: 255,
-        fontStyle: 'bold',
-        halign: 'center',
-      },
-      columnStyles: {
-        0: { cellWidth: 20, fontStyle: 'bold', fillColor: [241, 245, 249] },
-      },
-      didParseCell: function(data) {
-        if (data.section === 'body' && data.column.index > 0 && data.cell.text.length > 0) {
-          const rowText = data.cell.text.join('\n');
-          if (rowText.includes('F')) {
-            data.cell.styles.fillColor = [255, 243, 205];
-          } else {
-            data.cell.styles.fillColor = [220, 252, 231];
-          }
-        }
-      }
-    });
+    autoTable(doc, buildCalendarTableOptions(plan, 40));
 
     // Lista de materias
     const yAfterCalendar = doc.lastAutoTable.finalY + 10;
