@@ -405,6 +405,18 @@ export default function ProyeccionesPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [preferredGrupo, setPreferredGrupo] = useState('');
+  const [creatingNewPlan, setCreatingNewPlan] = useState(false);
+
+  const handleCreatePlanFromScratch = () => {
+    setSelectedPlan(null);
+    setCreatingNewPlan(true);
+    setIsEditing(true);
+  };
+
+  const closeEditor = () => {
+    setIsEditing(false);
+    setCreatingNewPlan(false);
+  };
 
   const uniqueGrupos = useMemo(() => {
     const available = enrollmentList.filter(s => s.canTake && !s.done && !s.isProgress && s.semester <= targetSemester);
@@ -783,6 +795,13 @@ export default function ProyeccionesPage() {
                 >
                   {isGenerating ? 'Generando...' : 'Generar planes'}
                 </button>
+                <button
+                  type="button"
+                  onClick={handleCreatePlanFromScratch}
+                  className="shrink-0 rounded-2xl border border-white/15 px-6 py-3 text-sm font-semibold text-slate-200 hover:bg-white/10 transition"
+                >
+                  Crear plan desde cero
+                </button>
               </div>
             )}
           </div>
@@ -913,20 +932,25 @@ export default function ProyeccionesPage() {
         )}
 
         {/* Modal: editor */}
-        {isEditing && selectedPlan && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setSelectedPlan(null)}>
+        {isEditing && (selectedPlan || creatingNewPlan) && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={closeEditor}>
             <div className="w-full max-w-7xl max-h-[90vh] rounded-3xl border border-white/10 bg-slate-900 p-6 shadow-2xl overflow-y-auto" onClick={e => e.stopPropagation()}>
-              <h3 className="text-lg font-semibold text-white mb-4">Editar Plan</h3>
+              <h3 className="text-lg font-semibold text-white mb-4">{creatingNewPlan ? 'Crear Plan desde Cero' : 'Editar Plan'}</h3>
               <ScheduleEditor
                 plan={selectedPlan}
                 oferta={filteredOferta.length > 0 ? filteredOferta : oferta}
                 doneCodes={doneCodesSet}
                 onSave={(edited) => {
-                  setPlans(prev => prev.map(p => p.id === selectedPlan.id ? edited : p));
-                  setSelectedPlan(edited);
+                  if (creatingNewPlan) {
+                    setPlans(prev => [...prev, edited]);
+                    setCreatingNewPlan(false);
+                  } else {
+                    setPlans(prev => prev.map(p => p.id === selectedPlan.id ? edited : p));
+                    setSelectedPlan(edited);
+                  }
                   setIsEditing(false);
                 }}
-                onCancel={() => setIsEditing(false)}
+                onCancel={closeEditor}
               />
             </div>
           </div>

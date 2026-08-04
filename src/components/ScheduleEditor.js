@@ -52,7 +52,7 @@ export default function ScheduleEditor({ plan, oferta, doneCodes, onSave, onCanc
     return oferta.filter(s =>
       !editedPlan.some(m => m.clave === s.clave && m.grupo === s.grupo) &&
       !doneCodes.has(s.curriculumCode) &&
-      (s.materia.toLowerCase().includes(q) || s.clave.toLowerCase().includes(q))
+      (s.materia.toLowerCase().includes(q) || s.clave.toLowerCase().includes(q) || String(s.grupo).toLowerCase().includes(q))
     );
   }, [oferta, editedPlan, search, doneCodes]);
 
@@ -194,7 +194,7 @@ export default function ScheduleEditor({ plan, oferta, doneCodes, onSave, onCanc
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar por nombre o clave..."
+            placeholder="Buscar por nombre, clave o grupo..."
             className="w-full rounded-xl border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-400/40"
           />
 
