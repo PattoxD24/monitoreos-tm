@@ -255,7 +255,7 @@ export default function useStudentData(defaultVisibleColumns) {
         return {
           matricula: row.MATRICULA,
           fullName: row.ALUMNOS,
-          preferredName: row.ALUMNOS.split(" ")[parseInt(row.favName, 10) - 1]?.toUpperCase(),
+          preferredName: (row.ALUMNOS.split(" ")[parseInt(row.favName, 10) - 1] || row.ALUMNOS)?.toUpperCase(),
           beca: row.BECA || row.Beca || null,
             equipoRepresentativo: row["EQUIPO REPRESENTATIVO"] || row["Equipo Representativa"] || null,
           tutorClave: claveTutor || null,

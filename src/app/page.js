@@ -301,9 +301,9 @@ export default function Home() {
     return [...students].sort((a, b) => {
       let comparison = 0;
       if (sortOrder === "matricula") {
-        comparison = a.matricula.localeCompare(b.matricula);
+        comparison = (a.matricula ?? "").localeCompare(b.matricula ?? "");
       } else if (sortOrder === "nombre") {
-        comparison = a.preferredName.localeCompare(b.preferredName);
+        comparison = (a.preferredName ?? "").localeCompare(b.preferredName ?? "");
       } else if (sortOrder === "faltas") {
         comparison = a.totalFaltas - b.totalFaltas;
       } else if (sortOrder === "original") {
@@ -333,9 +333,9 @@ export default function Home() {
   // Filtrar los estudiantes según el término de búsqueda
   const filteredStudents = sortedStudents.filter((student) => {
     const search = searchTerm.toLowerCase();
-    const matchesSearch = student.matricula.toLowerCase().includes(search) ||
+    const matchesSearch = (student.matricula ?? "").toLowerCase().includes(search) ||
       student.preferredName?.toLowerCase().includes(search) ||
-      student.fullName.toLowerCase().includes(search);
+      (student.fullName ?? "").toLowerCase().includes(search);
 
     const studentSubjects = filteredData[student.matricula] || [];
     const matchesTeacher = !selectedTeacher || 
