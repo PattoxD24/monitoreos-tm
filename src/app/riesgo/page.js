@@ -249,6 +249,7 @@ export default function RiesgoPage() {
           materiaRows.push({
             'Matrícula': student.matricula,
             'Nombre': student.fullName,
+            'Tutor': student.tutor || '',
             'Materia': materia.nombreMateria,
             'Status': materia.statusText,
             'Proyecta a Extraordinario': proyectaExtra ? 'Sí' : '',
@@ -271,6 +272,7 @@ export default function RiesgoPage() {
         consolidadoRows.push({
           'Matrícula': student.matricula,
           'Nombre': student.fullName,
+          'Tutor': student.tutor || '',
           'Materias en riesgo': student.materiasEnRiesgo.length,
           'Status principal': principalStatus || '',
           '# NP': counts.NP,
@@ -312,8 +314,8 @@ export default function RiesgoPage() {
         XLSX.utils.book_append_sheet(wb, ws, sheetName);
       };
 
-      addSheet(materiaRows, 'Por materia', [12, 25, 30, 14, 20, 10, 10, 8, 10, 10, 8, 10, 10, 30]);
-      addSheet(consolidadoRows, 'Consolidado por alumno', [12, 25, 18, 16, 8, 10, 10, 14, 14, 9, 8]);
+      addSheet(materiaRows, 'Por materia', [12, 25, 22, 30, 14, 20, 10, 10, 8, 10, 10, 8, 10, 10, 30]);
+      addSheet(consolidadoRows, 'Consolidado por alumno', [12, 25, 22, 18, 16, 8, 10, 10, 14, 14, 9, 8]);
 
       XLSX.writeFile(wb, `reporte_riesgo_${Date.now()}.xlsx`, { bookType: 'xlsx', type: 'binary' });
     } finally {
