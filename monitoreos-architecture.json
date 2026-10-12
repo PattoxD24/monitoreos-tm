@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Monitoreos — Arquitectura de la aplicación",
+    "quality_profile": "showcase",
+    "viewBox": [1120, 740]
+  },
+  "layout": {
+    "mode": "grid"
+  },
+  "components": [
+    { "id": "web", "type": "frontend", "label": "Web Monitoreos", "sublabel": "Shell · layout", "pos": [430, 280], "size": [200, 120] },
+    { "id": "core", "type": "frontend", "label": "Lógica compartida", "sublabel": "Utils", "pos": [435, 60], "size": [190, 95] },
+    { "id": "inicio", "type": "frontend", "label": "Inicio", "sublabel": "Lista de alumnos", "pos": [70, 90], "size": [200, 76] },
+    { "id": "riesgo", "type": "frontend", "label": "Alumnos en Riesgo", "pos": [70, 220], "size": [200, 76] },
+    { "id": "horario", "type": "frontend", "label": "Horario", "sublabel": "Semanal", "pos": [70, 350], "size": [200, 76] },
+    { "id": "manuel", "type": "frontend", "label": "Manuel", "sublabel": "Utilidad Excel", "pos": [70, 480], "size": [200, 76] },
+    { "id": "proyecciones", "type": "frontend", "label": "Proyecciones", "sublabel": "Sugerencia de planes", "pos": [880, 280], "size": [200, 76] },
+    { "id": "planner", "type": "frontend", "label": "Planificador", "sublabel": "Parser · Solver · PDF", "pos": [880, 460], "size": [200, 90] },
+    { "id": "idb", "type": "database", "label": "IndexedDB", "sublabel": "Persistencia local", "pos": [895, 620], "size": [170, 80] },
+    { "id": "excel", "type": "external", "label": "Archivos Excel", "sublabel": "Base · Kardex · Oferta", "pos": [880, 90], "size": [200, 76] },
+    { "id": "api", "type": "backend", "label": "API auth", "sublabel": "Rutas /api/auth", "pos": [430, 560], "size": [160, 90] },
+    { "id": "idp", "type": "external", "label": "IdP SAML", "sublabel": "NIDP SSO", "pos": [640, 565], "size": [150, 80] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Cliente Next.js (navegador)", "wraps": ["web", "inicio", "riesgo", "horario", "manuel", "proyecciones", "core", "planner", "idb"], "pad": 20 }
+  ],
+  "connections": [
+    { "from": "web", "to": "inicio" },
+    { "from": "web", "to": "riesgo" },
+    { "from": "web", "to": "horario" },
+    { "from": "web", "to": "manuel" },
+    { "from": "web", "to": "proyecciones" },
+    { "from": "web", "to": "core", "label": "usa", "fromSide": "top", "toSide": "bottom", "route": "orthogonal-v" },
+    { "from": "web", "to": "api", "label": "autentica", "variant": "security", "fromSide": "bottom", "toSide": "top", "route": "orthogonal-v" },
+    { "from": "api", "to": "idp", "label": "SAML SSO", "variant": "security", "fromSide": "right", "toSide": "left", "route": "orthogonal-h" },
+    { "from": "proyecciones", "to": "planner", "label": "usa", "labelAt": [990, 380] },
+    { "from": "planner", "to": "idb", "label": "persiste", "fromSide": "bottom", "toSide": "top", "route": "orthogonal-v" },
+    { "from": "excel", "to": "proyecciones", "label": "kardex · oferta", "variant": "emphasis", "labelAt": [990, 185] }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "Módulos", "items": ["Inicio, Riesgo, Horario, Manuel y Proyecciones se montan en un shell común", "Toda la lógica de negocio vive en src/Utils", "UI con Tailwind y modo claro/oscuro"] },
+    { "dot": "cyan", "title": "Persistencia", "items": ["IndexedDB guarda datos con debounce (lib/storage.js)", "Migración desde localStorage si existe", "Sin backend de datos: el navegador es el almacén"] },
+    { "dot": "rose", "title": "Autenticación y datos", "items": ["Gate de acceso por código local (AccessGate)", "Rutas /api/auth: SAML, login + 2FA, me, logout, csrf", "Inputs: archivos Excel (Base, Kardex, Oferta)"] }
+  ]
+}
