@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import * as XLSX from 'xlsx-js-style';
 import useStudentData from "@/hooks/useStudentData";
 import Loading from "@/components/Loading";
 import StudentModal from "@/components/StudentModal";
@@ -13,7 +14,7 @@ export default function RiesgoPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [riesgoStudents, setRiesgoStudents] = useState([]);
-  const [filterType, setFilterType] = useState("todos"); // todos, faltas, ne, ponderado
+  const [filterType, setFilterType] = useState("todos"); // todos, faltas, ne, ponderado, prediccion
   const [statusFilter, setStatusFilter] = useState("todos"); // todos, recursar, extraordinario, peligro, bajo promedio, faltas, ne
 
   const defaultVisibleColumns = {
@@ -75,6 +76,9 @@ export default function RiesgoPage() {
             break;
           case 'ponderado':
             includeByFilter = (ponderado === 'NP') || ponderadoNumerico < 70;
+            break;
+          case 'prediccion':
+            includeByFilter = status && status.maxPrediction < 70;
             break;
           default:
             includeByFilter = true;
@@ -213,6 +217,110 @@ export default function RiesgoPage() {
 
   const { peligroCount, recursarCount, npCount, extraordinarioCount, bajoPromedioCount, faltasCount, neCountLocal } = getStatusCounts();
 
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  // Generar reporte Excel con las materias visibles bajo los filtros actuales
+  const handleDownloadReport = () => {
+    if (riesgoStudents.length === 0) {
+      alert('No hay datos para exportar con los filtros seleccionados');
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      // Hoja 1: una fila por materia en riesgo
+      const materiaRows = [];
+      const consolidadoRows = [];
+
+      riesgoStudents.forEach(student => {
+        const statusOrder = ['NP', 'Recursar', 'Peligro', 'Faltas', 'NE', 'Bajo promedio', 'Extraordinario'];
+        const counts = {
+          NP: 0, Recursar: 0, Peligro: 0, Extraordinario: 0,
+          'Bajo promedio': 0, Faltas: 0, NE: 0,
+        };
+        let principalStatus = null;
+
+        student.materiasEnRiesgo.forEach(materia => {
+          counts[materia.statusText] = (counts[materia.statusText] || 0) + 1;
+
+          const proyectaExtra = materia.statusText === 'Peligro' &&
+            materia.maxPrediction >= 50 && materia.maxPrediction < 70;
+
+          materiaRows.push({
+            'Matrícula': student.matricula,
+            'Nombre': student.fullName,
+            'Materia': materia.nombreMateria,
+            'Status': materia.statusText,
+            'Proyecta a Extraordinario': proyectaExtra ? 'Sí' : '',
+            'Ponderado': materia.tieneNP ? 'NP' : materia.ponderadoNumerico,
+            'Pred. Máx': materia.maxPrediction !== undefined ? Math.round(materia.maxPrediction) : '-',
+            'Faltas': materia.faltasAlumno,
+            'Lím. Faltas': materia.limiteFaltas,
+            '% Faltas': materia.porcentajeFaltas.toFixed(2),
+            'NE': materia.neAlumno,
+            'Lím. NE': materia.limiteNE,
+            '% NE': materia.porcentajeNE.toFixed(2),
+            'Motivo': materia.reason,
+          });
+        });
+
+        for (const st of statusOrder) {
+          if (counts[st] > 0) { principalStatus = st; break; }
+        }
+
+        consolidadoRows.push({
+          'Matrícula': student.matricula,
+          'Nombre': student.fullName,
+          'Materias en riesgo': student.materiasEnRiesgo.length,
+          'Status principal': principalStatus || '',
+          '# NP': counts.NP,
+          '# Recursar': counts.Recursar,
+          '# Peligro': counts.Peligro,
+          '# Extraordinario': counts.Extraordinario,
+          '# Bajo promedio': counts['Bajo promedio'],
+          '# Faltas': counts.Faltas,
+          '# NE': counts.NE,
+        });
+      });
+
+      const wb = XLSX.utils.book_new();
+
+      const addSheet = (rows, sheetName, colWidths) => {
+        const headers = [];
+        rows.forEach((r) => {
+          Object.keys(r).forEach((k) => { if (!headers.includes(k)) headers.push(k); });
+        });
+        const ws = XLSX.utils.json_to_sheet(rows, { header: headers });
+        headers.forEach((_, idx) => {
+          const ref = XLSX.utils.encode_cell({ r: 0, c: idx });
+          if (ws[ref]) ws[ref].s = {
+            font: { bold: true, color: { rgb: 'FFFFFF' } },
+            fill: { patternType: 'solid', fgColor: { rgb: '1E3A8A' } },
+            alignment: { horizontal: 'center', vertical: 'center' },
+            border: {
+              top: { style: 'thin', color: { rgb: 'FFFFFF' } },
+              bottom: { style: 'thin', color: { rgb: 'FFFFFF' } },
+              left: { style: 'thin', color: { rgb: 'FFFFFF' } },
+              right: { style: 'thin', color: { rgb: 'FFFFFF' } }
+            }
+          };
+        });
+        ws['!cols'] = headers.map(() => ({ wch: 22 }));
+        if (colWidths) {
+          ws['!cols'] = headers.map((h, i) => ({ wch: colWidths[i] || 22 }));
+        }
+        XLSX.utils.book_append_sheet(wb, ws, sheetName);
+      };
+
+      addSheet(materiaRows, 'Por materia', [12, 25, 30, 14, 20, 10, 10, 8, 10, 10, 8, 10, 10, 30]);
+      addSheet(consolidadoRows, 'Consolidado por alumno', [12, 25, 18, 16, 8, 10, 10, 14, 14, 9, 8]);
+
+      XLSX.writeFile(wb, `reporte_riesgo_${Date.now()}.xlsx`, { bookType: 'xlsx', type: 'binary' });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex bg-gray-50 dark:bg-gray-800">
       <SidebarNav onToggle={handleSidebarToggle} />
@@ -227,6 +335,13 @@ export default function RiesgoPage() {
               Listado de alumnos con indicadores académicos críticos
             </p>
           </div>
+          <button
+            disabled={isGenerating}
+            onClick={handleDownloadReport}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            {isGenerating ? 'Generando...' : 'Descargar Excel'}
+          </button>
         </div>
 
         {/* Filtros */}
@@ -256,6 +371,12 @@ export default function RiesgoPage() {
               onClick={() => setFilterType('ponderado')}
             >
               Ponderado &lt; 70
+            </button>
+            <button 
+              className={`px-4 py-2 rounded-md transition-colors ${filterType === 'prediccion' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-100 hover:bg-gray-300 dark:hover:bg-gray-500'}`}
+              onClick={() => setFilterType('prediccion')}
+            >
+              Pred. Máx &lt; 70
             </button>
           </div>
         </div>
@@ -412,6 +533,11 @@ export default function RiesgoPage() {
                             }`}>
                               {materia.statusText}
                             </span>
+                            {materia.statusText === "Peligro" && materia.maxPrediction >= 50 && materia.maxPrediction < 70 && (
+                              <span className="block mt-1 inline-block px-2 py-0.5 rounded-full text-[10px] font-medium bg-orange-100 border border-orange-500 text-orange-700">
+                                Proyecta a Extraordinario
+                              </span>
+                            )}
                           </td>
                           <td className="py-2 px-4 border-b dark:border-gray-600 text-center text-gray-800 dark:text-gray-200">
                             {materia.tieneNP ? "NP" : materia.ponderadoNumerico}
