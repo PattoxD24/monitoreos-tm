@@ -92,12 +92,22 @@ export function computeSubjectStatus(row, ponderations) {
 
   const maxPrediction = calculateMaxPredictionForRow(row, ponderations);
 
-  // If even with perfect future scores cannot reach 70, will recursar
-  if (maxPrediction < 70) {
-    return { statusText: 'Recursar', reason: 'Predicción máxima < 70', maxPrediction };
+  // SD: la materia pasa a "Sin derecho" y debe recursar automáticamente.
+  if (hasSD) {
+    return { statusText: 'Recursar', reason: 'Sin derecho (SD)', maxPrediction };
   }
-  
-  // New Peligro de recursar: ponderado actual < 60 y predicción máxima < 80
+
+  // Con al menos un DA y predicción máxima < 70 (asumiendo 100 en futuras), se recursa.
+  if (hasDA && maxPrediction < 70) {
+    return { statusText: 'Recursar', reason: 'Pred. Máx < 70 con DA', maxPrediction };
+  }
+
+  // Predicción máxima < 50 (aun con 100 en actividades futuras) se recursa.
+  if (maxPrediction < 50) {
+    return { statusText: 'Recursar', reason: 'Predicción máxima < 50', maxPrediction };
+  }
+
+  // Peligro de recursar: ponderado actual < 60 y predicción máxima < 80
   if (ponderadoNumerico < 60 && maxPrediction < 80) {
     return { statusText: 'Peligro', reason: 'Ponderado < 60 y Pred. Máx < 80', maxPrediction };
   }
@@ -111,11 +121,8 @@ export function computeSubjectStatus(row, ponderations) {
     return { statusText: 'NE', reason: 'NE ≥ 80%', maxPrediction };
   }
 
-  // Window for extraordinario: between 50 and 69.9, only if has derecho (no SD, no DA)
+  // Extraordinario: predicción máxima entre 50 y 69.9. DA y SD ya recursaron antes.
   if (maxPrediction >= 50 && maxPrediction < 70) {
-    if (hasSD || hasDA || ponderadoNumerico < 50) {
-      return { statusText: 'Recursar', reason: 'Sin derecho a extraordinario', maxPrediction };
-    }
     return { statusText: 'Extraordinario', reason: 'Predicción máxima permite extraordinario', maxPrediction };
   }
 

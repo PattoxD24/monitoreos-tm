@@ -5,11 +5,15 @@ export default function ScriptsModal({ visible, onClose, scripts, setScripts }) 
   const [newScriptName, setNewScriptName] = useState("");
   const [newScriptContent, setNewScriptContent] = useState("");
   const [editingIndex, setEditingIndex] = useState(null);
+  const [nameSplitMode, setNameSplitMode] = useState("2surnames");
   const textAreaRef = useRef(null);
 
   const variableList = [
     { label: "Alumno", variable: "{{alumno}}" },
     { label: "Matricula", variable: "{{matricula}}" },
+    { label: "Nombre", variable: "{{nombre}}" },
+    { label: "Apellido Paterno", variable: "{{apellidoPaterno}}" },
+    { label: "Apellido Materno", variable: "{{apellidoMaterno}}" },
     { label: "NE", variable: "{{ne}}" },
     { label: "NP", variable: "{{np}}" },
     { label: "Ponderacion", variable: "{{ponderacion}}" },
@@ -37,6 +41,18 @@ export default function ScriptsModal({ visible, onClose, scripts, setScripts }) 
   useEffect(() => {
     localStorage.setItem('monitoreo-scripts', JSON.stringify(scripts));
   }, [scripts]);
+
+  // Load/save the name-split mode
+  useEffect(() => {
+    const savedMode = localStorage.getItem('monitoreo-name-split-mode');
+    if (savedMode === '1surname' || savedMode === '2surnames') {
+      setNameSplitMode(savedMode);
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('monitoreo-name-split-mode', nameSplitMode);
+  }, [nameSplitMode]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -97,7 +113,7 @@ export default function ScriptsModal({ visible, onClose, scripts, setScripts }) 
       <div className="bg-white p-6 rounded-lg shadow-lg w-4/5">
         <h2 className="text-xl text-gray-800 font-semibold mb-4">Scripts</h2>
         {/* Variable insertion buttons */}
-        <div className="flex gap-2 mb-4">
+        <div className="flex gap-2 mb-4 flex-wrap">
           {variableList.map(({ label, variable }) => (
             <button
               key={variable}
@@ -107,6 +123,17 @@ export default function ScriptsModal({ visible, onClose, scripts, setScripts }) 
               {label}
             </button>
           ))}
+        </div>
+        <div className="flex items-center gap-2 mb-4 text-sm text-gray-600">
+          <span>Separación de nombres (default):</span>
+          <select
+            value={nameSplitMode}
+            onChange={(e) => setNameSplitMode(e.target.value)}
+            className="border p-1 rounded"
+          >
+            <option value="2surnames">2 apellidos (estándar)</option>
+            <option value="1surname">1 apellido + nombres</option>
+          </select>
         </div>
         <div className="mb-4">
           <input

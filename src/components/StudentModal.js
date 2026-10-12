@@ -5,6 +5,8 @@ import html2canvas from "html2canvas";
 import ScriptsModal from "./ScriptsModal";
 
 import { getPonderationsForRow, getSubjectSemesterFromRow } from "@/Utils/subjectIdentity";
+import { splitFullName } from "@/Utils/nameSplit";
+import { computeSubjectStatus } from "@/Utils/predictions";
 
 export default function StudentModal({
   student,
@@ -39,6 +41,9 @@ export default function StudentModal({
   const [automaticGrades, setAutomaticGrades] = useState({});
   const [showAutomaticTable, setShowAutomaticTable] = useState(false);
   const [visibleScripts, setVisibleScripts] = useState({});
+  // Modo de separación de nombres: default global (ScriptsModal) + override por
+  // matrícula. Se resuelve al cambiar de alumno.
+  const [nameSplitMode, setNameSplitMode] = useState("2surnames");
   
   // Verificar si el estudiante tiene materias en situación crítica
   const hasCriticalSubjects = Array.isArray(student?.criticalSubjects) && student.criticalSubjects.length > 0;
@@ -284,10 +289,50 @@ export default function StudentModal({
     }
   }, [materias, selectedMateria, ponderationData, filteredData, student?.matricula]);
 
+  // Resolver el modo de separación de nombres al cambiar de alumno:
+  // el override por matrícula gana; si no existe, usa el default global.
+  useEffect(() => {
+    const matricula = student?.matricula;
+    if (!matricula) return;
+    try {
+      const overrides = JSON.parse(localStorage.getItem('monitoreo-name-split-overrides') || '{}');
+      if (overrides[matricula] === '1surname' || overrides[matricula] === '2surnames') {
+        setNameSplitMode(overrides[matricula]);
+        return;
+      }
+    } catch { /* ignore */ }
+    const globalMode = localStorage.getItem('monitoreo-name-split-mode');
+    setNameSplitMode(globalMode === '1surname' ? '1surname' : '2surnames');
+  }, [student?.matricula]);
+
+  const handleNameSplitModeChange = (mode) => {
+    setNameSplitMode(mode);
+    const matricula = student?.matricula;
+    if (!matricula) return;
+    try {
+      const overrides = JSON.parse(localStorage.getItem('monitoreo-name-split-overrides') || '{}');
+      overrides[matricula] = mode;
+      localStorage.setItem('monitoreo-name-split-overrides', JSON.stringify(overrides));
+    } catch { /* ignore */ }
+  };
+
   // const nombre = student.preferredName.toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
   const replaceVariables = (content) => {
     const nombre = student.preferredName.toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
     const matricula = student.matricula;
+    const nameOverride = student.nameFromColumns ? {
+      apellidoPaterno: student.apellidoPaterno,
+      apellidoMaterno: student.apellidoMaterno,
+      nombre: student.nombre,
+    } : null;
+    const { apellidoPaterno, apellidoMaterno, nombre: nombreCompleto } = splitFullName(student.fullName, nameSplitMode, nameOverride, student.monitoreoName);
+    const formatName = (value) => {
+      if (!value) return '';
+      return value.toLowerCase().replace(/(^\w|\s\w)/g, (c) => c.toUpperCase());
+    };
+    const nombreFormateado = formatName(nombreCompleto);
+    const apellidoPaternoFormateado = formatName(apellidoPaterno);
+    const apellidoMaternoFormateado = formatName(apellidoMaterno);
 
     const neMaterias = findMateriasWithLastColumnNE(filteredData[student.matricula]);
     const scMaterias = findMateriasWithLastColumnSC(filteredData[student.matricula]);
@@ -325,6 +370,9 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
     return content
       .replaceAll("{{alumno}}", nombre)
       .replaceAll("{{matricula}}", matricula)
+      .replaceAll("{{nombre}}", nombreFormateado)
+      .replaceAll("{{apellidoPaterno}}", apellidoPaternoFormateado)
+      .replaceAll("{{apellidoMaterno}}", apellidoMaternoFormateado)
       .replaceAll("{{ne}}", neMessage)
       .replaceAll("{{np}}", npMessage)
       .replaceAll("{{ponderacion}}", ponderacionMessage)
@@ -998,7 +1046,22 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
               {/* Sección de Scripts */}
               {scripts.length > 0 && (
               <div className="mt-8">
-                <h3 className="text-lg font-bold text-gray-800 mb-4">Scripts</h3>
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                  <h3 className="text-lg font-bold text-gray-800">Scripts</h3>
+                  {!student?.nameFromColumns && (
+                    <label className="flex items-center gap-2 text-sm text-gray-600">
+                      <span>Separación de nombres:</span>
+                      <select
+                        value={nameSplitMode}
+                        onChange={(e) => handleNameSplitModeChange(e.target.value)}
+                        className="border p-1 rounded text-gray-700"
+                      >
+                        <option value="2surnames">2 apellidos (estándar)</option>
+                        <option value="1surname">1 apellido + nombres</option>
+                      </select>
+                    </label>
+                  )}
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {scripts.map((script, index) => (
                     <div
@@ -1057,39 +1120,27 @@ Recuerda que es muy importante cuidar el número de faltas asignadas a cada mate
                   </thead>
                   <tbody>
                     {(student.criticalSubjects || []).map((subject, index) => {
-                      // Verificar si hay NP primero
+                      // Buscar la fila completa del alumno para este materia (incluye columnas de actividades A*)
+                      const fullRow = (filteredData[student.matricula] || []).find(
+                        (r) => r["Nombre de la materia"] === subject["Nombre de la materia"]
+                      ) || subject;
+
+                      // Calcular status con el mismo motor de predicción
+                      const status = computeSubjectStatus(fullRow, getPonderationsForRow(fullRow, ponderationData));
+
+                      // Verificar si hay NP primero (prioridad más alta)
                       const hasNP = subject["Ponderado"] === "NP";
-                      
-                      // Cálculo de status para cada materia
                       const ponderado = hasNP ? 0 : parseFloat(subject["Ponderado"]) || 0;
-                      let statusText = "Peligro";
-                      let statusColor = "bg-yellow-500";
-                      
-                      // Verificar NP primero (prioridad más alta)
-                      if (hasNP) {
-                        statusText = "NP";
-                        statusColor = "bg-purple-500";
-                      } else {
-                        // Cálculo de porcentajes para otros casos
-                        const faltasAlumno = parseInt(subject["Faltas del alumno"]) || 0;
-                        const limiteFaltas = parseInt(subject["Límite de faltas"]) || 1;
-                        const porcentajeFaltas = ((faltasAlumno / limiteFaltas) * 100).toFixed(1);
-                        
-                        const neAlumno = parseInt(subject["NE alumno"]) || 0;
-                        const limiteNE = parseInt(subject["Límite de NE"]) || 1;
-                        const porcentajeNE = ((neAlumno / limiteNE) * 100).toFixed(1);
-                        
-                        const faltasValue = parseFloat(porcentajeFaltas);
-                        const neValue = parseFloat(porcentajeNE);
-                        
-                        if ((faltasValue > 100 || neValue > 100) || ponderado < 50) {
-                          statusText = "Recursar";
-                          statusColor = "bg-red-500";
-                        } else if ((faltasValue >= 80 || neValue >= 80) || (ponderado < 70)) {
-                          statusText = "Peligro";
-                          statusColor = "bg-yellow-500";
-                        }
-                      }
+                      let statusText = status.statusText;
+                      let statusColor = "bg-blue-500";
+
+                      if (statusText === "Recursar") statusColor = "bg-red-500";
+                      else if (statusText === "Peligro") statusColor = "bg-yellow-500";
+                      else if (statusText === "NP") statusColor = "bg-purple-500";
+                      else if (statusText === "Extraordinario") statusColor = "bg-orange-500";
+                      else if (statusText === "Faltas") statusColor = "bg-pink-500";
+                      else if (statusText === "NE") statusColor = "bg-indigo-500";
+                      else if (statusText === "Bajo promedio") statusColor = "bg-blue-500";
                       
                       // Recalcular porcentajes para la visualización (aunque sea NP)
                       const faltasAlumno = parseInt(subject["Faltas del alumno"]) || 0;

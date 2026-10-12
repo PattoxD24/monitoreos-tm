@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import * as XLSX from "xlsx";
 import { idbGet, idbSet, idbRemove } from "@/lib/storage";
+import { splitFullName, detectNameColumns } from "@/Utils/nameSplit";
 
 const STORAGE_KEY = "studentAppData";
 
@@ -59,7 +60,26 @@ export default function useStudentData(defaultVisibleColumns) {
             Object.keys(parsedData.filteredData || {}).includes(student.matricula)
           );
 
-          setStudentData(validStudentData);
+          // Mapa de nombres desde el monitoreo (ya persiste en filteredData) para
+          // el cruce que reduce ambigüedad al reconstruir los campos de nombre.
+          const monitoreoNameMap = Object.keys(parsedData.filteredData || {}).reduce((acc, matricula) => {
+            const rows = parsedData.filteredData[matricula] || [];
+            const rowWithName = rows.find(r => r && r['Nombre del alumno'] && String(r['Nombre del alumno']).trim() !== '');
+            if (rowWithName) acc[matricula] = rowWithName['Nombre del alumno'];
+            return acc;
+          }, {});
+
+          // Re-backfill de campos de nombre (compatibilidad con datos ya guardados
+          // que no incluyen apellidoPaterno/apellidoMaterno/nombre). Se recalcula
+          // siempre para reflejar la heurística/cruce actual, salvo que el archivo
+          // Base haya exportado columnas separadas de nombre.
+          const enrichedStudentData = validStudentData.map(student => {
+            if (student.nameFromColumns) return student;
+            const parts = splitFullName(student.fullName, '2surnames', null, monitoreoNameMap[student.matricula] || null);
+            return { ...student, ...parts, monitoreoName: monitoreoNameMap[student.matricula] || student.monitoreoName || null };
+          });
+
+          setStudentData(enrichedStudentData);
           setArchivedStudents(parsedData.archivedStudents || []);
           setFilteredData(parsedData.filteredData || {});
           const loadedColumns = parsedData.columns || [];
@@ -224,6 +244,17 @@ export default function useStudentData(defaultVisibleColumns) {
       const matriculas = new Set(data1.map((row) => row.MATRICULA));
       const filtered = data2.filter((row) => matriculas.has(row.Matrícula));
 
+      // Mapa de nombres de la fuente "Monitoreos" (apellidos primero) por
+      // matrícula, para el cruce que reduce ambigüedad en la separación.
+      const monitoreoNameMap = filtered.reduce((acc, row) => {
+        const matricula = row.Matrícula;
+        const name = row['Nombre del alumno'];
+        if (name && typeof name === 'string' && name.trim() !== '' && !acc[matricula]) {
+          acc[matricula] = name;
+        }
+        return acc;
+      }, {});
+
       // Agrupar información de actividades por estudiante
       const groupedData = filtered.reduce((acc, row) => {
         const matricula = row.Matrícula;
@@ -246,16 +277,27 @@ export default function useStudentData(defaultVisibleColumns) {
       });
 
       // mapeo original de studentData
+      // Si el archivo Base ya exporta columnas separadas de nombre, usarlas;
+      // si no, la heurística de splitFullName hace la separación.
+      const nameOverride = detectNameColumns(data1[0] || {});
+
       const studentData = data1.map((row) => {
         if (!row?.MATRICULA || !row?.ALUMNOS) {
           console.warn("Fila de datos incompleta, se omite:", row);
           return {}; // No null/undefined; se filtrará después
         }
         const claveTutor = row['clave tutor'] || row['CLAVE TUTOR'] || row['Clave tutor'] || row['Clave Tutor'];
+        const monitoreoName = monitoreoNameMap[row.MATRICULA] || null;
+        const nombreParts = splitFullName(row.ALUMNOS, '2surnames', nameOverride, monitoreoName);
         return {
           matricula: row.MATRICULA,
           fullName: row.ALUMNOS,
+          monitoreoName,
           preferredName: (row.ALUMNOS.split(" ")[parseInt(row.favName, 10) - 1] || row.ALUMNOS)?.toUpperCase(),
+          apellidoPaterno: nombreParts.apellidoPaterno,
+          apellidoMaterno: nombreParts.apellidoMaterno,
+          nombre: nombreParts.nombre,
+          nameFromColumns: !!nameOverride,
           beca: row.BECA || row.Beca || null,
             equipoRepresentativo: row["EQUIPO REPRESENTATIVO"] || row["Equipo Representativa"] || null,
           tutorClave: claveTutor || null,
